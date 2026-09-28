@@ -24,7 +24,7 @@ describe('Slack connector end to end', () => {
     const connection = await container.connectionService.create({
       kind: ConnectorKind.Slack,
       name: 'Work Slack',
-      config: { watchChannels: 'CWATCH' },
+      config: { watchChannels: '#releases' },
       secrets: { userToken: 'xoxp-test', appToken: 'xapp-test' },
     });
 

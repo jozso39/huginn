@@ -111,6 +111,36 @@ export class SlackClient implements ISlackClient {
     return lookup;
   }
 
+  public async myChannels(): Promise<readonly SlackChannelInfo[]> {
+    const collect = async (
+      cursor: string | undefined,
+      acc: readonly SlackChannelInfo[]
+    ): Promise<readonly SlackChannelInfo[]> => {
+      const page = await this.call(() =>
+        this.web.users.conversations({
+          types: 'public_channel,private_channel',
+          exclude_archived: true,
+          limit: 1000,
+          cursor,
+        })
+      );
+      const channels = [
+        ...acc,
+        ...(page.channels ?? []).map((channel) => ({
+          id: channel.id ?? '',
+          name: channel.name ?? channel.id ?? '',
+          isIm: false,
+          isMpim: false,
+        })),
+      ];
+      const next = page.response_metadata?.next_cursor;
+
+      return next ? collect(next, channels) : channels;
+    };
+
+    return collect(undefined, []);
+  }
+
   public async postMessage(
     channel: string,
     text: string,

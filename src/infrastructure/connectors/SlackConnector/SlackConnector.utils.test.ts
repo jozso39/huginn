@@ -1,14 +1,17 @@
 import { describe, expect, test } from 'bun:test';
 import type { SlackMessageEvent } from '@/core/clients/SlackClient/SlackClient.types';
 import { ItemKind } from '@/core/items/Item.types';
+import { SlackChannelScope } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
 import {
   SlackRelevance,
   classify,
   itemKindFor,
   normalizeEvent,
+  parseChannelList,
   permalink,
   referencedUserIds,
+  resolveChannels,
   replyThreadTs,
   threadKeyOf,
   toPlainText,
@@ -17,7 +20,9 @@ import {
 const ctx: RelevanceContext = {
   me: 'UME',
   myGroupIds: new Set(['SBACKEND']),
+  channelScope: SlackChannelScope.AddressedToMe,
   watchedChannels: new Set(['CWATCH']),
+  ignoredChannels: new Set(['CRANDOM']),
   myThreads: new Set(['CGEN:1700000000.000100']),
 };
 
@@ -54,8 +59,40 @@ describe('classify', () => {
     expect(classify(message({ thread_ts: '1700000000.000100' }), ctx)).toBe(
       SlackRelevance.ThreadReply
     );
-    expect(classify(message({ channel: 'CWATCH' }), ctx)).toBe(SlackRelevance.WatchedChannel);
+    expect(classify(message({ channel: 'CWATCH' }), ctx)).toBe(SlackRelevance.ChannelMessage);
     expect(classify(message({ thread_ts: '1600000000.000001' }), ctx)).toBe(SlackRelevance.Ignore);
+  });
+});
+
+describe('all-my-channels scope', () => {
+  const all = { ...ctx, channelScope: SlackChannelScope.AllMyChannels };
+
+  test('keeps every channel except the ignored ones', () => {
+    expect(classify(message({ channel: 'CGEN' }), all)).toBe(SlackRelevance.ChannelMessage);
+    expect(classify(message({ channel: 'CRANDOM' }), all)).toBe(SlackRelevance.Ignore);
+  });
+
+  test('a mention still gets through an ignored channel, like a muted one in Slack', () => {
+    expect(classify(message({ channel: 'CRANDOM', text: 'hey <@UME>' }), all)).toBe(
+      SlackRelevance.Mention
+    );
+  });
+});
+
+describe('channel lists', () => {
+  const channels = [
+    { id: 'CGEN0001', name: 'general', isIm: false, isMpim: false },
+    { id: 'CREL0001', name: 'Releases', isIm: false, isMpim: false },
+  ];
+
+  test('accepts #names, bare names and IDs, and reports what it cannot find', () => {
+    const resolved = resolveChannels(
+      parseChannelList(' #general, releases ,C084MR7P2UR, #nope,, '),
+      channels
+    );
+
+    expect([...resolved.ids].sort()).toEqual(['C084MR7P2UR', 'CGEN0001', 'CREL0001']);
+    expect(resolved.unknown).toEqual(['#nope']);
   });
 });
 

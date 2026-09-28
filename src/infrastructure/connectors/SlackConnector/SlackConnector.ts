@@ -5,7 +5,7 @@ import type {
   SlackMessageEvent,
 } from '@/core/clients/SlackClient/SlackClient.types';
 import type { Connection } from '@/core/connections/Connection.types';
-import { ConnectorKind } from '@/core/connections/Connection.types';
+import { ConnectionStatus, ConnectorKind } from '@/core/connections/Connection.types';
 import type {
   ActionResult,
   ConnectorCapabilities,
@@ -14,6 +14,8 @@ import type {
 } from '@/core/connectors/Connector.types';
 import { toError } from '@/core/errors/errors';
 import type { Item } from '@/core/items/Item.types';
+import type { SlackChannelSettings } from './SlackConnector.types';
+import { SlackChannelScope } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
 import {
   SlackRelevance,
@@ -23,6 +25,7 @@ import {
   normalizeEvent,
   permalink,
   referencedUserIds,
+  resolveChannels,
   replyThreadTs,
   threadKeyOf,
   toPlainText,
@@ -58,7 +61,7 @@ export class SlackConnector implements IConnector {
     private readonly logger: Logger,
     private readonly connection: Connection,
     private readonly client: ISlackClient,
-    private readonly watchedChannels: ReadonlySet<string>,
+    private readonly channels: SlackChannelSettings,
     private readonly maxBodyChars: number
   ) {}
 
@@ -68,20 +71,35 @@ export class SlackConnector implements IConnector {
 
     const cursor = ctx.getCursor() as SlackCursor;
 
-    const groups = await this.client.myUserGroups(this.identity.userId);
+    const [groups, myChannels] = await Promise.all([
+      this.client.myUserGroups(this.identity.userId),
+      // Only needed to turn "#name" into an ID; skipped when nothing is listed.
+      this.channels.watch.length + this.channels.ignore.length > 0
+        ? this.client.myChannels()
+        : Promise.resolve([]),
+    ]);
+    const watched = resolveChannels(this.channels.watch, myChannels);
+    const ignored = resolveChannels(this.channels.ignore, myChannels);
+    const unknown = [...watched.unknown, ...ignored.unknown];
 
     this.myThreads = cursor.myThreads ?? [];
     this.groupHandles = new Map(groups.map((group) => [group.id, group.handle]));
     this.relevance = {
       me: this.identity.userId,
       myGroupIds: new Set(groups.map((group) => group.id)),
-      watchedChannels: this.watchedChannels,
+      channelScope: this.channels.scope,
+      watchedChannels: watched.ids,
+      ignoredChannels: ignored.ids,
       myThreads: new Set(this.myThreads),
     };
 
     await this.client.listen((event) => {
       this.queue = this.queue.then(() => this.handle(event));
     });
+
+    if (unknown.length > 0) {
+      await ctx.report(ConnectionStatus.Running, `Not a channel you are in: ${unknown.join(', ')}`);
+    }
   }
 
   public async stop(): Promise<void> {
@@ -199,6 +217,7 @@ export class SlackConnector implements IConnector {
         isPersonalMention: text.includes(`<@${relevance.me}>`),
         isThreadReply: Boolean(event.thread_ts && event.thread_ts !== event.ts),
         isWatchedChannel: relevance.watchedChannels.has(event.channel),
+        allChannelsScope: relevance.channelScope === SlackChannelScope.AllMyChannels,
         mentionsEveryone: /<!(here|channel|everyone)/.test(text),
         hasFiles: files !== '',
       },

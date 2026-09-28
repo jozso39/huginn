@@ -21,7 +21,8 @@ export class ConnectionService implements IConnectionService {
     return this.factories.map((factory) => ({
       kind: factory.kind,
       label: factory.label,
-      configSchema: z.toJSONSchema(factory.configSchema),
+      // Input side: a field with a default is optional to fill in, not required.
+      configSchema: z.toJSONSchema(factory.configSchema, { io: 'input' }),
       secretFields: factory.secretFields,
     }));
   }

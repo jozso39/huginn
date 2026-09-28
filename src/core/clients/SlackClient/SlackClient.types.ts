@@ -53,6 +53,8 @@ export interface ISlackClient {
   myUserGroups(userId: string): Promise<readonly SlackUserGroup[]>;
   userName(userId: string): Promise<string>;
   channelInfo(channelId: string): Promise<SlackChannelInfo>;
+  /** Public and private channels the user is a member of (not DMs). */
+  myChannels(): Promise<readonly SlackChannelInfo[]>;
   postMessage(channel: string, text: string, threadTs?: string): Promise<SlackPostedMessage>;
   addReaction(channel: string, ts: string, emoji: string): Promise<void>;
   listen(onMessage: SlackMessageHandler): Promise<void>;

@@ -69,6 +69,11 @@ export interface JsonSchemaProperty {
   title?: string;
   description?: string;
   format?: string;
+  default?: unknown;
+  /** A choice: rendered as a dropdown. */
+  enum?: string[];
+  /** Huginn extension: human labels for `enum` values. */
+  optionLabels?: Record<string, string>;
 }
 
 export interface ConnectorDescriptor {

@@ -25,6 +25,16 @@ describe('ConnectionService', () => {
     expect(gitlab?.configSchema).toMatchObject({ type: 'object' });
   });
 
+  test('fields with a default are optional in the form', () => {
+    const slack = container.connectionService
+      .describeConnectors()
+      .find((descriptor) => descriptor.kind === ConnectorKind.Slack);
+    const schema = slack?.configSchema as { required?: string[]; properties: object };
+
+    expect(schema.required ?? []).not.toContain('watchChannels');
+    expect(Object.keys(schema.properties)).toContain('channelScope');
+  });
+
   test('rejects a connection with invalid config or missing secrets', async () => {
     await expect(
       container.connectionService.create({

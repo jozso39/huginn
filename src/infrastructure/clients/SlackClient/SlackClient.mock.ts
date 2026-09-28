@@ -54,6 +54,14 @@ export class MockSlackClient implements ISlackClient {
     });
   }
 
+  public myChannels(): Promise<readonly SlackChannelInfo[]> {
+    return Promise.resolve([
+      { id: 'CGEN', name: 'general', isIm: false, isMpim: false },
+      { id: 'CWATCH', name: 'releases', isIm: false, isMpim: false },
+      { id: 'CRANDOM', name: 'random', isIm: false, isMpim: false },
+    ]);
+  }
+
   public postMessage(
     channel: string,
     _text: string,

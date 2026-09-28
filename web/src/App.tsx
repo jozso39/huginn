@@ -40,7 +40,7 @@ export const App = () => {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <img src="/raven.svg" alt="" width={28} height={28} />
+          <img src="/logo.png" alt="" width={30} height={30} />
           <span>Huginn</span>
         </div>
         <nav className="tabs">

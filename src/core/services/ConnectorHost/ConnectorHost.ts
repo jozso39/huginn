@@ -109,11 +109,19 @@ export class ConnectorHost implements IConnectorHost {
     const generation = ++this.generation;
 
     this.running.set(connection.id, { connector, generation });
+    // Idle while starting, so anything the connector reports during start() (a
+    // warning about its settings, say) is still there afterwards.
+    await this.setStatus(connection.id, ConnectionStatus.Idle, null);
 
     try {
       await connector.start(this.contextFor(connection, secrets));
       this.failures.delete(connection.id);
-      await this.setStatus(connection.id, ConnectionStatus.Running, null);
+
+      const reported = await this.connectionStore.get(connection.id);
+
+      if (reported?.status !== ConnectionStatus.Running) {
+        await this.setStatus(connection.id, ConnectionStatus.Running, null);
+      }
     } catch (error) {
       // A start failure is usually a bad token or the provider being down. Both
       // deserve a retry, but with a growing gap so we never look like abuse.

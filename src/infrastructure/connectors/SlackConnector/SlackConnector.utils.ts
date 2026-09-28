@@ -1,5 +1,9 @@
-import type { SlackMessageEvent } from '@/core/clients/SlackClient/SlackClient.types';
+import type {
+  SlackChannelInfo,
+  SlackMessageEvent,
+} from '@/core/clients/SlackClient/SlackClient.types';
 import { ItemKind } from '@/core/items/Item.types';
+import { SlackChannelScope } from './SlackConnector.types';
 
 /** Subtypes that are real messages from a person or bot. Everything else is noise. */
 const CONTENT_SUBTYPES = new Set([
@@ -13,7 +17,11 @@ const CONTENT_SUBTYPES = new Set([
 export interface RelevanceContext {
   readonly me: string;
   readonly myGroupIds: ReadonlySet<string>;
+  readonly channelScope: SlackChannelScope;
+  /** Channel IDs; only consulted in AddressedToMe scope. */
   readonly watchedChannels: ReadonlySet<string>;
+  /** Channel IDs; only consulted in AllMyChannels scope. */
+  readonly ignoredChannels: ReadonlySet<string>;
   /** `channel:thread_ts` of threads the user wrote in. */
   readonly myThreads: ReadonlySet<string>;
 }
@@ -24,7 +32,7 @@ export enum SlackRelevance {
   DirectMessage = 'DirectMessage',
   Mention = 'Mention',
   ThreadReply = 'ThreadReply',
-  WatchedChannel = 'WatchedChannel',
+  ChannelMessage = 'ChannelMessage',
   Ignore = 'Ignore',
 }
 
@@ -75,11 +83,49 @@ export const classify = (event: SlackMessageEvent, ctx: RelevanceContext): Slack
     return SlackRelevance.ThreadReply;
   }
 
-  if (ctx.watchedChannels.has(event.channel)) {
-    return SlackRelevance.WatchedChannel;
-  }
+  // Mentions and my threads came first on purpose: like Slack's own mute, ignoring a
+  // channel silences its chatter, not someone asking me something directly.
+  const channelWanted =
+    ctx.channelScope === SlackChannelScope.AllMyChannels
+      ? !ctx.ignoredChannels.has(event.channel)
+      : ctx.watchedChannels.has(event.channel);
 
-  return SlackRelevance.Ignore;
+  return channelWanted ? SlackRelevance.ChannelMessage : SlackRelevance.Ignore;
+};
+
+const CHANNEL_ID = /^[CG][A-Z0-9]{6,}$/;
+
+/** "a, #b, C0123ABCD" → the raw entries, trimmed. */
+export const parseChannelList = (value: string): string[] =>
+  value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== '');
+
+export interface ResolvedChannels {
+  readonly ids: ReadonlySet<string>;
+  /** Entries that matched no channel the user is in; worth telling them about. */
+  readonly unknown: readonly string[];
+}
+
+/** Maps `#name`, `name` or an ID onto channel IDs, case-insensitively for names. */
+export const resolveChannels = (
+  entries: readonly string[],
+  channels: readonly SlackChannelInfo[]
+): ResolvedChannels => {
+  const byName = new Map(channels.map((channel) => [channel.name.toLowerCase(), channel.id]));
+  const resolved = entries.map((entry) => {
+    if (CHANNEL_ID.test(entry)) {
+      return { entry, id: entry };
+    }
+
+    return { entry, id: byName.get(entry.replace(/^#/, '').toLowerCase()) };
+  });
+
+  return {
+    ids: new Set(resolved.flatMap((r) => (r.id ? [r.id] : []))),
+    unknown: resolved.filter((r) => !r.id).map((r) => r.entry),
+  };
 };
 
 export const itemKindFor = (relevance: SlackRelevance): ItemKind => {

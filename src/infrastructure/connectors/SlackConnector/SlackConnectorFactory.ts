@@ -7,11 +7,31 @@ import { ConnectorKind } from '@/core/connections/Connection.types';
 import type { IConnector, IConnectorFactory, SecretField } from '@/core/connectors/Connector.types';
 import { SlackClient } from '@/infrastructure/clients/SlackClient/SlackClient';
 import { SlackConnector } from './SlackConnector';
+import { SlackChannelScope } from './SlackConnector.types';
+import { parseChannelList } from './SlackConnector.utils';
 
+// DMs, mentions and replies in your threads always come in; these settings decide
+// which *other* channel messages do.
 export const slackConfigSchema = z.object({
+  channelScope: z
+    .enum(SlackChannelScope)
+    .default(SlackChannelScope.AddressedToMe)
+    .meta({
+      title: 'Channel messages',
+      description:
+        'Besides DMs, mentions and your threads: nothing else, or every channel you are in.',
+      optionLabels: {
+        [SlackChannelScope.AddressedToMe]: 'Only what is addressed to me',
+        [SlackChannelScope.AllMyChannels]: 'Everything in channels I am in',
+      },
+    }),
   watchChannels: z.string().default('').meta({
-    title: 'Also watch channels',
-    description: 'Channel IDs, comma-separated (optional) — every message there comes in',
+    title: 'Also watch',
+    description: '#general, #releases — used with "Only what is addressed to me"',
+  }),
+  ignoreChannels: z.string().default('').meta({
+    title: 'Ignore',
+    description: '#random, #lunch — used with "Everything"; mentions still come through',
   }),
 });
 
@@ -42,19 +62,17 @@ export class SlackConnectorFactory implements IConnectorFactory {
   ) {}
 
   public create(connection: Connection, secrets: Secrets): IConnector {
-    const { watchChannels } = slackConfigSchema.parse(connection.config);
-    const watched = new Set(
-      watchChannels
-        .split(',')
-        .map((id) => id.trim())
-        .filter((id) => id !== '')
-    );
+    const parsed = slackConfigSchema.parse(connection.config);
 
     return new SlackConnector(
       this.logger,
       connection,
       this.createClient(secrets.userToken ?? '', secrets.appToken ?? ''),
-      watched,
+      {
+        scope: parsed.channelScope,
+        watch: parseChannelList(parsed.watchChannels),
+        ignore: parseChannelList(parsed.ignoreChannels),
+      },
       this.config.maxBodyChars
     );
   }

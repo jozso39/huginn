@@ -59,18 +59,35 @@ settings:
 
 ## 3. Add the connection in Huginn
 
-**Connections → Add a connection → Slack**, paste both tokens. Optionally list channel
-IDs to watch in full (right-click a channel → *View channel details* → the ID at the
-bottom). The status turns **Running** once the socket is connected.
+**Connections → Add a connection → Slack**, paste both tokens, pick what channel
+messages you want (below). The status turns **Running** once the socket is connected.
+Everything except the tokens can be changed later with **Edit**.
 
 ## What comes in
+
+Always, whatever you choose:
 
 | Comes in | As |
 |---|---|
 | Direct messages and group DMs | Direct message |
 | `@you` or `@a-group-you-are-in` anywhere | Mention |
 | Replies in threads you wrote in (or replied to from Huginn) | Message |
-| Everything in the channels you chose to watch | Message |
+
+On top of that, **Channel messages**:
+
+- **Only what is addressed to me** (default) — nothing else, plus the channels you list
+  under *Also watch*.
+- **Everything in channels I am in** — every message in every channel you are a member
+  of, except the ones under *Ignore*. Until triage exists (roadmap step 2) all of it
+  lands in the inbox, so expect volume.
+
+Channel lists take names or IDs, comma-separated: `#general, releases, C084MR7P2UR`.
+A name that matches no channel you are in shows as a warning on the connection.
+
+**Why not "everything I have not muted"?** Slack does not tell apps what you muted: the
+preferences API needs a legacy `read` scope that newly created apps cannot get (checked
+2026-09-28, `users.prefs.get` → `missing_scope`). *Ignore* is the stand-in for your mute
+list. Like a Slack mute, it does not silence a direct @mention.
 
 Your own messages close the conversation in Huginn — answer in Slack and the item
 disappears here too.

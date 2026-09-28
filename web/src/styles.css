@@ -470,10 +470,6 @@ kbd {
 }
 
 .connection {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -511,6 +507,40 @@ kbd {
 
 .status--disabled {
   color: var(--muted);
+}
+
+.connection__row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.connection .connection-form {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.connection-form {
+  display: grid;
+  gap: 12px;
+}
+
+.connection-form label,
+.add-connection > label {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.warn {
+  color: var(--warn);
 }
 
 .add-connection {
