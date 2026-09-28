@@ -1,0 +1,4 @@
+[test]
+# Tests never touch the real database: every test builds its own in-memory SQLite
+# through createTestContainer(). This env file keeps a stray .env from leaking in.
+env = ".env.test"

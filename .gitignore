@@ -1,0 +1,16 @@
+node_modules/
+dist/
+web/dist/
+coverage/
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+.DS_Store
+!.env.test
+.claude/

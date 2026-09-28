@@ -1,0 +1,2 @@
+echo "pre-push: lint + format + type-check + tests…"
+bun run code:check && bun run test
