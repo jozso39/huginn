@@ -10,6 +10,7 @@ import { InboxService } from '@/core/services/InboxService/InboxService';
 import { OAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService';
 import { GoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
+import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { IngestConnectorFactory } from '@/infrastructure/connectors/IngestConnector/IngestConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
@@ -55,6 +56,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     new GitLabConnectorFactory(logger, config),
     new SlackConnectorFactory(logger, config),
     new GmailConnectorFactory(logger, config, new GoogleOAuthClient(15_000)),
+    new ClickUpConnectorFactory(logger, config),
     new IngestConnectorFactory(),
   ];
 

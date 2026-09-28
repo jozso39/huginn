@@ -2,13 +2,16 @@ import pino from 'pino';
 import type { IConfig } from '@/lib/config';
 import { createConfig } from '@/lib/config';
 import type { Logger } from '@/lib/logger';
+import type { IClickUpClient } from '@/core/clients/ClickUpClient/ClickUpClient.types';
 import type { IGmailClient } from '@/core/clients/GmailClient/GmailClient.types';
 import type { ISlackClient } from '@/core/clients/SlackClient/SlackClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
+import { MockClickUpClient } from '@/infrastructure/clients/ClickUpClient/ClickUpClient.mock';
 import { MockGitLabClient } from '@/infrastructure/clients/GitLabClient/GitLabClient.mock';
 import { MockGmailClient } from '@/infrastructure/clients/GmailClient/GmailClient.mock';
 import { MockGoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient.mock';
 import { MockSlackClient } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
+import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { IngestConnectorFactory } from '@/infrastructure/connectors/IngestConnector/IngestConnectorFactory';
@@ -24,6 +27,8 @@ export interface CreateTestContainerOptions {
   readonly slackClient?: ISlackClient;
   /** Same for Gmail. */
   readonly gmailClient?: IGmailClient;
+  /** Same for ClickUp. */
+  readonly clickUpClient?: IClickUpClient;
 }
 
 const createTestConfig = (): IConfig => ({
@@ -37,6 +42,7 @@ const createTestConfig = (): IConfig => ({
     // Long enough that no interval fires during a test.
     gitlabPollMs: 60 * 60 * 1000,
     gmailPollMs: 60 * 60 * 1000,
+    clickUpPollMs: 60 * 60 * 1000,
     restartBackoffMs: [60 * 60 * 1000],
   },
 });
@@ -60,6 +66,11 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
         config,
         new MockGoogleOAuthClient(),
         () => options.gmailClient ?? new MockGmailClient()
+      ),
+      new ClickUpConnectorFactory(
+        logger,
+        config,
+        () => options.clickUpClient ?? new MockClickUpClient()
       ),
       new IngestConnectorFactory(),
     ],

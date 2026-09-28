@@ -19,6 +19,8 @@ export const createConfig = () => {
       // Gmail allows 250 quota units per second per user; one history call a
       // minute is about 2 of them. A minute is plenty for mail.
       gmailPollMs: 60_000,
+      // ClickUp: 100 requests/min per token; a minute's poll uses a handful.
+      clickUpPollMs: 60_000,
       // A connector that crashes is restarted with this backoff so a dead
       // token does not hammer the provider.
       restartBackoffMs: [5_000, 30_000, 120_000, 600_000],

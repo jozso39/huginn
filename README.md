@@ -27,6 +27,8 @@ built in the open and will become configurable for anyone once the shape settles
   - **Gmail** (any number of mailboxes, added with *Sign in with Google*) — unread
     inbox mail; reply in-thread, save as draft, done marks read; reading or answering
     in Gmail clears it here. Setup: [docs/gmail.md](docs/gmail.md).
+  - **ClickUp** — tasks newly assigned to you and new comments on your tasks (mentions
+    flagged); reply in the comment's thread. Setup: [docs/clickup.md](docs/clickup.md).
   - **GitLab** — todos (review requests, mentions, assignments); done marks the todo done.
   - **Ingest API** anything can post to (`POST /api/items` with `X-Huginn-Key`).
 - Works in laptop and phone browsers; on a phone, *Add to Home Screen* gives it its
@@ -36,7 +38,7 @@ built in the open and will become configurable for anyone once the shape settles
 ## Roadmap
 
 1. **More connectors** — LinkedIn (from its notification e-mails in Gmail),
-   ClickUp (polling; it has no notifications API), Signal (linked device).
+   Signal (linked device).
 2. **Triage** — every item lands in *Important*, *Undecided* or *Spam*, decided by
    per-connection **rules** that are traceable: each verdict names the rule that made it.
    *Hard* rules are predicates on metadata, evaluated in code. *Soft* rules are one-line
