@@ -4,7 +4,7 @@ import type { Connection, ConnectorDescriptor } from '../api.types';
 import { CONNECTOR_META, relativeTime } from '../connectorMeta';
 import type { ConnectionFormValues } from './ConnectionForm';
 import { ConnectionForm } from './ConnectionForm';
-import { SignInPanel } from './SignInPanel';
+import { SignInConnect, startSignIn } from './SignInConnect';
 
 interface ConnectionsViewProps {
   connections: Connection[];
@@ -133,8 +133,16 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
                   </button>
                 </div>
               </div>
-              {descriptor?.signIn && connection.enabled && (
-                <SignInPanel connection={connection} onSignedIn={onChanged} />
+              {descriptor?.signInProvider && connection.status === 'NeedsAuth' && (
+                <div className="sign-in">
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => void startSignIn({ connectionId: connection.id }, setError)}
+                  >
+                    Sign in with {descriptor.signInProvider}
+                  </button>
+                </div>
               )}
               {descriptor && editing === connection.id && (
                 <ConnectionForm
@@ -164,7 +172,13 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
             ))}
           </select>
         </label>
-        {newDescriptor && (
+        {newDescriptor?.signInProvider && (
+          <SignInConnect
+            key={newDescriptor.kind}
+            descriptor={{ ...newDescriptor, signInProvider: newDescriptor.signInProvider }}
+          />
+        )}
+        {newDescriptor && !newDescriptor.signInProvider && (
           // Keyed by kind so switching type starts a fresh form with that type's defaults.
           <ConnectionForm
             key={newDescriptor.kind}

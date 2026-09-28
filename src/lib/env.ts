@@ -9,6 +9,9 @@ const envSchema = z.object({
   // Where the browser reaches Huginn, e.g. https://pi.tail3fa1f4.ts.net:8443. Only
   // needed for OAuth providers that redirect straight back (a Google "Web" client).
   HUGINN_PUBLIC_URL: z.url().optional(),
+  // A static page on a domain Google already trusts that forwards sign-ins back to
+  // HUGINN_PUBLIC_URL (see docs/oauth-relay.html). Optional.
+  HUGINN_OAUTH_RELAY_URL: z.url().optional(),
   PORT: z.coerce.number().int().min(0).default(3000),
   LOG_LEVEL: z.enum(['silent', 'debug', 'info', 'warn', 'error']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

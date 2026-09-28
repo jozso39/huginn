@@ -1,9 +1,6 @@
 import type { Connection, ConnectorKind, NewConnection } from '@/core/connections/Connection.types';
-import type {
-  AuthorizationMode,
-  ConnectorCapabilities,
-  SecretField,
-} from '@/core/connectors/Connector.types';
+import type { ConnectorCapabilities, SecretField } from '@/core/connectors/Connector.types';
+import type { OAuthProvider } from '@/core/oauth/OAuthApp.types';
 
 /** What the "add connection" form needs to render one connector kind. */
 export interface ConnectorDescriptor {
@@ -13,14 +10,17 @@ export interface ConnectorDescriptor {
   readonly configSchema: unknown;
   readonly secretFields: readonly SecretField[];
   readonly capabilities: ConnectorCapabilities;
-  /** True when connections of this kind need an interactive sign-in. */
-  readonly signIn: boolean;
+  /** Set when connections of this kind are created by signing in, not by a form. */
+  readonly signInProvider: OAuthProvider | null;
 }
 
 export interface SignInStart {
+  /** The provider page to send the browser to. */
   readonly url: string;
-  readonly mode: AuthorizationMode;
 }
+
+/** Sign in a new account of a kind, or an existing connection again. */
+export type SignInTarget = { readonly kind: ConnectorKind } | { readonly connectionId: string };
 
 export interface IConnectionService {
   describeConnectors(): readonly ConnectorDescriptor[];
@@ -32,11 +32,10 @@ export interface IConnectionService {
   updateSecrets(id: string, secrets: Readonly<Record<string, string>>): Promise<void>;
   setEnabled(id: string, enabled: boolean): Promise<Connection>;
   remove(id: string): Promise<void>;
-  /** The provider URL to send the user to. */
-  beginSignIn(id: string): Promise<SignInStart>;
+  beginSignIn(target: SignInTarget): Promise<SignInStart>;
   /**
-   * Finishes a sign-in from the provider's redirect — either the callback request
-   * itself or the address the user pasted back. Returns the connection it was for.
+   * Finishes a sign-in from the provider's redirect. Creates the connection, or
+   * refreshes the one that account already has. Returns it.
    */
-  completeSignIn(redirectedTo: string): Promise<Connection>;
+  completeSignIn(callbackUrl: string): Promise<Connection>;
 }

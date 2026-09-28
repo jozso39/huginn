@@ -1,12 +1,15 @@
 # Connecting Gmail
 
-One Gmail connection per mailbox; add it twice for a personal and a work account.
-Both can use the same Google OAuth client.
+Adding a mailbox is **Connections → Add a connection → Gmail → Sign in with Google**:
+pick the account, approve, and you are back in Huginn with a running connection named
+after the address. Do it once per mailbox (personal, work…). Before the first one,
+Huginn needs a Google OAuth client — a one-time setup of about five minutes.
 
 ## What it can do
 
-Huginn asks for one permission, `gmail.modify`: read mail, send, create drafts and change
-labels (mark read). It can move mail to Trash but **cannot delete mail permanently**.
+Huginn asks for `gmail.modify` (read, send, drafts, mark read) plus `openid email`
+(only to learn which address signed in). It can move mail to Trash but **cannot delete
+mail permanently**.
 
 | In Huginn | In Gmail |
 |---|---|
@@ -18,41 +21,41 @@ labels (mark read). It can move mail to Trash but **cannot delete mail permanent
 
 Mail that arrives while Huginn is offline is caught up when it comes back (Gmail keeps
 about a week of history). The first sync picks up unread inbox mail from the last 7 days.
+**Which mail** (in the connection's *Edit*) chooses the inbox tabs: *Primary only*,
+*Everything except Promotions* (default) or *All inbox mail*.
 
-**Which mail** decides the inbox tabs: *Primary only*, *Everything except Promotions*
-(default) or *All inbox mail*. Workspace accounts usually have no tabs and get everything.
+## One-time setup: the Google sign-in app
 
-## 1. An OAuth client
+Choosing Gmail the first time opens **Set up Google sign-in once**, with the exact
+redirect URI to register. In short:
 
-You need a Google OAuth client ID and secret.
+1. [Google Cloud → Credentials](https://console.cloud.google.com/apis/credentials), in a
+   project with the **Gmail API** enabled.
+2. **Create credentials → OAuth client ID → Web application.**
+3. **Authorised redirect URIs**: add the address Huginn shows (copy button).
+4. Paste the client ID and secret into Huginn, **Save**.
 
-- **If you already have a "Desktop app" client** (for example the one another tool of
-  yours signs in with), reuse it. Choose *Desktop app* as the client type in Huginn.
-- **Otherwise**: [Google Cloud console](https://console.cloud.google.com) → pick or create
-  a project → *APIs & Services* → enable the **Gmail API** → *Credentials* →
-  *Create credentials* → *OAuth client ID* → type **Desktop app**. The consent screen
-  must list your account as a test user, or be published — an app left in *Testing*
-  loses its sign-in after 7 days.
+The consent screen must be **In production** (or list your accounts as test users —
+but a *Testing* app loses its sign-ins after 7 days). Google shows an "unverified app"
+warning to you as the owner; *Advanced → Go to …* continues.
 
-A **Web application** client also works and skips the paste step: give it the redirect
-URI `https://<where Huginn runs>/api/oauth/callback`, set `HUGINN_PUBLIC_URL` to that
-address in Huginn's `.env`, and choose *Web application* as the client type.
+### Where Google sends you back
 
-## 2. Add the connection
+Huginn usually lives on a private address (a tailnet), and Google only redirects to
+addresses it accepts for your project. Two ways, chosen in the setup form:
 
-**Connections → Add a connection → Gmail**, name it ("Personal Gmail"), paste the client
-ID and secret, **Connect**. It shows **Needs sign-in**.
+- **Through the relay page** (`HUGINN_OAUTH_RELAY_URL`): Google returns to a small static
+  page on a domain your Google project already trusts, which forwards the one-time code
+  to your Huginn. The page is [`docs/oauth-relay.html`](oauth-relay.html); host it
+  anywhere static and point the variable at it. It forwards only to `https://*.ts.net`
+  or localhost, and the code is useless without the client secret, which stays in
+  Huginn.
+- **Straight back** (`HUGINN_PUBLIC_URL` + `/api/oauth/callback`): simplest, if Google
+  accepts your Huginn's address as a redirect URI.
 
-## 3. Sign in
+Both need `HUGINN_PUBLIC_URL` — where your browser reaches Huginn.
 
-1. **Sign in with Google** opens Google in a new tab. Pick the mailbox and approve.
-   Google may warn that the app is unverified; that is your own app — *Advanced →
-   Go to …*.
-2. *Desktop client:* Google then sends you to a `http://localhost/…` page that does
-   not load. **That is expected.** Copy the whole address from the address bar, paste it
-   into Huginn, **Finish sign-in**.
-3. The connection turns **Running** and the first sync starts.
+## If access is revoked
 
-The sign-in link is valid for 15 minutes and works once. If Google ever revokes access
-(password change, you removed the app at myaccount.google.com), the connection shows
-**Needs sign-in** again — repeat step 3; nothing else is lost.
+A password change or removing the app at myaccount.google.com turns the connection to
+**Needs sign-in**; its **Sign in with Google** button restores it. Nothing else is lost.

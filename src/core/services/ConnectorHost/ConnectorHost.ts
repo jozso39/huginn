@@ -14,7 +14,9 @@ import { HuginnEventType } from '@/core/events/EventBus.types';
 import type { Item, NewItem } from '@/core/items/Item.types';
 import { ItemState } from '@/core/items/Item.types';
 import type { IItemStore, UpsertResult } from '@/core/items/ItemStore.types';
+import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
 import type { ISecretBox } from '@/core/secrets/SecretBox.types';
+import type { IOAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService.types';
 import type { IConnectorHost } from './ConnectorHost.types';
 
 interface RunningConnector {
@@ -35,7 +37,8 @@ export class ConnectorHost implements IConnectorHost {
     private readonly connectionStore: IConnectionStore,
     private readonly itemStore: IItemStore,
     private readonly secretBox: ISecretBox,
-    private readonly eventBus: IEventBus
+    private readonly eventBus: IEventBus,
+    private readonly oauthApps: IOAuthAppService
   ) {}
 
   public async startAll(): Promise<void> {
@@ -105,15 +108,29 @@ export class ConnectorHost implements IConnectorHost {
     }
 
     const secrets = await this.loadSecrets(connection.id);
+    const authorization = factory.authorization;
+    const app: OAuthAppCredentials | null = authorization
+      ? await this.oauthApps.credentials(authorization.provider)
+      : null;
 
-    // Not an error and not worth retrying: it waits for the user to sign in.
-    if (factory.authorization && !factory.authorization.isAuthorized(secrets)) {
+    // Not an error and not worth retrying: it waits for the user.
+    if (authorization && !app) {
+      await this.setStatus(
+        connection.id,
+        ConnectionStatus.NeedsAuth,
+        `Set up ${authorization.provider} sign-in first`
+      );
+
+      return;
+    }
+
+    if (authorization && !authorization.isAuthorized(secrets)) {
       await this.setStatus(connection.id, ConnectionStatus.NeedsAuth, 'Sign in to start');
 
       return;
     }
 
-    const connector = factory.create(connection, secrets);
+    const connector = factory.create(connection, secrets, app);
     const generation = ++this.generation;
 
     this.running.set(connection.id, { connector, generation });

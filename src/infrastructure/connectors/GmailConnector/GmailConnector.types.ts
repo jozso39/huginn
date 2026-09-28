@@ -5,14 +5,6 @@ export enum GmailInboxScope {
   AllInbox = 'AllInbox',
 }
 
-/** The kind of OAuth client the user pasted; it decides where Google sends them back. */
-export enum GoogleClientType {
-  /** "Desktop app": back to http://localhost, the user pastes the address into Huginn. */
-  Desktop = 'Desktop',
-  /** "Web application": straight back to Huginn; needs HUGINN_PUBLIC_URL. */
-  Web = 'Web',
-}
-
 export interface MailAddress {
   readonly name: string;
   readonly address: string;

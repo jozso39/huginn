@@ -2,6 +2,7 @@ import type {
   GoogleAccessToken,
   GoogleAuthorizationRequest,
   GoogleClientCredentials,
+  GoogleGrant,
   IGoogleOAuthClient,
 } from '@/core/clients/GoogleOAuthClient/GoogleOAuthClient.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
@@ -12,6 +13,7 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 interface TokenResponse {
   readonly access_token?: string;
   readonly refresh_token?: string;
+  readonly id_token?: string;
   readonly expires_in?: number;
   readonly error?: string;
   readonly error_description?: string;
@@ -40,7 +42,7 @@ export class GoogleOAuthClient implements IGoogleOAuthClient {
     credentials: GoogleClientCredentials,
     code: string,
     redirectUri: string
-  ): Promise<string> {
+  ): Promise<GoogleGrant> {
     const response = await this.token({
       grant_type: 'authorization_code',
       code,
@@ -56,7 +58,24 @@ export class GoogleOAuthClient implements IGoogleOAuthClient {
       );
     }
 
-    return response.refresh_token;
+    return { refreshToken: response.refresh_token, email: GoogleOAuthClient.emailOf(response) };
+  }
+
+  /**
+   * The ID token came straight from Google's token endpoint over TLS, so its payload
+   * can be read without verifying the signature (Google's own guidance for this case).
+   */
+  private static emailOf(response: TokenResponse): string {
+    const payload = response.id_token?.split('.')[1];
+    const claims = payload
+      ? (JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { email?: string })
+      : {};
+
+    if (!claims.email) {
+      throw new HuginnError(ErrorCode.Upstream, 'Google did not say which account signed in');
+    }
+
+    return claims.email;
   }
 
   public async accessToken(

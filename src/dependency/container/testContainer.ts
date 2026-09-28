@@ -30,6 +30,8 @@ const createTestConfig = (): IConfig => ({
   ...createConfig(),
   env: 'test',
   dbPath: ':memory:',
+  publicUrl: 'https://huginn.test.ts.net',
+  oauthRelayUrl: 'https://relay.example.com/oauth/huginn/',
   logLevel: 'silent',
   connectors: {
     // Long enough that no interval fires during a test.

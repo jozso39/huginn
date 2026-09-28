@@ -87,10 +87,22 @@ export interface ConnectorDescriptor {
   kind: ConnectorKind;
   label: string;
   capabilities: ConnectorCapabilities;
-  /** Needs an interactive sign-in (OAuth) before it runs. */
-  signIn: boolean;
+  /** Set when connections of this kind are created by signing in, not by a form. */
+  signInProvider: OAuthProvider | null;
   configSchema: { properties?: Record<string, JsonSchemaProperty>; required?: string[] };
   secretFields: SecretField[];
+}
+
+export type OAuthProvider = 'Google';
+export type RedirectMode = 'Direct' | 'Relay';
+
+export interface OAuthAppView {
+  provider: OAuthProvider;
+  configured: boolean;
+  clientId: string | null;
+  redirectMode: RedirectMode;
+  /** What to register with the provider for each mode; null when that mode cannot work. */
+  redirectUris: Record<RedirectMode, string | null>;
 }
 
 export type HuginnEvent =

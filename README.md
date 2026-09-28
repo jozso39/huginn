@@ -24,9 +24,9 @@ built in the open and will become configurable for anyone once the shape settles
   - **Slack** — DMs, mentions (yours and your groups'), replies in your threads, watched
     channels; reply and react as you; answering in Slack clears it here.
     Setup: [docs/slack-app.md](docs/slack-app.md).
-  - **Gmail** (any number of mailboxes) — unread inbox mail; reply in-thread, save as
-    draft, done marks read; reading or answering in Gmail clears it here.
-    Setup: [docs/gmail.md](docs/gmail.md).
+  - **Gmail** (any number of mailboxes, added with *Sign in with Google*) — unread
+    inbox mail; reply in-thread, save as draft, done marks read; reading or answering
+    in Gmail clears it here. Setup: [docs/gmail.md](docs/gmail.md).
   - **GitLab** — todos (review requests, mentions, assignments); done marks the todo done.
   - **Ingest API** anything can post to (`POST /api/items` with `X-Huginn-Key`).
 - Works in laptop and phone browsers; on a phone, *Add to Home Screen* gives it its

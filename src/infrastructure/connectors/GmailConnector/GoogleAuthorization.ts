@@ -1,70 +1,40 @@
 import type { IGoogleOAuthClient } from '@/core/clients/GoogleOAuthClient/GoogleOAuthClient.types';
-import type { Connection, Secrets } from '@/core/connections/Connection.types';
-import type {
-  AuthorizationStart,
-  IConnectorAuthorization,
-} from '@/core/connectors/Connector.types';
-import { AuthorizationMode } from '@/core/connectors/Connector.types';
-import { ErrorCode, HuginnError } from '@/core/errors/errors';
-import { GoogleClientType } from './GmailConnector.types';
+import type { Secrets } from '@/core/connections/Connection.types';
+import type { IConnectorAuthorization, SignInResult } from '@/core/connectors/Connector.types';
+import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
+import { OAuthProvider } from '@/core/oauth/OAuthApp.types';
 
 /**
- * Read, send, drafts and marking read — one scope covers them all. It cannot
- * permanently delete mail (that would be the full https://mail.google.com/ scope).
+ * `gmail.modify` covers read, send, drafts and marking read; it cannot permanently
+ * delete mail. `openid email` only tells Huginn which address signed in.
  */
-export const GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.modify'] as const;
-
-/** Where a "Desktop app" OAuth client may send the user back. */
-const DESKTOP_REDIRECT = 'http://localhost';
-
-export const OAUTH_CALLBACK_PATH = '/api/oauth/callback';
+export const GMAIL_SCOPES = [
+  'openid',
+  'email',
+  'https://www.googleapis.com/auth/gmail.modify',
+] as const;
 
 export class GoogleAuthorization implements IConnectorAuthorization {
-  constructor(
-    private readonly oauth: IGoogleOAuthClient,
-    private readonly publicUrl: string | null
-  ) {}
+  public readonly provider = OAuthProvider.Google;
+
+  constructor(private readonly oauth: IGoogleOAuthClient) {}
 
   public isAuthorized(secrets: Secrets): boolean {
     return Boolean(secrets.refreshToken);
   }
 
-  public start(connection: Connection, secrets: Secrets, state: string): AuthorizationStart {
-    const web = connection.config.clientType === GoogleClientType.Web;
-
-    if (web && !this.publicUrl) {
-      throw new HuginnError(
-        ErrorCode.Validation,
-        'A Web client needs HUGINN_PUBLIC_URL; set it, or use a Desktop client'
-      );
-    }
-
-    const redirectUri = web ? `${this.publicUrl}${OAUTH_CALLBACK_PATH}` : DESKTOP_REDIRECT;
-
-    return {
-      url: this.oauth.authorizationUrl({
-        clientId: secrets.clientId ?? '',
-        redirectUri,
-        scopes: GMAIL_SCOPES,
-        state,
-      }),
-      redirectUri,
-      mode: web ? AuthorizationMode.Redirect : AuthorizationMode.PasteBack,
-    };
+  public authorizationUrl(app: OAuthAppCredentials, state: string): string {
+    return this.oauth.authorizationUrl({
+      clientId: app.clientId,
+      redirectUri: app.redirectUri,
+      scopes: GMAIL_SCOPES,
+      state,
+    });
   }
 
-  public async complete(
-    _connection: Connection,
-    secrets: Secrets,
-    code: string,
-    redirectUri: string
-  ): Promise<Secrets> {
-    const refreshToken = await this.oauth.exchangeCode(
-      { clientId: secrets.clientId ?? '', clientSecret: secrets.clientSecret ?? '' },
-      code,
-      redirectUri
-    );
+  public async complete(app: OAuthAppCredentials, code: string): Promise<SignInResult> {
+    const grant = await this.oauth.exchangeCode(app, code, app.redirectUri);
 
-    return { refreshToken };
+    return { secrets: { refreshToken: grant.refreshToken }, account: grant.email };
   }
 }

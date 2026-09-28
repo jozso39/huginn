@@ -16,15 +16,20 @@ export interface GoogleAccessToken {
   readonly expiresAt: number;
 }
 
-/** Google's OAuth 2.0 endpoints, nothing Gmail-specific. */
+export interface GoogleGrant {
+  readonly refreshToken: string;
+  /** From the ID token; needs the `openid email` scopes in the request. */
+  readonly email: string;
+}
+
+/** Google's OAuth 2.0 endpoints, nothing product-specific. */
 export interface IGoogleOAuthClient {
   authorizationUrl(request: GoogleAuthorizationRequest): string;
-  /** Returns the refresh token; Google only issues one when consent was just given. */
   exchangeCode(
     credentials: GoogleClientCredentials,
     code: string,
     redirectUri: string
-  ): Promise<string>;
+  ): Promise<GoogleGrant>;
   accessToken(
     credentials: GoogleClientCredentials,
     refreshToken: string

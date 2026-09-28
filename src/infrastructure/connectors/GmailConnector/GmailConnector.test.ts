@@ -1,18 +1,34 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { ActionType } from '@/core/actions/Action.types';
 import { ConnectionStatus, ConnectorKind } from '@/core/connections/Connection.types';
-import { AuthorizationMode } from '@/core/connectors/Connector.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import { ItemKind, ItemState } from '@/core/items/Item.types';
+import { OAuthProvider, RedirectMode } from '@/core/oauth/OAuthApp.types';
 import { createTestContainer } from '@/dependency/container/testContainer';
 import type { Container } from '@/dependency/container/container.types';
 import {
   MOCK_GMAIL_MESSAGE,
   MockGmailClient,
 } from '@/infrastructure/clients/GmailClient/GmailClient.mock';
-import { MOCK_REFRESH_TOKEN } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient.mock';
+import {
+  MOCK_GOOGLE_ACCOUNT,
+  MOCK_REFRESH_TOKEN,
+} from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient.mock';
 
-describe('Gmail connector end to end', () => {
+const GOOGLE_APP = {
+  clientId: 'id-123.apps.googleusercontent.com',
+  clientSecret: 'GOCSPX-test',
+  redirectMode: RedirectMode.Relay,
+};
+
+/** What Google (via the relay page) sends the browser back to after sign-in. */
+const callbackFor = (url: string, code = 'good-code') => {
+  const state = new URL(url).searchParams.get('state') ?? '';
+
+  return `https://huginn.test.ts.net/api/oauth/callback?state=${state}&code=${code}`;
+};
+
+describe('Google sign-in and the Gmail connector', () => {
   const gmail = new MockGmailClient();
   let container: Container;
   let connectionId: string;
@@ -22,17 +38,8 @@ describe('Gmail connector end to end', () => {
   /** Runs one poll by restarting the connector: start() catches up from the cursor. */
   const poll = () => container.connectorHost.restart(connectionId);
 
-  beforeAll(async () => {
+  beforeAll(() => {
     container = createTestContainer({ gmailClient: gmail });
-
-    const connection = await container.connectionService.create({
-      kind: ConnectorKind.Gmail,
-      name: 'Personal Gmail',
-      config: {},
-      secrets: { clientId: 'id.apps.googleusercontent.com', clientSecret: 'secret' },
-    });
-
-    connectionId = connection.id;
   });
 
   afterAll(async () => {
@@ -40,35 +47,54 @@ describe('Gmail connector end to end', () => {
     container.close();
   });
 
-  test('a new connection waits for sign-in instead of failing', async () => {
-    const connection = await container.connectionService.get(connectionId);
-
-    expect(connection?.status).toBe(ConnectionStatus.NeedsAuth);
-    expect(container.connectorHost.getConnector(connectionId)).toBeNull();
-  });
-
-  test('a stale or foreign address is refused', async () => {
+  test('sign-in needs the Google app set up first', async () => {
     await expect(
-      container.connectionService.completeSignIn('http://localhost/?state=nope&code=good-code')
+      container.connectionService.beginSignIn({ kind: ConnectorKind.Gmail })
     ).rejects.toMatchObject({ code: ErrorCode.Validation });
+
+    const view = await container.oauthAppService.view(OAuthProvider.Google);
+
+    expect(view.configured).toBe(false);
+    expect(view.redirectUris).toEqual({
+      Direct: 'https://huginn.test.ts.net/api/oauth/callback',
+      Relay: 'https://relay.example.com/oauth/huginn/',
+    });
   });
 
-  test('pasting the localhost address back signs in and runs the first sync', async () => {
-    const start = await container.connectionService.beginSignIn(connectionId);
-    const state = new URL(start.url).searchParams.get('state');
+  test('the app is saved once, its secret sealed and never shown', async () => {
+    const view = await container.oauthAppService.save(OAuthProvider.Google, GOOGLE_APP);
 
-    expect(start.mode).toBe(AuthorizationMode.PasteBack);
-    expect(start.url).toContain(encodeURIComponent('http://localhost'));
+    expect(view).toMatchObject({ configured: true, clientId: GOOGLE_APP.clientId });
+    expect(JSON.stringify(view)).not.toContain('GOCSPX');
 
-    const signedIn = await container.connectionService.completeSignIn(
-      `http://localhost/?state=${state}&code=good-code&scope=gmail.modify`
+    // An empty secret on a later save keeps the stored one.
+    await container.oauthAppService.save(OAuthProvider.Google, { ...GOOGLE_APP, clientSecret: '' });
+    expect((await container.oauthAppService.credentials(OAuthProvider.Google))?.clientSecret).toBe(
+      'GOCSPX-test'
     );
-    const ciphertext = await container.connectionStore.getSecretsCiphertext(connectionId);
-    const secrets = JSON.parse(await container.secretBox.open(ciphertext ?? ''));
+  });
 
-    expect(signedIn.status).toBe(ConnectionStatus.Running);
-    expect(secrets.refreshToken).toBe(MOCK_REFRESH_TOKEN);
-    expect(secrets.clientSecret).toBe('secret');
+  test('signing in creates the connection, named after the account, and syncs', async () => {
+    const { url } = await container.connectionService.beginSignIn({ kind: ConnectorKind.Gmail });
+    const state = new URL(url).searchParams.get('state') ?? '';
+
+    // Google is told to return to the relay; the state carries where Huginn lives.
+    expect(url).toContain(encodeURIComponent('https://relay.example.com/oauth/huginn/'));
+    expect(Buffer.from(state.split('.')[1] ?? '', 'base64url').toString()).toBe(
+      'https://huginn.test.ts.net'
+    );
+
+    const connection = await container.connectionService.completeSignIn(callbackFor(url));
+    const secrets = JSON.parse(
+      await container.secretBox.open(
+        (await container.connectionStore.getSecretsCiphertext(connection.id)) ?? ''
+      )
+    );
+
+    connectionId = connection.id;
+    expect(connection.name).toBe(MOCK_GOOGLE_ACCOUNT);
+    expect(connection.status).toBe(ConnectionStatus.Running);
+    expect(secrets).toEqual({ refreshToken: MOCK_REFRESH_TOKEN, account: MOCK_GOOGLE_ACCOUNT });
 
     const [item] = await open();
 
@@ -76,15 +102,32 @@ describe('Gmail connector end to end', () => {
     expect(item?.body).toBe('Can you send the numbers by Friday?');
   });
 
-  test('the same state cannot be used twice', async () => {
-    const start = await container.connectionService.beginSignIn(connectionId);
-    const state = new URL(start.url).searchParams.get('state');
-    const pasted = `http://localhost/?state=${state}&code=good-code`;
+  test('signing in again with the same account reuses its connection', async () => {
+    const { url } = await container.connectionService.beginSignIn({ kind: ConnectorKind.Gmail });
+    const again = await container.connectionService.completeSignIn(callbackFor(url));
 
-    await container.connectionService.completeSignIn(pasted);
-    await expect(container.connectionService.completeSignIn(pasted)).rejects.toMatchObject({
-      code: ErrorCode.Validation,
-    });
+    expect(again.id).toBe(connectionId);
+    expect(
+      (await container.connectionService.list()).filter((c) => c.kind === ConnectorKind.Gmail)
+    ).toHaveLength(1);
+  });
+
+  test('a state is single-use, and a refusal at Google is reported', async () => {
+    const { url } = await container.connectionService.beginSignIn({ connectionId });
+
+    await container.connectionService.completeSignIn(callbackFor(url));
+    await expect(
+      container.connectionService.completeSignIn(callbackFor(url))
+    ).rejects.toMatchObject({ code: ErrorCode.Validation });
+
+    const refused = await container.connectionService.beginSignIn({ connectionId });
+    const state = new URL(refused.url).searchParams.get('state') ?? '';
+
+    await expect(
+      container.connectionService.completeSignIn(
+        `https://huginn.test.ts.net/api/oauth/callback?state=${state}&error=access_denied`
+      )
+    ).rejects.toMatchObject({ code: ErrorCode.Unauthorized });
   });
 
   test('draft keeps the item open; reply sends in-thread and closes it', async () => {
@@ -158,18 +201,10 @@ describe('Gmail connector end to end', () => {
 
     failing.profile = () =>
       Promise.reject(new HuginnError(ErrorCode.Unauthorized, 'Google sign-in: invalid_grant'));
+    await revoked.oauthAppService.save(OAuthProvider.Google, GOOGLE_APP);
 
-    const connection = await revoked.connectionService.create({
-      kind: ConnectorKind.Gmail,
-      name: 'Revoked',
-      config: {},
-      secrets: { clientId: 'id', clientSecret: 's' },
-    });
-    const start = await revoked.connectionService.beginSignIn(connection.id);
-    const state = new URL(start.url).searchParams.get('state');
-    const after = await revoked.connectionService.completeSignIn(
-      `http://localhost/?state=${state}&code=good-code`
-    );
+    const { url } = await revoked.connectionService.beginSignIn({ kind: ConnectorKind.Gmail });
+    const after = await revoked.connectionService.completeSignIn(callbackFor(url));
 
     expect(after.status).toBe(ConnectionStatus.NeedsAuth);
     expect(after.statusMessage).toContain('sign in again');

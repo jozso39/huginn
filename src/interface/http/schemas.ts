@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ConnectorKind } from '@/core/connections/Connection.types';
+import { OAuthProvider, RedirectMode } from '@/core/oauth/OAuthApp.types';
 import { Category, ItemKind, ItemState } from '@/core/items/Item.types';
 
 export const listItemsQuerySchema = z.object({
@@ -54,6 +55,15 @@ export const updateSecretsBodySchema = z.object({
 
 export const setEnabledBodySchema = z.object({ enabled: z.boolean() });
 
-export const completeSignInBodySchema = z.object({
-  redirectedTo: z.string().trim().min(1).max(4000),
+export const signInBodySchema = z.union([
+  z.object({ connectionId: z.uuid() }),
+  z.object({ kind: z.enum(ConnectorKind) }),
+]);
+
+export const oauthAppBodySchema = z.object({
+  clientId: z.string().trim().min(10).max(300),
+  clientSecret: z.string().trim().max(300).default(''),
+  redirectMode: z.enum(RedirectMode),
 });
+
+export const oauthProviderParamSchema = z.enum(OAuthProvider);

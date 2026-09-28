@@ -62,3 +62,13 @@ export const actions = sqliteTable(
   },
   (table) => [index('actions_item').on(table.itemId)]
 );
+
+/** One OAuth client per provider, shared by every connection that signs in with it. */
+export const oauthApps = sqliteTable('oauth_apps', {
+  provider: text('provider').primaryKey(),
+  clientId: text('client_id').notNull(),
+  redirectMode: text('redirect_mode').notNull(),
+  // AES-GCM sealed client secret. Never plaintext.
+  secretCiphertext: text('secret_ciphertext').notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+});

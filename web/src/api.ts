@@ -1,4 +1,14 @@
-import type { Action, Connection, ConnectorDescriptor, Item, ItemState } from './api.types';
+import type {
+  Action,
+  Connection,
+  ConnectorDescriptor,
+  ConnectorKind,
+  Item,
+  ItemState,
+  OAuthAppView,
+  OAuthProvider,
+  RedirectMode,
+} from './api.types';
 
 export class ApiError extends Error {
   constructor(
@@ -56,10 +66,13 @@ export const api = {
   setEnabled: (id: string, enabled: boolean) =>
     request<{ connection: Connection }>('PUT', `/connections/${id}/enabled`, { enabled }),
   removeConnection: (id: string) => request<{ ok: true }>('DELETE', `/connections/${id}`),
-  beginSignIn: (id: string) =>
-    request<{ url: string; mode: 'Redirect' | 'PasteBack' }>('POST', `/connections/${id}/sign-in`),
-  completeSignIn: (redirectedTo: string) =>
-    request<{ connection: Connection }>('POST', '/connections/sign-in/complete', {
-      redirectedTo,
-    }).then((r) => r.connection),
+  getOAuthApp: (provider: OAuthProvider) =>
+    request<{ app: OAuthAppView }>('GET', `/oauth/apps/${provider}`).then((r) => r.app),
+  saveOAuthApp: (
+    provider: OAuthProvider,
+    body: { clientId: string; clientSecret: string; redirectMode: RedirectMode }
+  ) => request<{ app: OAuthAppView }>('PUT', `/oauth/apps/${provider}`, body).then((r) => r.app),
+  /** Returns the provider page to send the browser to. */
+  signIn: (target: { kind: ConnectorKind } | { connectionId: string }) =>
+    request<{ url: string }>('POST', '/oauth/sign-in', target).then((r) => r.url),
 };

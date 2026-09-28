@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  Huginn OAuth relay. Google redirects here after sign-in (this page's domain is one
+  the Google project already trusts); the page forwards the query string to the
+  Huginn instance named in `state`, which checks the state and exchanges the code.
+
+  Why it is safe to host publicly:
+  - the code is single-use and worthless without the client secret, which only the
+    Huginn instance holds;
+  - Huginn accepts only a state it issued itself in the last 15 minutes;
+  - it forwards only to https://*.ts.net (a tailnet) or to localhost, so it cannot be
+    used to send a code anywhere else;
+  - no referrer is sent and the page leaves no history entry.
+
+  Deploy: serve this file at the address set as HUGINN_OAUTH_RELAY_URL, e.g.
+  https://example.com/oauth/huginn/ (as index.html), and register that exact address
+  as an authorised redirect URI of the Google OAuth client.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex" />
+    <title>Returning to Huginn…</title>
+    <style>
+      body {
+        font: 16px/1.5 system-ui, sans-serif;
+        max-width: 32rem;
+        margin: 20vh auto;
+        padding: 0 16px;
+        color: #1c1d20;
+        background: #f6f5f2;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          color: #e8e6e1;
+          background: #14161a;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <p id="message">Returning to Huginn…</p>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var state = params.get('state') || '';
+        var encoded = state.slice(state.indexOf('.') + 1);
+        var target = null;
+
+        try {
+          var base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+          target = new URL(atob(base64 + '==='.slice((base64.length + 3) % 4)));
+        } catch (error) {
+          target = null;
+        }
+
+        var allowed =
+          target !== null &&
+          ((target.protocol === 'https:' && /\.ts\.net$/.test(target.hostname)) ||
+            (target.protocol === 'http:' &&
+              (target.hostname === 'localhost' || target.hostname === '127.0.0.1')));
+
+        if (!allowed) {
+          document.getElementById('message').textContent =
+            'This sign-in link is not meant for a Huginn instance this page can return to.';
+          return;
+        }
+
+        window.location.replace(target.origin + '/api/oauth/callback' + window.location.search);
+      })();
+    </script>
+  </body>
+</html>

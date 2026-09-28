@@ -7,6 +7,7 @@ import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { ConnectionService } from '@/core/services/ConnectionService/ConnectionService';
 import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
 import { InboxService } from '@/core/services/InboxService/InboxService';
+import { OAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService';
 import { GoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
@@ -18,6 +19,7 @@ import { AesSecretBox } from '@/infrastructure/secrets/AesSecretBox/AesSecretBox
 import { SqliteActionStore } from '@/infrastructure/stores/SqliteActionStore/SqliteActionStore';
 import { SqliteConnectionStore } from '@/infrastructure/stores/SqliteConnectionStore/SqliteConnectionStore';
 import { SqliteItemStore } from '@/infrastructure/stores/SqliteItemStore/SqliteItemStore';
+import { SqliteOAuthAppStore } from '@/infrastructure/stores/SqliteOAuthAppStore/SqliteOAuthAppStore';
 import type { Container } from './container.types';
 
 export interface CreateContainerOptions {
@@ -42,6 +44,12 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
   const itemStore = new SqliteItemStore(database.db);
   const connectionStore = new SqliteConnectionStore(database.db);
   const actionStore = new SqliteActionStore(database.db);
+  const oauthAppService = new OAuthAppService(
+    logger,
+    new SqliteOAuthAppStore(database.db),
+    secretBox,
+    { publicUrl: config.publicUrl, relayUrl: config.oauthRelayUrl }
+  );
 
   const connectorFactories: readonly IConnectorFactory[] = options.connectorFactories ?? [
     new GitLabConnectorFactory(logger, config),
@@ -57,7 +65,8 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     connectionStore,
     itemStore,
     secretBox,
-    eventBus
+    eventBus,
+    oauthAppService
   );
   const inboxService = new InboxService(logger, itemStore, actionStore, connectorHost, eventBus);
   const connectionService = new ConnectionService(
@@ -65,7 +74,9 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     connectorFactories,
     connectionStore,
     secretBox,
-    connectorHost
+    connectorHost,
+    oauthAppService,
+    config.publicUrl
   );
 
   return {
@@ -80,6 +91,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     connectorHost,
     inboxService,
     connectionService,
+    oauthAppService,
     close: () => database.close(),
   };
 };

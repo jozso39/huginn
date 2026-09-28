@@ -11,6 +11,7 @@ export const createConfig = () => {
     secretKey: env.HUGINN_SECRET_KEY,
     ingestKey: env.HUGINN_INGEST_KEY,
     publicUrl: env.HUGINN_PUBLIC_URL?.replace(/\/$/, '') ?? null,
+    oauthRelayUrl: env.HUGINN_OAUTH_RELAY_URL ?? null,
     connectors: {
       // Polling cadence for connectors without a push channel. GitLab has no
       // documented per-token limit that a 60 s poll would approach.

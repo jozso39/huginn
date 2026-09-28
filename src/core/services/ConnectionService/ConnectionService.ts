@@ -3,20 +3,25 @@ import type { Logger } from '@/lib/logger';
 import type { Connection, NewConnection, Secrets } from '@/core/connections/Connection.types';
 import type { IConnectionStore } from '@/core/connections/ConnectionStore.types';
 import type { IConnectorAuthorization, IConnectorFactory } from '@/core/connectors/Connector.types';
+import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import type { ISecretBox } from '@/core/secrets/SecretBox.types';
 import type { IConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost.types';
+import type { IOAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService.types';
 import type {
   ConnectorDescriptor,
   IConnectionService,
   SignInStart,
+  SignInTarget,
 } from './ConnectionService.types';
 
 /** Long enough to find the password manager; short enough that a stray link dies. */
 const SIGN_IN_TTL_MS = 15 * 60 * 1000;
 
 interface PendingSignIn {
-  readonly connectionId: string;
+  readonly kind: Connection['kind'];
+  /** Null: create a connection for whoever signs in (or reuse theirs). */
+  readonly connectionId: string | null;
   readonly redirectUri: string;
   readonly expiresAt: number;
 }
@@ -31,7 +36,9 @@ export class ConnectionService implements IConnectionService {
     private readonly factories: readonly IConnectorFactory[],
     private readonly connectionStore: IConnectionStore,
     private readonly secretBox: ISecretBox,
-    private readonly connectorHost: IConnectorHost
+    private readonly connectorHost: IConnectorHost,
+    private readonly oauthApps: IOAuthAppService,
+    private readonly publicUrl: string | null
   ) {}
 
   public describeConnectors(): readonly ConnectorDescriptor[] {
@@ -42,7 +49,7 @@ export class ConnectionService implements IConnectionService {
       configSchema: z.toJSONSchema(factory.configSchema, { io: 'input' }),
       secretFields: factory.secretFields,
       capabilities: factory.capabilities,
-      signIn: factory.authorization !== undefined,
+      signInProvider: factory.authorization?.provider ?? null,
     }));
   }
 
@@ -112,11 +119,17 @@ export class ConnectionService implements IConnectionService {
     await this.connectionStore.remove(id);
   }
 
-  public async beginSignIn(id: string): Promise<SignInStart> {
-    const connection = await this.require(id);
-    const authorization = this.authorizationOf(connection);
-    const state = crypto.randomUUID();
-    const start = authorization.start(connection, await this.openSecrets(id), state);
+  public async beginSignIn(target: SignInTarget): Promise<SignInStart> {
+    const connection = 'connectionId' in target ? await this.require(target.connectionId) : null;
+    const kind = connection?.kind ?? ('kind' in target ? target.kind : null);
+
+    if (!kind) {
+      throw new HuginnError(ErrorCode.Validation, 'say which connection or kind to sign in');
+    }
+
+    const authorization = this.authorizationOf(kind);
+    const app = await this.appFor(authorization);
+    const state = this.newState();
     const now = Date.now();
 
     // Drop expired attempts so the map cannot grow without bound.
@@ -124,23 +137,24 @@ export class ConnectionService implements IConnectionService {
       .filter(([, pending]) => pending.expiresAt < now)
       .forEach(([key]) => this.pendingSignIns.delete(key));
     this.pendingSignIns.set(state, {
-      connectionId: id,
-      redirectUri: start.redirectUri,
+      kind,
+      connectionId: connection?.id ?? null,
+      redirectUri: app.redirectUri,
       expiresAt: now + SIGN_IN_TTL_MS,
     });
 
-    return { url: start.url, mode: start.mode };
+    return { url: authorization.authorizationUrl(app, state) };
   }
 
-  public async completeSignIn(redirectedTo: string): Promise<Connection> {
-    const params = ConnectionService.redirectParams(redirectedTo);
+  public async completeSignIn(callbackUrl: string): Promise<Connection> {
+    const params = new URL(callbackUrl, 'http://callback.invalid').searchParams;
     const state = params.get('state') ?? '';
     const pending = this.pendingSignIns.get(state);
 
     if (!pending || pending.expiresAt < Date.now()) {
       throw new HuginnError(
         ErrorCode.Validation,
-        'This sign-in expired or was already used — click Sign in again'
+        'This sign-in expired or was already used — start it again'
       );
     }
 
@@ -155,40 +169,72 @@ export class ConnectionService implements IConnectionService {
     const code = params.get('code');
 
     if (!code) {
-      throw new HuginnError(ErrorCode.Validation, 'That address has no sign-in code in it');
+      throw new HuginnError(ErrorCode.Validation, 'The provider sent no sign-in code');
     }
 
-    const connection = await this.require(pending.connectionId);
-    const current = await this.openSecrets(connection.id);
-    const added = await this.authorizationOf(connection).complete(
-      connection,
-      current,
-      code,
-      pending.redirectUri
-    );
+    const authorization = this.authorizationOf(pending.kind);
+    const app = await this.appFor(authorization);
+    // The code is bound to the redirect it was issued for, even if the setting changed since.
+    const result = await authorization.complete({ ...app, redirectUri: pending.redirectUri }, code);
+    const existing =
+      pending.connectionId ?? (await this.findByAccount(pending.kind, result.account));
+    const secrets = { ...result.secrets, account: result.account };
+
+    if (!existing) {
+      this.logger.info({ kind: pending.kind }, 'signed in, creating connection');
+
+      return this.create({ kind: pending.kind, name: result.account, config: {}, secrets });
+    }
+
+    const current = await this.openSecrets(existing);
 
     await this.connectionStore.updateSecrets(
-      connection.id,
-      await this.secretBox.seal(JSON.stringify({ ...current, ...added }))
+      existing,
+      await this.secretBox.seal(JSON.stringify({ ...current, ...secrets }))
     );
-    this.logger.info({ connectionId: connection.id }, 'connection signed in');
+    this.logger.info({ connectionId: existing }, 'connection signed in again');
 
-    return this.restartAndReload(connection.id);
+    return this.restartAndReload(existing);
   }
 
-  /** Accepts a full URL, a bare query string, or a fragment with the parameters. */
-  private static redirectParams(redirectedTo: string): URLSearchParams {
-    const trimmed = redirectedTo.trim();
-    const query = trimmed.includes('?') ? trimmed.slice(trimmed.indexOf('?') + 1) : trimmed;
+  /**
+   * A random nonce plus where this Huginn lives, base64url-encoded. The relay page
+   * reads the second half to know where to forward; the nonce is what we check.
+   */
+  private newState(): string {
+    const home = Buffer.from(this.publicUrl ?? '', 'utf8').toString('base64url');
 
-    return new URLSearchParams(query.split('#')[0]);
+    return `${crypto.randomUUID()}.${home}`;
   }
 
-  private authorizationOf(connection: Connection): IConnectorAuthorization {
-    const authorization = this.factory(connection.kind).authorization;
+  private async appFor(authorization: IConnectorAuthorization): Promise<OAuthAppCredentials> {
+    const app = await this.oauthApps.credentials(authorization.provider);
+
+    if (!app) {
+      throw new HuginnError(
+        ErrorCode.Validation,
+        `Set up ${authorization.provider} sign-in first (Connections → sign-in settings)`
+      );
+    }
+
+    return app;
+  }
+
+  /** Signing in again with the same account refreshes its connection instead of duplicating it. */
+  private async findByAccount(kind: Connection['kind'], account: string): Promise<string | null> {
+    const sameKind = (await this.connectionStore.list()).filter((c) => c.kind === kind);
+    const accounts = await Promise.all(
+      sameKind.map(async (c) => ({ id: c.id, account: (await this.openSecrets(c.id)).account }))
+    );
+
+    return accounts.find((entry) => entry.account === account)?.id ?? null;
+  }
+
+  private authorizationOf(kind: Connection['kind']): IConnectorAuthorization {
+    const authorization = this.factory(kind).authorization;
 
     if (!authorization) {
-      throw new HuginnError(ErrorCode.Unsupported, `${connection.kind} needs no sign-in`);
+      throw new HuginnError(ErrorCode.Unsupported, `${kind} needs no sign-in`);
     }
 
     return authorization;

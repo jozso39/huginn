@@ -2,10 +2,12 @@ import type {
   GoogleAccessToken,
   GoogleAuthorizationRequest,
   GoogleClientCredentials,
+  GoogleGrant,
   IGoogleOAuthClient,
 } from '@/core/clients/GoogleOAuthClient/GoogleOAuthClient.types';
 
 export const MOCK_REFRESH_TOKEN = '1//mock-refresh-token';
+export const MOCK_GOOGLE_ACCOUNT = 'jozef@example.com';
 
 export class MockGoogleOAuthClient implements IGoogleOAuthClient {
   public authorizationUrl(request: GoogleAuthorizationRequest): string {
@@ -16,9 +18,9 @@ export class MockGoogleOAuthClient implements IGoogleOAuthClient {
     _credentials: GoogleClientCredentials,
     code: string,
     _redirectUri: string
-  ): Promise<string> {
+  ): Promise<GoogleGrant> {
     return code === 'good-code'
-      ? Promise.resolve(MOCK_REFRESH_TOKEN)
+      ? Promise.resolve({ refreshToken: MOCK_REFRESH_TOKEN, email: MOCK_GOOGLE_ACCOUNT })
       : Promise.reject(new Error('invalid_grant'));
   }
 

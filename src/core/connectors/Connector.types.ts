@@ -7,6 +7,7 @@ import type {
   Secrets,
 } from '@/core/connections/Connection.types';
 import type { Item, NewItem } from '@/core/items/Item.types';
+import type { OAuthAppCredentials, OAuthProvider } from '@/core/oauth/OAuthApp.types';
 import type { UpsertResult } from '@/core/items/ItemStore.types';
 
 export interface ConnectorCapabilities {
@@ -63,33 +64,22 @@ export interface SecretField {
   readonly hint?: string;
 }
 
-export enum AuthorizationMode {
-  /** The provider redirects back to Huginn itself; needs HUGINN_PUBLIC_URL. */
-  Redirect = 'Redirect',
-  /** The provider lands on a dead localhost page; the user pastes its address back. */
-  PasteBack = 'PasteBack',
-}
-
-export interface AuthorizationStart {
-  readonly url: string;
-  readonly redirectUri: string;
-  readonly mode: AuthorizationMode;
+export interface SignInResult {
+  /** Secrets to store on the connection, e.g. a refresh token. */
+  readonly secrets: Secrets;
+  /** Who signed in (an email address): names a new connection, finds an existing one. */
+  readonly account: string;
 }
 
 /**
- * An interactive sign-in (OAuth) that turns the secrets the user typed — a client
- * id and secret — into the secrets the connector runs on, such as a refresh token.
+ * An interactive sign-in (OAuth) through the provider app the user set up once.
+ * The app's credentials are handed in; the connector never stores them.
  */
 export interface IConnectorAuthorization {
+  readonly provider: OAuthProvider;
   isAuthorized(secrets: Secrets): boolean;
-  start(connection: Connection, secrets: Secrets, state: string): AuthorizationStart;
-  /** Exchanges the code; returns only the secrets to add or replace. */
-  complete(
-    connection: Connection,
-    secrets: Secrets,
-    code: string,
-    redirectUri: string
-  ): Promise<Secrets>;
+  authorizationUrl(app: OAuthAppCredentials, state: string): string;
+  complete(app: OAuthAppCredentials, code: string): Promise<SignInResult>;
 }
 
 export interface IConnectorFactory {
@@ -101,5 +91,6 @@ export interface IConnectorFactory {
   readonly secretFields: readonly SecretField[];
   /** Present when the connection needs a sign-in before it can run. */
   readonly authorization?: IConnectorAuthorization;
-  create(connection: Connection, secrets: Secrets): IConnector;
+  /** `app` is the provider app's credentials for connectors with `authorization`, else null. */
+  create(connection: Connection, secrets: Secrets, app: OAuthAppCredentials | null): IConnector;
 }
