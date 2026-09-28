@@ -128,6 +128,23 @@ export class SqliteItemStore implements IItemStore {
     return Promise.resolve(rows.map((row) => SqliteItemStore.toItem(row)));
   }
 
+  public closeThread(connectionId: string, threadKey: string): Promise<readonly Item[]> {
+    const rows = this.db
+      .update(items)
+      .set({ state: ItemState.Done, stateChangedAt: new Date() })
+      .where(
+        and(
+          eq(items.connectionId, connectionId),
+          eq(items.threadKey, threadKey),
+          eq(items.state, ItemState.Open)
+        )
+      )
+      .returning()
+      .all();
+
+    return Promise.resolve(rows.map((row) => SqliteItemStore.toItem(row)));
+  }
+
   private static toItem(row: Row): Item {
     return {
       id: row.id,

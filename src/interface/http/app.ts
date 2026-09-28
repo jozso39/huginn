@@ -35,6 +35,19 @@ export const createApp = (container: Container, webRoot: string) => {
     return c.json({ error: 'Internal', message: 'internal error' }, 500);
   });
 
+  // Vite fingerprints everything under /assets, so it can be cached forever. The rest —
+  // index.html above all — must be revalidated, or a phone keeps the old app after a deploy.
+  app.use('/*', async (c, next) => {
+    await next();
+
+    if (!c.req.path.startsWith('/api/') && c.res.ok) {
+      c.header(
+        'Cache-Control',
+        c.req.path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache'
+      );
+    }
+  });
+
   // The SPA: real files first, then index.html for client-side routes.
   app.use('/*', serveStatic({ root: webRoot }));
   app.get('/*', serveStatic({ root: webRoot, path: 'index.html' }));

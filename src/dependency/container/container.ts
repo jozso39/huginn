@@ -9,6 +9,7 @@ import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
 import { InboxService } from '@/core/services/InboxService/InboxService';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { IngestConnectorFactory } from '@/infrastructure/connectors/IngestConnector/IngestConnectorFactory';
+import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
 import { SqliteDatabase } from '@/infrastructure/db/SqliteDatabase';
 import { InMemoryEventBus } from '@/infrastructure/events/InMemoryEventBus/InMemoryEventBus';
 import { AesSecretBox } from '@/infrastructure/secrets/AesSecretBox/AesSecretBox';
@@ -42,6 +43,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
 
   const connectorFactories: readonly IConnectorFactory[] = options.connectorFactories ?? [
     new GitLabConnectorFactory(logger, config),
+    new SlackConnectorFactory(logger, config),
     new IngestConnectorFactory(),
   ];
 

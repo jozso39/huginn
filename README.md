@@ -20,13 +20,19 @@ built in the open and will become configurable for anyone once the shape settles
   (GitLab todos are marked done).
 - The source badge is a deep link to the original message.
 - Keyboard: `j`/`k` move, `r` reply, `e` done, `o` open in source.
-- **Connectors**: GitLab (todos: review requests, mentions, assignments) and an
-  **ingest API** anything can post to (`POST /api/items` with `X-Huginn-Key`).
+- **Connectors**:
+  - **Slack** — DMs, mentions (yours and your groups'), replies in your threads, watched
+    channels; reply and react as you; answering in Slack clears it here.
+    Setup: [docs/slack-app.md](docs/slack-app.md).
+  - **GitLab** — todos (review requests, mentions, assignments); done marks the todo done.
+  - **Ingest API** anything can post to (`POST /api/items` with `X-Huginn-Key`).
+- Works in laptop and phone browsers; on a phone, *Add to Home Screen* gives it its
+  own icon and a full-screen window.
 - Connections are added in the UI; tokens are encrypted at rest (AES-256-GCM).
 
 ## Roadmap
 
-1. **More connectors** — Slack (Socket Mode, user token), Gmail (several accounts),
+1. **More connectors** — Gmail (several accounts),
    ClickUp (polling; it has no notifications API), Signal (linked device),
    LinkedIn (via its notification e-mails).
 2. **Triage** — every item lands in *Important*, *Undecided* or *Spam*, decided by

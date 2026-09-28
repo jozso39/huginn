@@ -27,4 +27,6 @@ export interface IItemStore {
     connectionId: string,
     keepExternalIds: readonly string[]
   ): Promise<readonly Item[]>;
+  /** Closes every Open item of one conversation, e.g. after the user answered it at the source. */
+  closeThread(connectionId: string, threadKey: string): Promise<readonly Item[]>;
 }

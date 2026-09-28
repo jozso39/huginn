@@ -11,7 +11,7 @@ import type {
 import { toError } from '@/core/errors/errors';
 import type { IEventBus } from '@/core/events/EventBus.types';
 import { HuginnEventType } from '@/core/events/EventBus.types';
-import type { NewItem } from '@/core/items/Item.types';
+import type { Item, NewItem } from '@/core/items/Item.types';
 import { ItemState } from '@/core/items/Item.types';
 import type { IItemStore, UpsertResult } from '@/core/items/ItemStore.types';
 import type { ISecretBox } from '@/core/secrets/SecretBox.types';
@@ -151,11 +151,10 @@ export class ConnectorHost implements IConnectorHost {
       secrets,
       upsert: (item: NewItem): Promise<UpsertResult> => this.upsert(item),
       closeOpenExcept: async (keepExternalIds): Promise<void> => {
-        const closed = await this.itemStore.closeOpenExcept(connection.id, keepExternalIds);
-
-        closed.forEach((item) =>
-          this.eventBus.publish({ type: HuginnEventType.ItemChanged, item })
-        );
+        this.announceChanged(await this.itemStore.closeOpenExcept(connection.id, keepExternalIds));
+      },
+      closeThread: async (threadKey): Promise<void> => {
+        this.announceChanged(await this.itemStore.closeThread(connection.id, threadKey));
       },
       getCursor: (): ConnectionCursor => cursor,
       setCursor: async (next: ConnectionCursor): Promise<void> => {
@@ -165,6 +164,10 @@ export class ConnectorHost implements IConnectorHost {
       report: (status, message): Promise<void> =>
         this.setStatus(connection.id, status, message ?? null),
     };
+  }
+
+  private announceChanged(items: readonly Item[]): void {
+    items.forEach((item) => this.eventBus.publish({ type: HuginnEventType.ItemChanged, item }));
   }
 
   private async upsert(item: NewItem): Promise<UpsertResult> {

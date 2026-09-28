@@ -546,3 +546,45 @@ kbd {
     gap: 10px;
   }
 }
+
+/* Phones: respect the notch and home indicator, and make every control a comfortable
+   thumb target. `pointer: coarse` rather than width, so a small laptop window keeps
+   the compact controls. */
+.app {
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: max(48px, env(safe-area-inset-bottom));
+}
+
+.topbar {
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+@media (pointer: coarse) {
+  button,
+  .tab,
+  .chip {
+    min-height: 40px;
+  }
+
+  button {
+    padding: 8px 14px;
+  }
+
+  .emoji {
+    min-width: 40px;
+    font-size: 18px;
+  }
+
+  .badge {
+    width: 36px;
+    height: 36px;
+  }
+
+  input,
+  select,
+  textarea {
+    /* 16px stops iOS Safari from zooming into the field on focus. */
+    font-size: 16px;
+  }
+}

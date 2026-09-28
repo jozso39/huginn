@@ -25,6 +25,8 @@ export interface ConnectorContext {
   readonly secrets: Secrets;
   upsert(item: NewItem): Promise<UpsertResult>;
   closeOpenExcept(keepExternalIds: readonly string[]): Promise<void>;
+  /** The user answered this conversation at the source; nothing in it is waiting anymore. */
+  closeThread(threadKey: string): Promise<void>;
   getCursor(): ConnectionCursor;
   setCursor(cursor: ConnectionCursor): Promise<void>;
   report(status: ConnectionStatus, message?: string | null): Promise<void>;

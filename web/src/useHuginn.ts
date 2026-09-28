@@ -82,7 +82,20 @@ export const useHuginn = (): HuginnData => {
       void refresh();
     });
 
-    return () => source.close();
+    // Phones freeze background tabs and the stream silently dies with them; catch up
+    // the moment the tab is visible again instead of waiting for the reconnect.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      source.close();
+    };
   }, [refresh, applyItem]);
 
   return { open, closed, connections, live, error, refresh, applyItem };
