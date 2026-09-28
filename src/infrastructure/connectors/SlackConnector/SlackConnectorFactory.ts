@@ -6,6 +6,7 @@ import type { Connection, Secrets } from '@/core/connections/Connection.types';
 import { ConnectorKind } from '@/core/connections/Connection.types';
 import type { IConnector, IConnectorFactory, SecretField } from '@/core/connectors/Connector.types';
 import { SlackClient } from '@/infrastructure/clients/SlackClient/SlackClient';
+import { SLACK_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
 import { SlackConnector } from './SlackConnector';
 import { SlackChannelScope } from './SlackConnector.types';
 import { parseChannelList } from './SlackConnector.utils';
@@ -40,6 +41,7 @@ export type SlackClientFactory = (userToken: string, appToken: string) => ISlack
 export class SlackConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.Slack;
   public readonly label = 'Slack';
+  public readonly defaultRules = SLACK_DEFAULT_RULES;
   public readonly capabilities = SlackConnector.capabilities;
   public readonly configSchema = slackConfigSchema;
   public readonly secretFields: readonly SecretField[] = [

@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 // Enums are stored as their string value; the core enums are the source of truth
 // and the stores cast on the way out. Dates are epoch milliseconds.
@@ -14,6 +14,8 @@ export const connections = sqliteTable('connections', {
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
   status: text('status').notNull(),
   statusMessage: text('status_message'),
+  // Inbox grouping; null means the connection is its own group.
+  groupName: text('group_name'),
   lastSyncAt: integer('last_sync_at', { mode: 'timestamp_ms' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
@@ -37,6 +39,8 @@ export const items = sqliteTable(
     raw: text('raw', { mode: 'json' }).notNull().$type<unknown>(),
     category: text('category').notNull(),
     decidedByRuleId: text('decided_by_rule_id'),
+    // The full TriageDecision: source, rule, Jev probabilities. Null until triaged.
+    decision: text('decision', { mode: 'json' }).$type<Record<string, unknown> | null>(),
     state: text('state').notNull(),
     stateChangedAt: integer('state_changed_at', { mode: 'timestamp_ms' }).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
@@ -72,3 +76,49 @@ export const oauthApps = sqliteTable('oauth_apps', {
   secretCiphertext: text('secret_ciphertext').notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 });
+
+export const rules = sqliteTable(
+  'rules',
+  {
+    id: text('id').primaryKey(),
+    connectionId: text('connection_id')
+      .notNull()
+      .references(() => connections.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    verdict: text('verdict').notNull(),
+    kind: text('kind').notNull(),
+    predicate: text('predicate', { mode: 'json' }).$type<unknown>(),
+    criterion: text('criterion'),
+    threshold: real('threshold').notNull(),
+    priority: integer('priority').notNull(),
+    status: text('status').notNull(),
+    origin: text('origin').notNull(),
+    hits: integer('hits').notNull().default(0),
+    lastHitAt: integer('last_hit_at', { mode: 'timestamp_ms' }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [index('rules_connection_priority').on(table.connectionId, table.priority)]
+);
+
+/** Every change to a rule, with who or what caused it and the checks it passed. */
+export const ruleHistory = sqliteTable(
+  'rule_history',
+  {
+    id: text('id').primaryKey(),
+    // No foreign key to rules: history outlives a deleted rule on purpose.
+    ruleId: text('rule_id').notNull(),
+    connectionId: text('connection_id')
+      .notNull()
+      .references(() => connections.id, { onDelete: 'cascade' }),
+    change: text('change').notNull(),
+    origin: text('origin').notNull(),
+    before: text('before', { mode: 'json' }).$type<Record<string, unknown> | null>(),
+    after: text('after', { mode: 'json' }).$type<Record<string, unknown> | null>(),
+    reason: text('reason'),
+    itemId: text('item_id'),
+    checks: text('checks', { mode: 'json' }).$type<Record<string, unknown> | null>(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [index('rule_history_connection').on(table.connectionId, table.createdAt)]
+);

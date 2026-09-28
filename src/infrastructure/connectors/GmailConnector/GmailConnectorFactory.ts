@@ -9,6 +9,7 @@ import type { IConnector, IConnectorFactory, SecretField } from '@/core/connecto
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
 import { GmailClient } from '@/infrastructure/clients/GmailClient/GmailClient';
+import { GMAIL_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
 import { GmailConnector } from './GmailConnector';
 import { GmailInboxScope } from './GmailConnector.types';
 import { GoogleAuthorization } from './GoogleAuthorization';
@@ -34,6 +35,7 @@ export type GmailClientFactory = (app: OAuthAppCredentials, refreshToken: string
 export class GmailConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.Gmail;
   public readonly label = 'Gmail';
+  public readonly defaultRules = GMAIL_DEFAULT_RULES;
   public readonly capabilities = GmailConnector.capabilities;
   public readonly configSchema = gmailConfigSchema;
   public readonly secretFields: readonly SecretField[] = [];

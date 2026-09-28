@@ -40,6 +40,7 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
     await api.createConnection({
       kind: newKind,
       name: name !== '' ? name : (newDescriptor?.label ?? newKind),
+      groupName: values.groupName.trim() === '' ? null : values.groupName.trim(),
       config: filledOnly(values.config),
       secrets: values.secrets,
     });
@@ -52,7 +53,8 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
     await api.updateConnection(
       connection.id,
       name !== '' ? name : connection.name,
-      filledOnly(values.config)
+      filledOnly(values.config),
+      values.groupName.trim() === '' ? null : values.groupName.trim()
     );
 
     const newSecrets = filledOnly(values.secrets);
@@ -92,6 +94,9 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
                 </span>
                 <div className="connection__info">
                   <strong>{connection.name}</strong>
+                  {connection.groupName && (
+                    <span className="muted small">in {connection.groupName}</span>
+                  )}
                   <span className={`status status--${connection.status.toLowerCase()}`}>
                     {STATUS_LABEL[connection.status]}
                   </span>
@@ -107,6 +112,9 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
                   )}
                 </div>
                 <div className="connection__buttons">
+                  <a className="button" href={`#rules/${connection.id}`}>
+                    Rules
+                  </a>
                   {descriptor && editing !== connection.id && (
                     <button type="button" onClick={() => setEditing(connection.id)}>
                       Edit

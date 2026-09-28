@@ -1,3 +1,5 @@
+import type { TriageDecision } from '@/core/triage/Rule.types';
+
 /** What kind of thing arrived. Drives the icon and the default triage features. */
 export enum ItemKind {
   Message = 'Message',
@@ -49,6 +51,8 @@ export interface Item {
   readonly raw: unknown;
   readonly category: Category;
   readonly decidedByRuleId: string | null;
+  /** Why it is in its category; null until triaged. */
+  readonly decision: TriageDecision | null;
   readonly state: ItemState;
   readonly stateChangedAt: Date;
   readonly createdAt: Date;

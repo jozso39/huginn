@@ -27,7 +27,12 @@ export interface IConnectionService {
   list(): Promise<readonly Connection[]>;
   get(id: string): Promise<Connection | null>;
   create(input: NewConnection): Promise<Connection>;
-  updateConfig(id: string, name: string, config: Connection['config']): Promise<Connection>;
+  updateConfig(
+    id: string,
+    name: string,
+    config: Connection['config'],
+    groupName?: string | null
+  ): Promise<Connection>;
   /** Replaces only the keys given; untouched secrets stay as they were. */
   updateSecrets(id: string, secrets: Readonly<Record<string, string>>): Promise<void>;
   setEnabled(id: string, enabled: boolean): Promise<Connection>;

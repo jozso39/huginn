@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArchiveView } from './components/ArchiveView';
 import { ConnectionsView } from './components/ConnectionsView';
 import { InboxView } from './components/InboxView';
+import { RulesView } from './components/RulesView';
 import { useHuginn } from './useHuginn';
 
 type Tab = 'inbox' | 'archive' | 'connections';
@@ -12,27 +13,42 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'connections', label: 'Connections' },
 ];
 
-const tabFromHash = (): Tab => {
+interface Route {
+  tab: Tab;
+  /** #rules/<connectionId> opens that connection's rules under the Connections tab. */
+  rulesFor: string | null;
+}
+
+const routeFromHash = (): Route => {
   const hash = window.location.hash.replace('#', '');
 
-  return TABS.some((t) => t.id === hash) ? (hash as Tab) : 'inbox';
+  if (hash.startsWith('rules/')) {
+    return { tab: 'connections', rulesFor: hash.slice('rules/'.length) };
+  }
+
+  return { tab: TABS.some((t) => t.id === hash) ? (hash as Tab) : 'inbox', rulesFor: null };
 };
 
 export const App = () => {
   const { open, closed, connections, kinds, live, error, refresh, applyItem } = useHuginn();
-  const [tab, setTab] = useState<Tab>(tabFromHash);
+  const [route, setRoute] = useState<Route>(routeFromHash);
+  const { tab, rulesFor } = route;
+  const rulesConnection = connections.find((c) => c.id === rulesFor);
 
   useEffect(() => {
-    const onHash = () => setTab(tabFromHash());
+    const onHash = () => setRoute(routeFromHash());
 
     window.addEventListener('hashchange', onHash);
 
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  // The tab title counts what needs you: important items, not everything waiting.
+  const importantCount = open.filter((item) => item.category === 'Important').length;
+
   useEffect(() => {
-    document.title = open.length > 0 ? `(${open.length}) Huginn` : 'Huginn';
-  }, [open.length]);
+    document.title = importantCount > 0 ? `(${importantCount}) Huginn` : 'Huginn';
+  }, [importantCount]);
 
   const failing = connections.filter((c) => c.status === 'Error');
 
@@ -47,7 +63,9 @@ export const App = () => {
           {TABS.map((t) => (
             <a key={t.id} href={`#${t.id}`} className={tab === t.id ? 'tab tab--on' : 'tab'}>
               {t.label}
-              {t.id === 'inbox' && open.length > 0 && <span className="count">{open.length}</span>}
+              {t.id === 'inbox' && importantCount > 0 && (
+                <span className="count count--important">{importantCount}</span>
+              )}
               {t.id === 'connections' && failing.length > 0 && (
                 <span className="count count--bad">{failing.length}</span>
               )}
@@ -66,7 +84,8 @@ export const App = () => {
         {tab === 'archive' && (
           <ArchiveView items={closed} connections={connections} onChanged={applyItem} />
         )}
-        {tab === 'connections' && (
+        {tab === 'connections' && rulesConnection && <RulesView connection={rulesConnection} />}
+        {tab === 'connections' && !rulesConnection && (
           <ConnectionsView connections={connections} kinds={kinds} onChanged={refresh} />
         )}
       </main>

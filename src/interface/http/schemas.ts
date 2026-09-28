@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { ConnectorKind } from '@/core/connections/Connection.types';
 import { OAuthProvider, RedirectMode } from '@/core/oauth/OAuthApp.types';
+import { MoveDirection } from '@/core/services/RuleService/RuleService.types';
+import { predicateSchema } from '@/core/triage/predicate.utils';
+import { RuleKind, RuleStatus, RuleVerdict } from '@/core/triage/Rule.types';
 import { Category, ItemKind, ItemState } from '@/core/items/Item.types';
 
 export const listItemsQuerySchema = z.object({
@@ -37,15 +40,19 @@ export const ingestBodySchema = z.object({
     .default({}),
 });
 
+const groupNameSchema = z.string().trim().max(60).nullable().optional();
+
 export const createConnectionBodySchema = z.object({
   kind: z.enum(ConnectorKind),
   name: z.string().trim().min(1).max(100),
+  groupName: groupNameSchema,
   config: z.record(z.string(), z.unknown()).default({}),
   secrets: z.record(z.string(), z.string()).default({}),
 });
 
 export const updateConnectionBodySchema = z.object({
   name: z.string().trim().min(1).max(100),
+  groupName: groupNameSchema,
   config: z.record(z.string(), z.unknown()).default({}),
 });
 
@@ -67,3 +74,22 @@ export const oauthAppBodySchema = z.object({
 });
 
 export const oauthProviderParamSchema = z.enum(OAuthProvider);
+
+export const feedbackBodySchema = z.object({
+  verdict: z.enum(RuleVerdict),
+  explanation: z.string().max(1000).default(''),
+});
+
+/** The shape is checked in full by the rule service; this only bounds the input. */
+export const ruleDraftBodySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  verdict: z.enum(RuleVerdict),
+  kind: z.enum(RuleKind),
+  predicate: predicateSchema.nullable().optional(),
+  criterion: z.string().trim().max(300).nullable().optional(),
+  threshold: z.number().min(0.5).max(0.99).optional(),
+});
+
+export const ruleStatusBodySchema = z.object({ status: z.enum(RuleStatus) });
+
+export const ruleMoveBodySchema = z.object({ direction: z.enum(MoveDirection) });

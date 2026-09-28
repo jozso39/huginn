@@ -6,6 +6,7 @@ import type { Connection, Secrets } from '@/core/connections/Connection.types';
 import { ConnectorKind } from '@/core/connections/Connection.types';
 import type { IConnector, IConnectorFactory, SecretField } from '@/core/connectors/Connector.types';
 import { ClickUpClient } from '@/infrastructure/clients/ClickUpClient/ClickUpClient';
+import { CLICKUP_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
 import { ClickUpConnector } from './ClickUpConnector';
 
 export const clickUpConfigSchema = z.object({
@@ -20,6 +21,7 @@ export type ClickUpClientFactory = (token: string) => IClickUpClient;
 export class ClickUpConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.ClickUp;
   public readonly label = 'ClickUp';
+  public readonly defaultRules = CLICKUP_DEFAULT_RULES;
   public readonly capabilities = ClickUpConnector.capabilities;
   public readonly configSchema = clickUpConfigSchema;
   public readonly secretFields: readonly SecretField[] = [

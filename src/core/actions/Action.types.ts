@@ -1,6 +1,9 @@
 export enum ActionType {
   Reply = 'Reply',
   Draft = 'Draft',
+  /** Moved to Spam by hand, with the user's explanation. */
+  MarkSpam = 'MarkSpam',
+  MarkImportant = 'MarkImportant',
   React = 'React',
   Done = 'Done',
   Archive = 'Archive',

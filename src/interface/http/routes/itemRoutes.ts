@@ -4,6 +4,7 @@ import { ConnectorKind } from '@/core/connections/Connection.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import { parseBody, parseQuery } from '@/interface/http/validation.utils';
 import {
+  feedbackBodySchema,
   ingestBodySchema,
   listItemsQuerySchema,
   reactBodySchema,
@@ -45,6 +46,15 @@ export const createItemRoutes = (container: Container) => {
     const { emoji } = parseBody(reactBodySchema, await c.req.json());
 
     return c.json({ item: await container.inboxService.react(c.req.param('id'), emoji) });
+  });
+
+  // Spam / Important by hand; with an explanation the rules learn from it.
+  app.post('/:id/feedback', async (c) => {
+    const body = parseBody(feedbackBodySchema, await c.req.json());
+
+    return c.json(
+      await container.feedbackService.mark(c.req.param('id'), body.verdict, body.explanation)
+    );
   });
 
   app.post('/:id/done', async (c) =>

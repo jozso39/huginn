@@ -2,8 +2,10 @@ import { Hono } from 'hono';
 import type { Container } from '@/dependency/container/container.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import { parseBody } from '@/interface/http/validation.utils';
+import { RuleOrigin } from '@/core/triage/Rule.types';
 import {
   createConnectionBodySchema,
+  ruleDraftBodySchema,
   setEnabledBodySchema,
   updateConnectionBodySchema,
   updateSecretsBodySchema,
@@ -37,7 +39,8 @@ export const createConnectionRoutes = (container: Container) => {
     const connection = await container.connectionService.updateConfig(
       c.req.param('id'),
       body.name,
-      body.config
+      body.config,
+      body.groupName
     );
 
     return c.json({ connection });
@@ -60,6 +63,41 @@ export const createConnectionRoutes = (container: Container) => {
 
     return c.json({ connection });
   });
+
+  app.get('/:id/rules', async (c) => {
+    const id = c.req.param('id');
+    const [rules, history] = await Promise.all([
+      container.ruleService.list(id),
+      container.ruleService.history(id),
+    ]);
+
+    return c.json({ rules, history });
+  });
+
+  app.post('/:id/rules', async (c) => {
+    const draft = parseBody(ruleDraftBodySchema, await c.req.json());
+    const rule = await container.ruleService.create(c.req.param('id'), draft, {
+      origin: RuleOrigin.User,
+    });
+
+    return c.json({ rule }, 201);
+  });
+
+  app.post('/:id/rules/dry-run', async (c) => {
+    const draft = container.ruleService.validate(
+      parseBody(ruleDraftBodySchema, await c.req.json())
+    );
+
+    return c.json(await container.triageService.dryRun(c.req.param('id'), draft));
+  });
+
+  app.post('/:id/triage', async (c) =>
+    c.json(await container.triageService.retriage(c.req.param('id')))
+  );
+
+  app.get('/:id/fields', async (c) =>
+    c.json({ fields: await container.ruleService.fields(c.req.param('id')) })
+  );
 
   app.delete('/:id', async (c) => {
     await container.connectionService.remove(c.req.param('id'));

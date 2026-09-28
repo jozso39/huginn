@@ -6,6 +6,7 @@ export interface StoredConnectionInput {
   readonly config: Connection['config'];
   /** Already sealed by the SecretBox; the store never sees plaintext. */
   readonly secretsCiphertext: string;
+  readonly groupName: string | null;
 }
 
 export interface IConnectionStore {

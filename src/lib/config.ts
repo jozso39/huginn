@@ -12,6 +12,14 @@ export const createConfig = () => {
     ingestKey: env.HUGINN_INGEST_KEY,
     publicUrl: env.HUGINN_PUBLIC_URL?.replace(/\/$/, '') ?? null,
     oauthRelayUrl: env.HUGINN_OAUTH_RELAY_URL ?? null,
+    ai: {
+      openRouterApiKey: env.HUGINN_OPENROUTER_API_KEY ?? null,
+      jevModel: env.HUGINN_JEV_MODEL,
+      feedbackModel: env.HUGINN_FEEDBACK_MODEL,
+      // Jev answers in ~0.5 s; past this, triage falls back to Undecided.
+      jevTimeoutMs: 5_000,
+      feedbackTimeoutMs: 45_000,
+    },
     connectors: {
       // Polling cadence for connectors without a push channel. GitLab has no
       // documented per-token limit that a 60 s poll would approach.

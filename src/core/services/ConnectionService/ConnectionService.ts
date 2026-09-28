@@ -8,6 +8,7 @@ import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import type { ISecretBox } from '@/core/secrets/SecretBox.types';
 import type { IConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost.types';
 import type { IOAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService.types';
+import type { IRuleService } from '@/core/services/RuleService/RuleService.types';
 import type {
   ConnectorDescriptor,
   IConnectionService,
@@ -38,6 +39,7 @@ export class ConnectionService implements IConnectionService {
     private readonly secretBox: ISecretBox,
     private readonly connectorHost: IConnectorHost,
     private readonly oauthApps: IOAuthAppService,
+    private readonly rules: IRuleService,
     private readonly publicUrl: string | null
   ) {}
 
@@ -72,9 +74,12 @@ export class ConnectionService implements IConnectionService {
       name: input.name,
       config,
       secretsCiphertext: await this.secretBox.seal(JSON.stringify(input.secrets)),
+      groupName: ConnectionService.groupOf(input.groupName),
     });
 
     this.logger.info({ connectionId: connection.id, kind: connection.kind }, 'connection created');
+    // Rules first, so the first sync is already sorted.
+    await this.rules.installDefaults(connection.id);
 
     return this.restartAndReload(connection.id);
   }
@@ -82,12 +87,17 @@ export class ConnectionService implements IConnectionService {
   public async updateConfig(
     id: string,
     name: string,
-    config: Connection['config']
+    config: Connection['config'],
+    groupName?: string | null
   ): Promise<Connection> {
     const existing = await this.require(id);
     const parsed = this.parseConfig(this.factory(existing.kind), config);
 
-    await this.connectionStore.update(id, { name, config: parsed });
+    await this.connectionStore.update(id, {
+      name,
+      config: parsed,
+      ...(groupName !== undefined ? { groupName: ConnectionService.groupOf(groupName) } : {}),
+    });
 
     return this.restartAndReload(id);
   }
@@ -228,6 +238,13 @@ export class ConnectionService implements IConnectionService {
     );
 
     return accounts.find((entry) => entry.account === account)?.id ?? null;
+  }
+
+  /** Blank means "its own group". */
+  private static groupOf(groupName: string | null | undefined): string | null {
+    const trimmed = groupName?.trim() ?? '';
+
+    return trimmed === '' ? null : trimmed;
   }
 
   private authorizationOf(kind: Connection['kind']): IConnectorAuthorization {

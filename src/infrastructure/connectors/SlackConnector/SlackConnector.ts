@@ -223,6 +223,7 @@ export class SlackConnector implements IConnector {
         isPersonalMention: text.includes(`<@${relevance.me}>`),
         isThreadReply: Boolean(event.thread_ts && event.thread_ts !== event.ts),
         isWatchedChannel: relevance.watchedChannels.has(event.channel),
+        inMyThread: verdict === SlackRelevance.ThreadReply,
         allChannelsScope: relevance.channelScope === SlackChannelScope.AllMyChannels,
         mentionsEveryone: /<!(here|channel|everyone)/.test(text),
         hasFiles: files !== '',

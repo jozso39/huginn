@@ -35,22 +35,24 @@ built in the open and will become configurable for anyone once the shape settles
   own icon and a full-screen window.
 - Connections are added in the UI; tokens are encrypted at rest (AES-256-GCM).
 
+## Triage
+
+Every item is sorted into **Important**, **Undecided** or **Spam** by per-connection
+rules; each decision names the rule that made it. Rules are either exact conditions on
+the item's fields or one-sentence criteria judged by a small calibrated classifier
+([Jev](https://typesafe.ai)). Marking something Spam or Important — and saying why —
+lets an agent adjust the rules, fenced by guardrails because messages are untrusted
+input. Details: [docs/triage.md](docs/triage.md).
+
+The inbox groups connections (e.g. *Work*, *Personal*); groups start collapsed and show
+how much is waiting and how much of it is important.
+
 ## Roadmap
 
 1. **More connectors** — LinkedIn (from its notification e-mails in Gmail),
    Signal (linked device).
-2. **Triage** — every item lands in *Important*, *Undecided* or *Spam*, decided by
-   per-connection **rules** that are traceable: each verdict names the rule that made it.
-   *Hard* rules are predicates on metadata, evaluated in code. *Soft* rules are one-line
-   criteria evaluated by a System One model ([Jev](https://typesafe.ai)) — one yes/no
-   question per rule, all batched in one call, with low confidence falling to *Undecided*.
-3. **Learning from feedback** — mark something *Spam* or *Important* and say why; an
-   agent turns that into a new or amended rule, shown to you with a dry run over recent
-   items before it goes live. Messages are untrusted input, so the agent is fenced by
-   guardrail checks on what it reads and on the rule it proposes.
-4. **Origin triage** — sensible default rules per connector on day one (a direct
-   Slack mention is important; Gmail's own spam is spam).
-5. Push only *Important* items to the phone.
+2. Push only *Important* items to the phone.
+3. Backfill for Slack (messages sent while Huginn was offline).
 
 ## Running it
 

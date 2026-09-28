@@ -1,3 +1,4 @@
+import type { TriageDecision } from '@/core/triage/Rule.types';
 import type { Category, Item, ItemState, NewItem } from './Item.types';
 
 export interface ItemFilter {
@@ -18,6 +19,7 @@ export interface IItemStore {
   get(id: string): Promise<Item | null>;
   list(filter: ItemFilter): Promise<readonly Item[]>;
   setState(id: string, state: ItemState): Promise<Item | null>;
+  setDecision(id: string, decision: TriageDecision): Promise<Item | null>;
   /**
    * Closes every Open item of the connection whose external id is not in the
    * list. Connectors call this after a full poll so a todo finished in GitLab

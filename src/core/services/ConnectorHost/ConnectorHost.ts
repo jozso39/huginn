@@ -17,6 +17,7 @@ import type { IItemStore, UpsertResult } from '@/core/items/ItemStore.types';
 import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
 import type { ISecretBox } from '@/core/secrets/SecretBox.types';
 import type { IOAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService.types';
+import type { ITriageService } from '@/core/services/TriageService/TriageService.types';
 import type { IConnectorHost } from './ConnectorHost.types';
 
 interface RunningConnector {
@@ -38,7 +39,8 @@ export class ConnectorHost implements IConnectorHost {
     private readonly itemStore: IItemStore,
     private readonly secretBox: ISecretBox,
     private readonly eventBus: IEventBus,
-    private readonly oauthApps: IOAuthAppService
+    private readonly oauthApps: IOAuthAppService,
+    private readonly triage: ITriageService
   ) {}
 
   public async startAll(): Promise<void> {
@@ -209,7 +211,11 @@ export class ConnectorHost implements IConnectorHost {
   }
 
   private async upsert(item: NewItem): Promise<UpsertResult> {
-    const result = await this.itemStore.upsert(item);
+    const stored = await this.itemStore.upsert(item);
+    // New items are sorted before anyone sees them; a refreshed one keeps its place.
+    const result = stored.created
+      ? { ...stored, item: await this.triageSafely(stored.item) }
+      : stored;
 
     // A refreshed copy of an item the user already closed is not news.
     if (result.created || result.item.state === ItemState.Open) {
@@ -221,6 +227,17 @@ export class ConnectorHost implements IConnectorHost {
     }
 
     return result;
+  }
+
+  /** Triage must never cost an item: on failure it simply stays Undecided. */
+  private async triageSafely(item: Item): Promise<Item> {
+    try {
+      return await this.triage.triage(item);
+    } catch (error) {
+      this.logger.warn({ err: toError(error), itemId: item.id }, 'triage failed');
+
+      return item;
+    }
   }
 
   private async loadSecrets(connectionId: string): Promise<Secrets> {

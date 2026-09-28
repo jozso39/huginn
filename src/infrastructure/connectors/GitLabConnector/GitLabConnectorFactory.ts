@@ -6,6 +6,7 @@ import type { Connection, Secrets } from '@/core/connections/Connection.types';
 import { ConnectorKind } from '@/core/connections/Connection.types';
 import type { IConnector, IConnectorFactory, SecretField } from '@/core/connectors/Connector.types';
 import { GitLabClient } from '@/infrastructure/clients/GitLabClient/GitLabClient';
+import { GITLAB_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
 import { GitLabConnector } from './GitLabConnector';
 
 export const gitLabConfigSchema = z.object({
@@ -19,6 +20,7 @@ export type GitLabClientFactory = (baseUrl: string, token: string) => IGitLabCli
 export class GitLabConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.GitLab;
   public readonly label = 'GitLab';
+  public readonly defaultRules = GITLAB_DEFAULT_RULES;
   public readonly capabilities = GitLabConnector.capabilities;
   public readonly configSchema = gitLabConfigSchema;
   public readonly secretFields: readonly SecretField[] = [

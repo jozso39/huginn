@@ -8,6 +8,7 @@ import type {
 } from '@/core/connections/Connection.types';
 import type { Item, NewItem } from '@/core/items/Item.types';
 import type { OAuthAppCredentials, OAuthProvider } from '@/core/oauth/OAuthApp.types';
+import type { RuleDraft } from '@/core/triage/Rule.types';
 import type { UpsertResult } from '@/core/items/ItemStore.types';
 
 export interface ConnectorCapabilities {
@@ -91,6 +92,12 @@ export interface IConnectorFactory {
   readonly secretFields: readonly SecretField[];
   /** Present when the connection needs a sign-in before it can run. */
   readonly authorization?: IConnectorAuthorization;
+  /**
+   * Origin triage: the rules a new connection of this kind starts with, in
+   * priority order. What the connector knows is important (a DM, a review
+   * request) goes here; everything else starts Undecided.
+   */
+  readonly defaultRules?: readonly RuleDraft[];
   /** `app` is the provider app's credentials for connectors with `authorization`, else null. */
   create(connection: Connection, secrets: Secrets, app: OAuthAppCredentials | null): IConnector;
 }

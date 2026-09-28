@@ -3,11 +3,19 @@ import type {
   Connection,
   ConnectorDescriptor,
   ConnectorKind,
+  DryRunResult,
+  FeedbackResult,
+  FieldInfo,
   Item,
   ItemState,
   OAuthAppView,
   OAuthProvider,
   RedirectMode,
+  Rule,
+  RuleDraft,
+  RuleHistoryEntry,
+  RuleStatus,
+  Verdict,
 } from './api.types';
 
 export class ApiError extends Error {
@@ -45,6 +53,8 @@ export const api = {
   react: (id: string, emoji: string) =>
     request<{ item: Item }>('POST', `/items/${id}/react`, { emoji }).then((r) => r.item),
   done: (id: string) => request<{ item: Item }>('POST', `/items/${id}/done`).then((r) => r.item),
+  feedback: (id: string, verdict: Verdict, explanation: string) =>
+    request<FeedbackResult>('POST', `/items/${id}/feedback`, { verdict, explanation }),
   reopen: (id: string) =>
     request<{ item: Item }>('POST', `/items/${id}/reopen`).then((r) => r.item),
 
@@ -57,10 +67,16 @@ export const api = {
     name: string;
     config: Record<string, unknown>;
     secrets: Record<string, string>;
+    groupName?: string | null;
   }) =>
     request<{ connection: Connection }>('POST', '/connections', input).then((r) => r.connection),
-  updateConnection: (id: string, name: string, config: Record<string, unknown>) =>
-    request<{ connection: Connection }>('PUT', `/connections/${id}`, { name, config }),
+  updateConnection: (
+    id: string,
+    name: string,
+    config: Record<string, unknown>,
+    groupName: string | null
+  ) =>
+    request<{ connection: Connection }>('PUT', `/connections/${id}`, { name, config, groupName }),
   updateSecrets: (id: string, secrets: Record<string, string>) =>
     request<{ ok: true }>('PUT', `/connections/${id}/secrets`, { secrets }),
   setEnabled: (id: string, enabled: boolean) =>
@@ -75,4 +91,29 @@ export const api = {
   /** Returns the provider page to send the browser to. */
   signIn: (target: { kind: ConnectorKind } | { connectionId: string }) =>
     request<{ url: string }>('POST', '/oauth/sign-in', target).then((r) => r.url),
+
+  listRules: (connectionId: string) =>
+    request<{ rules: Rule[]; history: RuleHistoryEntry[] }>(
+      'GET',
+      `/connections/${connectionId}/rules`
+    ),
+  createRule: (connectionId: string, draft: RuleDraft) =>
+    request<{ rule: Rule }>('POST', `/connections/${connectionId}/rules`, draft).then(
+      (r) => r.rule
+    ),
+  dryRun: (connectionId: string, draft: RuleDraft) =>
+    request<DryRunResult>('POST', `/connections/${connectionId}/rules/dry-run`, draft),
+  retriage: (connectionId: string) =>
+    request<{ evaluated: number; changed: number }>('POST', `/connections/${connectionId}/triage`),
+  fields: (connectionId: string) =>
+    request<{ fields: FieldInfo[] }>('GET', `/connections/${connectionId}/fields`).then(
+      (r) => r.fields
+    ),
+  updateRule: (id: string, draft: RuleDraft) =>
+    request<{ rule: Rule }>('PUT', `/rules/${id}`, draft).then((r) => r.rule),
+  setRuleStatus: (id: string, status: RuleStatus) =>
+    request<{ rule: Rule }>('PUT', `/rules/${id}/status`, { status }).then((r) => r.rule),
+  moveRule: (id: string, direction: 'Up' | 'Down') =>
+    request<{ ok: true }>('POST', `/rules/${id}/move`, { direction }),
+  deleteRule: (id: string) => request<{ ok: true }>('DELETE', `/rules/${id}`),
 };

@@ -33,6 +33,8 @@ export interface Connection {
   readonly status: ConnectionStatus;
   readonly statusMessage: string | null;
   readonly lastSyncAt: Date | null;
+  /** Inbox group; null means the connection is its own group. */
+  readonly groupName: string | null;
   readonly createdAt: Date;
 }
 
@@ -43,6 +45,7 @@ export interface NewConnection {
   readonly name: string;
   readonly config: ConnectionConfig;
   readonly secrets: Secrets;
+  readonly groupName?: string | null;
 }
 
 export interface ConnectionPatch {
@@ -53,4 +56,5 @@ export interface ConnectionPatch {
   readonly status?: ConnectionStatus;
   readonly statusMessage?: string | null;
   readonly lastSyncAt?: Date | null;
+  readonly groupName?: string | null;
 }

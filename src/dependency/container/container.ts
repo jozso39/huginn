@@ -3,14 +3,21 @@ import type { IConfig } from '@/lib/config';
 import { createConfig } from '@/lib/config';
 import type { Logger } from '@/lib/logger';
 import { createLogger } from '@/lib/logger';
+import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
+import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { ConnectionService } from '@/core/services/ConnectionService/ConnectionService';
 import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
+import { FeedbackService } from '@/core/services/FeedbackService/FeedbackService';
 import { InboxService } from '@/core/services/InboxService/InboxService';
 import { OAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService';
+import { RuleService } from '@/core/services/RuleService/RuleService';
+import { TriageService } from '@/core/services/TriageService/TriageService';
 import { GoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient';
-import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
+import { JevClient } from '@/infrastructure/clients/JevClient/JevClient';
+import { OpenRouterLlmClient } from '@/infrastructure/clients/OpenRouterLlmClient/OpenRouterLlmClient';
 import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
+import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { IngestConnectorFactory } from '@/infrastructure/connectors/IngestConnector/IngestConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
@@ -21,6 +28,7 @@ import { SqliteActionStore } from '@/infrastructure/stores/SqliteActionStore/Sql
 import { SqliteConnectionStore } from '@/infrastructure/stores/SqliteConnectionStore/SqliteConnectionStore';
 import { SqliteItemStore } from '@/infrastructure/stores/SqliteItemStore/SqliteItemStore';
 import { SqliteOAuthAppStore } from '@/infrastructure/stores/SqliteOAuthAppStore/SqliteOAuthAppStore';
+import { SqliteRuleStore } from '@/infrastructure/stores/SqliteRuleStore/SqliteRuleStore';
 import type { Container } from './container.types';
 
 export interface CreateContainerOptions {
@@ -28,6 +36,8 @@ export interface CreateContainerOptions {
   readonly logger?: Logger;
   /** Replaces the default factory list wholesale (tests inject mocks here). */
   readonly connectorFactories?: readonly IConnectorFactory[];
+  readonly jev?: IJevClient;
+  readonly llm?: ILlmClient;
 }
 
 const MIGRATIONS_FOLDER = resolve(import.meta.dir, '../../../drizzle');
@@ -45,12 +55,27 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
   const itemStore = new SqliteItemStore(database.db);
   const connectionStore = new SqliteConnectionStore(database.db);
   const actionStore = new SqliteActionStore(database.db);
+  const ruleStore = new SqliteRuleStore(database.db);
   const oauthAppService = new OAuthAppService(
     logger,
     new SqliteOAuthAppStore(database.db),
     secretBox,
     { publicUrl: config.publicUrl, relayUrl: config.oauthRelayUrl }
   );
+  const jev =
+    options.jev ??
+    new JevClient(logger, {
+      apiKey: config.ai.openRouterApiKey,
+      model: config.ai.jevModel,
+      timeoutMs: config.ai.jevTimeoutMs,
+    });
+  const llm =
+    options.llm ??
+    new OpenRouterLlmClient(logger, {
+      apiKey: config.ai.openRouterApiKey,
+      model: config.ai.feedbackModel,
+      timeoutMs: config.ai.feedbackTimeoutMs,
+    });
 
   const connectorFactories: readonly IConnectorFactory[] = options.connectorFactories ?? [
     new GitLabConnectorFactory(logger, config),
@@ -60,6 +85,22 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     new IngestConnectorFactory(),
   ];
 
+  const triageService = new TriageService(
+    logger,
+    ruleStore,
+    itemStore,
+    connectionStore,
+    jev,
+    eventBus
+  );
+  const ruleService = new RuleService(
+    logger,
+    ruleStore,
+    triageService,
+    itemStore,
+    connectionStore,
+    connectorFactories
+  );
   const connectorHost = new ConnectorHost(
     logger,
     config,
@@ -68,9 +109,17 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     itemStore,
     secretBox,
     eventBus,
-    oauthAppService
+    oauthAppService,
+    triageService
   );
-  const inboxService = new InboxService(logger, itemStore, actionStore, connectorHost, eventBus);
+  const inboxService = new InboxService(
+    logger,
+    itemStore,
+    actionStore,
+    connectorHost,
+    eventBus,
+    triageService
+  );
   const connectionService = new ConnectionService(
     logger,
     connectorFactories,
@@ -78,7 +127,19 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     secretBox,
     connectorHost,
     oauthAppService,
+    ruleService,
     config.publicUrl
+  );
+  const feedbackService = new FeedbackService(
+    logger,
+    itemStore,
+    actionStore,
+    connectionStore,
+    ruleService,
+    triageService,
+    jev,
+    llm,
+    eventBus
   );
 
   return {
@@ -94,6 +155,9 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     inboxService,
     connectionService,
     oauthAppService,
+    triageService,
+    ruleService,
+    feedbackService,
     close: () => database.close(),
   };
 };

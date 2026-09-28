@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import type { Category, Item, ItemFeatures, ItemKind, NewItem } from '@/core/items/Item.types';
 import { Category as CategoryEnum, ItemState } from '@/core/items/Item.types';
 import type { IItemStore, ItemFilter, UpsertResult } from '@/core/items/ItemStore.types';
+import type { TriageDecision } from '@/core/triage/Rule.types';
 import type { Db } from '@/infrastructure/db/SqliteDatabase';
 import { items } from '@/infrastructure/db/schema';
 
@@ -60,6 +61,7 @@ export class SqliteItemStore implements IItemStore {
         raw: newItem.raw,
         category: CategoryEnum.Undecided,
         decidedByRuleId: null,
+        decision: null,
         state: ItemState.Open,
         stateChangedAt: now,
         createdAt: now,
@@ -98,6 +100,21 @@ export class SqliteItemStore implements IItemStore {
     const row = this.db
       .update(items)
       .set({ state, stateChangedAt: new Date() })
+      .where(eq(items.id, id))
+      .returning()
+      .get();
+
+    return Promise.resolve(row ? SqliteItemStore.toItem(row) : null);
+  }
+
+  public setDecision(id: string, decision: TriageDecision): Promise<Item | null> {
+    const row = this.db
+      .update(items)
+      .set({
+        category: decision.category,
+        decidedByRuleId: decision.ruleId,
+        decision: { ...decision },
+      })
       .where(eq(items.id, id))
       .returning()
       .get();
@@ -185,6 +202,7 @@ export class SqliteItemStore implements IItemStore {
       raw: row.raw,
       category: row.category as Category,
       decidedByRuleId: row.decidedByRuleId,
+      decision: (row.decision ?? null) as TriageDecision | null,
       state: row.state as ItemState,
       stateChangedAt: row.stateChangedAt,
       createdAt: row.createdAt,

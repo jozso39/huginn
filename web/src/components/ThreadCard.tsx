@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
-import type { Connection, ConnectorCapabilities, Item } from '../api.types';
+import type {
+  Connection,
+  ConnectorCapabilities,
+  Item,
+  TriageDecision,
+  Verdict,
+} from '../api.types';
 import { CONNECTOR_META, KIND_LABEL, QUICK_EMOJI, relativeTime } from '../connectorMeta';
 
 interface ThreadCardProps {
@@ -13,9 +19,33 @@ interface ThreadCardProps {
   replying: boolean;
   onStartReply: () => void;
   onCloseReply: () => void;
+  /** Also owned by the inbox, for the `i` / `s` shortcuts. */
+  feedback: Verdict | null;
+  onStartFeedback: (verdict: Verdict) => void;
+  onCloseFeedback: () => void;
   onSelect: () => void;
   onChanged: (item: Item) => void;
+  /** Messages that must outlive the card (it may leave the view after Spam). */
+  onNotice: (message: string) => void;
 }
+
+/** One line on why the item is where it is. */
+const whyText = (decision: TriageDecision | null): string => {
+  if (!decision) {
+    return 'Not sorted yet';
+  }
+
+  switch (decision.source) {
+    case 'Rule':
+      return `Rule “${decision.ruleName ?? '?'}”`;
+    case 'User':
+      return 'You put it here';
+    case 'ClassifierUnavailable':
+      return 'No rule matched (the classifier was unreachable)';
+    default:
+      return 'No rule matched';
+  }
+};
 
 /**
  * One conversation: the newest item on top, earlier ones folded underneath.
@@ -29,11 +59,16 @@ export const ThreadCard = ({
   replying,
   onStartReply,
   onCloseReply,
+  feedback,
+  onStartFeedback,
+  onCloseFeedback,
   onSelect,
   onChanged,
+  onNotice,
 }: ThreadCardProps) => {
   const [latest, ...earlier] = items;
   const [text, setText] = useState('');
+  const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -87,6 +122,17 @@ export const ThreadCard = ({
       return [item, ...rest];
     });
 
+  const sendFeedback = (verdict: Verdict) =>
+    run(async () => {
+      const result = await api.feedback(latest.id, verdict, reason);
+
+      setReason('');
+      onCloseFeedback();
+      onNotice(result.message);
+
+      return result.item;
+    });
+
   // The item stays open: it is answered once the draft is actually sent.
   const saveDraft = () =>
     run(async () => {
@@ -137,7 +183,14 @@ export const ThreadCard = ({
             </time>
           </p>
         </div>
+        <span
+          className={`category category--${latest.category.toLowerCase()}`}
+          title={whyText(latest.decision)}
+        >
+          {latest.category}
+        </span>
       </header>
+      <p className="why">{whyText(latest.decision)}</p>
 
       {latest.body && <p className="thread__body">{latest.body}</p>}
 
@@ -209,6 +262,51 @@ export const ThreadCard = ({
         </div>
       )}
 
+      {feedback && (
+        <form
+          className="feedback"
+          onClick={(e) => e.stopPropagation()}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void sendFeedback(feedback);
+          }}
+        >
+          <label className="small">
+            Why is this {feedback === 'Spam' ? 'spam' : 'important'}? Optional — with a reason,
+            Huginn adjusts its rules so similar messages land here too.
+            <textarea
+              autoFocus
+              rows={2}
+              value={reason}
+              placeholder={
+                feedback === 'Spam'
+                  ? 'e.g. ClickUp e-mails are covered by the ClickUp connection'
+                  : 'e.g. anything from my boss is important'
+              }
+              onChange={(e) => setReason(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  void sendFeedback(feedback);
+                }
+
+                if (e.key === 'Escape') {
+                  onCloseFeedback();
+                }
+              }}
+            />
+          </label>
+          <div className="reply__actions">
+            <button type="button" onClick={onCloseFeedback} disabled={busy}>
+              Cancel
+            </button>
+            <button type="submit" className="primary" disabled={busy}>
+              {busy ? 'Learning…' : feedback === 'Spam' ? 'Mark as spam' : 'Mark as important'}
+            </button>
+          </div>
+        </form>
+      )}
+
       <footer className="thread__actions" onClick={(e) => e.stopPropagation()}>
         {capabilities.reply && !replying && (
           <button type="button" onClick={() => onStartReply()} disabled={busy} title="r">
@@ -232,6 +330,21 @@ export const ThreadCard = ({
           </span>
         )}
         <span className="spacer" />
+        {!feedback && latest.category !== 'Important' && (
+          <button
+            type="button"
+            onClick={() => onStartFeedback('Important')}
+            disabled={busy}
+            title="i"
+          >
+            Important
+          </button>
+        )}
+        {!feedback && latest.category !== 'Spam' && (
+          <button type="button" onClick={() => onStartFeedback('Spam')} disabled={busy} title="s">
+            Spam
+          </button>
+        )}
         <button
           type="button"
           onClick={() => void run(() => Promise.all(items.map((i) => api.done(i.id))))}

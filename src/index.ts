@@ -6,6 +6,8 @@ const main = async () => {
   const container = createContainer();
   const { logger, config } = container;
 
+  // Connections from before triage existed get their connector's default rules.
+  await container.ruleService.installMissingDefaults();
   await container.connectorHost.startAll();
 
   const app = createApp(container, resolve(import.meta.dir, '../web/dist'));

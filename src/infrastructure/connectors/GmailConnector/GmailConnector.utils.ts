@@ -13,6 +13,24 @@ const CATEGORY_TABS = [
 
 const NEVER = new Set(['SPAM', 'TRASH', 'DRAFT']);
 
+/** Everyone shares these domains, so sharing one says nothing about who someone is. */
+const PUBLIC_MAIL_DOMAINS = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'icloud.com',
+  'me.com',
+  'yahoo.com',
+  'seznam.cz',
+  'email.cz',
+  'centrum.cz',
+  'post.cz',
+  'proton.me',
+  'protonmail.com',
+]);
+
 /** Would this message be in the inbox the user asked for? */
 export const isWanted = (labelIds: readonly string[], scope: GmailInboxScope): boolean => {
   const labels = new Set(labelIds);
@@ -153,6 +171,8 @@ export const messageToItem = (
 ): NewItem => {
   const raw = toItemRaw(message, mailbox);
   const me = mailbox.toLowerCase();
+  const myDomain = me.split('@')[1] ?? '';
+  const fromDomain = raw.from.address.split('@')[1]?.toLowerCase() ?? null;
   const to = parseAddresses(header(message.payload, 'To'));
   const cc = parseAddresses(header(message.payload, 'Cc'));
   const labels = message.labelIds ?? [];
@@ -171,7 +191,9 @@ export const messageToItem = (
     receivedAt: new Date(Number(message.internalDate)),
     features: {
       fromAddress: raw.from.address.toLowerCase(),
-      fromDomain: raw.from.address.split('@')[1]?.toLowerCase() ?? null,
+      fromDomain,
+      // A colleague: same organisation domain as the mailbox (never gmail.com & co).
+      sameDomain: fromDomain === myDomain && !PUBLIC_MAIL_DOMAINS.has(myDomain),
       toMe: to.some((a) => a.address.toLowerCase() === me),
       ccMe: cc.some((a) => a.address.toLowerCase() === me),
       recipients: to.length + cc.length,

@@ -3,6 +3,7 @@ import type { Connection, ConnectorDescriptor, JsonSchemaProperty } from '../api
 
 export interface ConnectionFormValues {
   name: string;
+  groupName: string;
   config: Record<string, string>;
   secrets: Record<string, string>;
 }
@@ -76,6 +77,7 @@ export const ConnectionForm = ({
   onCancel,
 }: ConnectionFormProps) => {
   const [name, setName] = useState(existing?.name ?? '');
+  const [groupName, setGroupName] = useState(existing?.groupName ?? '');
   const [config, setConfig] = useState<Record<string, string>>(() =>
     initialConfig(descriptor, existing)
   );
@@ -89,7 +91,7 @@ export const ConnectionForm = ({
     setError(null);
 
     try {
-      await onSubmit({ name, config, secrets });
+      await onSubmit({ name, groupName, config, secrets });
       setSecrets({});
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -113,6 +115,17 @@ export const ConnectionForm = ({
           placeholder={`Work ${descriptor.label}`}
           onChange={(e) => setName(e.target.value)}
         />
+      </label>
+      <label>
+        Group
+        <input
+          value={groupName}
+          placeholder="optional — e.g. Work"
+          onChange={(e) => setGroupName(e.target.value)}
+        />
+        <small className="muted">
+          Connections with the same group share one section in the inbox. Empty: its own group.
+        </small>
       </label>
       {Object.entries(descriptor.configSchema.properties ?? {}).map(([key, prop]) => (
         <label key={key}>
