@@ -53,3 +53,7 @@ export const updateSecretsBodySchema = z.object({
 });
 
 export const setEnabledBodySchema = z.object({ enabled: z.boolean() });
+
+export const completeSignInBodySchema = z.object({
+  redirectedTo: z.string().trim().min(1).max(4000),
+});

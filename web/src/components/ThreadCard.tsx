@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
-import type { Connection, Item } from '../api.types';
+import type { Connection, ConnectorCapabilities, Item } from '../api.types';
 import { CONNECTOR_META, KIND_LABEL, QUICK_EMOJI, relativeTime } from '../connectorMeta';
 
 interface ThreadCardProps {
   items: Item[];
   connection: Connection | undefined;
+  /** What this source supports; the buttons follow it. */
+  capabilities: ConnectorCapabilities;
   selected: boolean;
   /** Owned by the inbox so the `r` shortcut and the button open the same box. */
   replying: boolean;
@@ -22,6 +24,7 @@ interface ThreadCardProps {
 export const ThreadCard = ({
   items,
   connection,
+  capabilities,
   selected,
   replying,
   onStartReply,
@@ -33,6 +36,7 @@ export const ThreadCard = ({
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [showEarlier, setShowEarlier] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -54,11 +58,11 @@ export const ThreadCard = ({
   }
 
   const meta = CONNECTOR_META[connection?.kind ?? 'Ingest'];
-  const canReply = connection?.kind !== 'Ingest';
 
   const run = async (action: () => Promise<Item | Item[]>) => {
     setBusy(true);
     setError(null);
+    setNotice(null);
 
     try {
       const result = await action();
@@ -81,6 +85,18 @@ export const ThreadCard = ({
       const rest = await Promise.all(earlier.map((i) => api.done(i.id)));
 
       return [item, ...rest];
+    });
+
+  // The item stays open: it is answered once the draft is actually sent.
+  const saveDraft = () =>
+    run(async () => {
+      const item = await api.draft(latest.id, text.trim());
+
+      setText('');
+      onCloseReply();
+      setNotice(`Draft saved in ${meta.label}.`);
+
+      return item;
     });
 
   return (
@@ -172,6 +188,15 @@ export const ThreadCard = ({
             <button type="button" onClick={() => onCloseReply()} disabled={busy}>
               Cancel
             </button>
+            {capabilities.draft && (
+              <button
+                type="button"
+                onClick={() => void saveDraft()}
+                disabled={busy || !text.trim()}
+              >
+                Save as draft
+              </button>
+            )}
             <button
               type="button"
               className="primary"
@@ -185,12 +210,12 @@ export const ThreadCard = ({
       )}
 
       <footer className="thread__actions" onClick={(e) => e.stopPropagation()}>
-        {canReply && !replying && (
+        {capabilities.reply && !replying && (
           <button type="button" onClick={() => onStartReply()} disabled={busy} title="r">
             Reply
           </button>
         )}
-        {connection?.kind === 'Slack' && (
+        {capabilities.react && (
           <span className="emoji-row">
             {QUICK_EMOJI.map((emoji) => (
               <button
@@ -217,6 +242,7 @@ export const ThreadCard = ({
         </button>
       </footer>
 
+      {notice && <p className="muted small">{notice}</p>}
       {error && <p className="error">{error}</p>}
     </article>
   );

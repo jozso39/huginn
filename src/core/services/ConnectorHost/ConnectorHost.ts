@@ -105,6 +105,14 @@ export class ConnectorHost implements IConnectorHost {
     }
 
     const secrets = await this.loadSecrets(connection.id);
+
+    // Not an error and not worth retrying: it waits for the user to sign in.
+    if (factory.authorization && !factory.authorization.isAuthorized(secrets)) {
+      await this.setStatus(connection.id, ConnectionStatus.NeedsAuth, 'Sign in to start');
+
+      return;
+    }
+
     const connector = factory.create(connection, secrets);
     const generation = ++this.generation;
 
@@ -119,7 +127,9 @@ export class ConnectorHost implements IConnectorHost {
 
       const reported = await this.connectionStore.get(connection.id);
 
-      if (reported?.status !== ConnectionStatus.Running) {
+      // Still Idle means the connector said nothing; anything else it reported
+      // (a warning, a request to sign in again) is the truth and stays.
+      if (reported?.status === ConnectionStatus.Idle) {
         await this.setStatus(connection.id, ConnectionStatus.Running, null);
       }
     } catch (error) {
@@ -163,6 +173,9 @@ export class ConnectorHost implements IConnectorHost {
       },
       closeThread: async (threadKey): Promise<void> => {
         this.announceChanged(await this.itemStore.closeThread(connection.id, threadKey));
+      },
+      closeItems: async (externalIds): Promise<void> => {
+        this.announceChanged(await this.itemStore.closeByExternalIds(connection.id, externalIds));
       },
       getCursor: (): ConnectionCursor => cursor,
       setCursor: async (next: ConnectionCursor): Promise<void> => {

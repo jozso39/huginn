@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
-import type { Connection, HuginnEvent, Item } from './api.types';
+import type { Connection, ConnectorDescriptor, HuginnEvent, Item } from './api.types';
 
 export interface HuginnData {
   open: Item[];
   closed: Item[];
   connections: Connection[];
+  kinds: ConnectorDescriptor[];
   live: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -25,6 +26,7 @@ export const useHuginn = (): HuginnData => {
   const [open, setOpen] = useState<Item[]>([]);
   const [closed, setClosed] = useState<Item[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [kinds, setKinds] = useState<ConnectorDescriptor[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,15 +39,17 @@ export const useHuginn = (): HuginnData => {
 
   const refresh = useCallback(async () => {
     try {
-      const [openItems, doneItems, conns] = await Promise.all([
+      const [openItems, doneItems, conns, kindList] = await Promise.all([
         api.listItems('Open'),
         api.listItems('Done'),
         api.listConnections(),
+        api.listKinds(),
       ]);
 
       setOpen(openItems);
       setClosed(doneItems);
       setConnections(conns);
+      setKinds(kindList);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -98,5 +102,5 @@ export const useHuginn = (): HuginnData => {
     };
   }, [refresh, applyItem]);
 
-  return { open, closed, connections, live, error, refresh, applyItem };
+  return { open, closed, connections, kinds, live, error, refresh, applyItem };
 };

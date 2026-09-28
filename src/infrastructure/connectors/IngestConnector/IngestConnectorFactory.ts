@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import type { Connection, Secrets } from '@/core/connections/Connection.types';
 import { ConnectorKind } from '@/core/connections/Connection.types';
-import type { IConnector, IConnectorFactory } from '@/core/connectors/Connector.types';
+import type {
+  ConnectorCapabilities,
+  IConnector,
+  IConnectorFactory,
+} from '@/core/connectors/Connector.types';
+
+const NOTHING: ConnectorCapabilities = { reply: false, draft: false, react: false, ack: false };
 
 /**
  * A connection with no poller. Items for it arrive through POST /api/items —
@@ -10,7 +16,7 @@ import type { IConnector, IConnectorFactory } from '@/core/connectors/Connector.
  */
 class IngestConnector implements IConnector {
   public readonly kind = ConnectorKind.Ingest;
-  public readonly capabilities = { reply: false, react: false, ack: false };
+  public readonly capabilities = NOTHING;
 
   public start(): Promise<void> {
     return Promise.resolve();
@@ -24,6 +30,7 @@ class IngestConnector implements IConnector {
 export class IngestConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.Ingest;
   public readonly label = 'Ingest (API)';
+  public readonly capabilities = NOTHING;
   public readonly configSchema = z.object({});
   public readonly secretFields = [];
 

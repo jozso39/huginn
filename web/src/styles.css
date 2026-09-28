@@ -543,6 +543,37 @@ kbd {
   color: var(--warn);
 }
 
+.status--needsauth {
+  color: var(--warn);
+}
+
+.sign-in {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.sign-in:not(.sign-in--needed) > button {
+  justify-self: start;
+  font-size: 13px;
+}
+
+.sign-in--needed > button {
+  justify-self: start;
+}
+
+.sign-in__paste {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.sign-in__paste p {
+  margin: 0;
+}
+
 .add-connection {
   display: grid;
   gap: 12px;

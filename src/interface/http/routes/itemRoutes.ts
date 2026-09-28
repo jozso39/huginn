@@ -35,6 +35,12 @@ export const createItemRoutes = (container: Container) => {
     return c.json({ item: await container.inboxService.reply(c.req.param('id'), text) });
   });
 
+  app.post('/:id/draft', async (c) => {
+    const { text } = parseBody(replyBodySchema, await c.req.json());
+
+    return c.json({ item: await container.inboxService.draft(c.req.param('id'), text) });
+  });
+
   app.post('/:id/react', async (c) => {
     const { emoji } = parseBody(reactBodySchema, await c.req.json());
 

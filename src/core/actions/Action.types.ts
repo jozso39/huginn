@@ -1,5 +1,6 @@
 export enum ActionType {
   Reply = 'Reply',
+  Draft = 'Draft',
   React = 'React',
   Done = 'Done',
   Archive = 'Archive',

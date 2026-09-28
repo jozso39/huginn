@@ -15,7 +15,7 @@ export type ItemKind =
 export type ItemState = 'Open' | 'Done' | 'Archived';
 export type Category = 'Important' | 'Undecided' | 'Spam';
 export type ConnectorKind = 'GitLab' | 'Slack' | 'Gmail' | 'ClickUp' | 'Ingest';
-export type ConnectionStatus = 'Idle' | 'Running' | 'Error' | 'Disabled';
+export type ConnectionStatus = 'Idle' | 'Running' | 'NeedsAuth' | 'Error' | 'Disabled';
 
 export interface Item {
   id: string;
@@ -39,7 +39,7 @@ export interface Item {
 export interface Action {
   id: string;
   itemId: string;
-  type: 'Reply' | 'React' | 'Done' | 'Archive' | 'Synced';
+  type: 'Reply' | 'Draft' | 'React' | 'Done' | 'Archive' | 'Synced';
   payload: Record<string, unknown>;
   result: Record<string, unknown> | null;
   createdAt: string;
@@ -76,9 +76,19 @@ export interface JsonSchemaProperty {
   optionLabels?: Record<string, string>;
 }
 
+export interface ConnectorCapabilities {
+  reply: boolean;
+  draft: boolean;
+  react: boolean;
+  ack: boolean;
+}
+
 export interface ConnectorDescriptor {
   kind: ConnectorKind;
   label: string;
+  capabilities: ConnectorCapabilities;
+  /** Needs an interactive sign-in (OAuth) before it runs. */
+  signIn: boolean;
   configSchema: { properties?: Record<string, JsonSchemaProperty>; required?: string[] };
   secretFields: SecretField[];
 }

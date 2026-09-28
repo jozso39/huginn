@@ -3,6 +3,7 @@ import type { Container } from '@/dependency/container/container.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import { parseBody } from '@/interface/http/validation.utils';
 import {
+  completeSignInBodySchema,
   createConnectionBodySchema,
   setEnabledBodySchema,
   updateConnectionBodySchema,
@@ -59,6 +60,17 @@ export const createConnectionRoutes = (container: Container) => {
     );
 
     return c.json({ connection });
+  });
+
+  app.post('/:id/sign-in', async (c) =>
+    c.json(await container.connectionService.beginSignIn(c.req.param('id')))
+  );
+
+  // Paste-back: the address the provider left the user on, typed into the form.
+  app.post('/sign-in/complete', async (c) => {
+    const { redirectedTo } = parseBody(completeSignInBodySchema, await c.req.json());
+
+    return c.json({ connection: await container.connectionService.completeSignIn(redirectedTo) });
   });
 
   app.delete('/:id', async (c) => {

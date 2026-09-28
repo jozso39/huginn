@@ -7,7 +7,9 @@ import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { ConnectionService } from '@/core/services/ConnectionService/ConnectionService';
 import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
 import { InboxService } from '@/core/services/InboxService/InboxService';
+import { GoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
+import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { IngestConnectorFactory } from '@/infrastructure/connectors/IngestConnector/IngestConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
 import { SqliteDatabase } from '@/infrastructure/db/SqliteDatabase';
@@ -44,6 +46,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
   const connectorFactories: readonly IConnectorFactory[] = options.connectorFactories ?? [
     new GitLabConnectorFactory(logger, config),
     new SlackConnectorFactory(logger, config),
+    new GmailConnectorFactory(logger, config, new GoogleOAuthClient(15_000)),
     new IngestConnectorFactory(),
   ];
 

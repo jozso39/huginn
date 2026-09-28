@@ -24,6 +24,9 @@ built in the open and will become configurable for anyone once the shape settles
   - **Slack** — DMs, mentions (yours and your groups'), replies in your threads, watched
     channels; reply and react as you; answering in Slack clears it here.
     Setup: [docs/slack-app.md](docs/slack-app.md).
+  - **Gmail** (any number of mailboxes) — unread inbox mail; reply in-thread, save as
+    draft, done marks read; reading or answering in Gmail clears it here.
+    Setup: [docs/gmail.md](docs/gmail.md).
   - **GitLab** — todos (review requests, mentions, assignments); done marks the todo done.
   - **Ingest API** anything can post to (`POST /api/items` with `X-Huginn-Key`).
 - Works in laptop and phone browsers; on a phone, *Add to Home Screen* gives it its
@@ -32,9 +35,8 @@ built in the open and will become configurable for anyone once the shape settles
 
 ## Roadmap
 
-1. **More connectors** — Gmail (several accounts),
-   ClickUp (polling; it has no notifications API), Signal (linked device),
-   LinkedIn (via its notification e-mails).
+1. **More connectors** — LinkedIn (from its notification e-mails in Gmail),
+   ClickUp (polling; it has no notifications API), Signal (linked device).
 2. **Triage** — every item lands in *Important*, *Undecided* or *Spam*, decided by
    per-connection **rules** that are traceable: each verdict names the rule that made it.
    *Hard* rules are predicates on metadata, evaluated in code. *Soft* rules are one-line

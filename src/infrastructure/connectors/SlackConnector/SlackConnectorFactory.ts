@@ -40,6 +40,7 @@ export type SlackClientFactory = (userToken: string, appToken: string) => ISlack
 export class SlackConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.Slack;
   public readonly label = 'Slack';
+  public readonly capabilities = SlackConnector.capabilities;
   public readonly configSchema = slackConfigSchema;
   public readonly secretFields: readonly SecretField[] = [
     {

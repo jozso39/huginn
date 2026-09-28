@@ -5,6 +5,7 @@ import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import { createConnectionRoutes } from './routes/connectionRoutes';
 import { createEventRoutes } from './routes/eventRoutes';
 import { createItemRoutes } from './routes/itemRoutes';
+import { createOAuthRoutes } from './routes/oauthRoutes';
 
 const STATUS_BY_CODE: Record<ErrorCode, 400 | 401 | 404 | 422 | 502> = {
   [ErrorCode.Validation]: 400,
@@ -20,6 +21,7 @@ export const createApp = (container: Container, webRoot: string) => {
   app.route('/api/items', createItemRoutes(container));
   app.route('/api/connections', createConnectionRoutes(container));
   app.route('/api/events', createEventRoutes(container));
+  app.route('/api/oauth', createOAuthRoutes(container));
   app.get('/api/health', (c) => c.json({ ok: true }));
 
   app.onError((error, c) => {

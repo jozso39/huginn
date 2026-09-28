@@ -60,6 +60,22 @@ export class InboxService implements IInboxService {
     return this.transition(item, ItemState.Done);
   }
 
+  public async draft(id: string, text: string): Promise<Item> {
+    const item = await this.require(id);
+    const connector = this.connectorFor(item, 'draft');
+
+    if (!connector.draft) {
+      throw new HuginnError(ErrorCode.Unsupported, 'this connection cannot save drafts');
+    }
+
+    const result = await connector.draft(item, text);
+
+    await this.record(item, ActionType.Draft, { text }, result);
+    this.assertOk(result, 'draft');
+
+    return item;
+  }
+
   public async react(id: string, emoji: string): Promise<Item> {
     const item = await this.require(id);
     const connector = this.connectorFor(item, 'react');
@@ -109,7 +125,7 @@ export class InboxService implements IInboxService {
     return item;
   }
 
-  private connectorFor(item: Item, capability: 'reply' | 'react'): IConnector {
+  private connectorFor(item: Item, capability: 'reply' | 'draft' | 'react'): IConnector {
     const connector = this.connectorHost.getConnector(item.connectionId);
 
     if (!connector) {

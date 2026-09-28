@@ -19,6 +19,7 @@ export type GitLabClientFactory = (baseUrl: string, token: string) => IGitLabCli
 export class GitLabConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.GitLab;
   public readonly label = 'GitLab';
+  public readonly capabilities = GitLabConnector.capabilities;
   public readonly configSchema = gitLabConfigSchema;
   public readonly secretFields: readonly SecretField[] = [
     {

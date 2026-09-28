@@ -19,7 +19,7 @@ const tabFromHash = (): Tab => {
 };
 
 export const App = () => {
-  const { open, closed, connections, live, error, refresh, applyItem } = useHuginn();
+  const { open, closed, connections, kinds, live, error, refresh, applyItem } = useHuginn();
   const [tab, setTab] = useState<Tab>(tabFromHash);
 
   useEffect(() => {
@@ -61,12 +61,14 @@ export const App = () => {
 
       <main className="content">
         {tab === 'inbox' && (
-          <InboxView items={open} connections={connections} onChanged={applyItem} />
+          <InboxView items={open} connections={connections} kinds={kinds} onChanged={applyItem} />
         )}
         {tab === 'archive' && (
           <ArchiveView items={closed} connections={connections} onChanged={applyItem} />
         )}
-        {tab === 'connections' && <ConnectionsView connections={connections} onChanged={refresh} />}
+        {tab === 'connections' && (
+          <ConnectionsView connections={connections} kinds={kinds} onChanged={refresh} />
+        )}
       </main>
     </div>
   );

@@ -1,34 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../api';
 import type { Connection, ConnectorDescriptor } from '../api.types';
 import { CONNECTOR_META, relativeTime } from '../connectorMeta';
 import type { ConnectionFormValues } from './ConnectionForm';
 import { ConnectionForm } from './ConnectionForm';
+import { SignInPanel } from './SignInPanel';
 
 interface ConnectionsViewProps {
   connections: Connection[];
+  kinds: ConnectorDescriptor[];
   onChanged: () => Promise<void>;
 }
+
+const STATUS_LABEL: Record<Connection['status'], string> = {
+  Idle: 'Starting',
+  Running: 'Running',
+  NeedsAuth: 'Needs sign-in',
+  Error: 'Error',
+  Disabled: 'Paused',
+};
 
 /** Blank optional fields are left out so the server's defaults apply. */
 const filledOnly = (values: Record<string, string>) =>
   Object.fromEntries(Object.entries(values).filter(([, value]) => value.trim() !== ''));
 
 /** Add, edit, pause and remove connections. */
-export const ConnectionsView = ({ connections, onChanged }: ConnectionsViewProps) => {
-  const [kinds, setKinds] = useState<ConnectorDescriptor[]>([]);
-  const [newKind, setNewKind] = useState<string>('');
+export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsViewProps) => {
+  const [chosenKind, setChosenKind] = useState<string>('');
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void api.listKinds().then((list) => {
-      setKinds(list);
-      setNewKind((current) => (current !== '' ? current : (list[0]?.kind ?? '')));
-    });
-  }, []);
-
   const descriptorOf = (kind: string) => kinds.find((k) => k.kind === kind);
+  const newKind = chosenKind !== '' ? chosenKind : (kinds[0]?.kind ?? '');
   const newDescriptor = descriptorOf(newKind);
 
   const create = async (values: ConnectionFormValues) => {
@@ -90,7 +93,7 @@ export const ConnectionsView = ({ connections, onChanged }: ConnectionsViewProps
                 <div className="connection__info">
                   <strong>{connection.name}</strong>
                   <span className={`status status--${connection.status.toLowerCase()}`}>
-                    {connection.status}
+                    {STATUS_LABEL[connection.status]}
                   </span>
                   <span className="muted">
                     {connection.lastSyncAt
@@ -130,6 +133,9 @@ export const ConnectionsView = ({ connections, onChanged }: ConnectionsViewProps
                   </button>
                 </div>
               </div>
+              {descriptor?.signIn && connection.enabled && (
+                <SignInPanel connection={connection} onSignedIn={onChanged} />
+              )}
               {descriptor && editing === connection.id && (
                 <ConnectionForm
                   descriptor={descriptor}
@@ -150,7 +156,7 @@ export const ConnectionsView = ({ connections, onChanged }: ConnectionsViewProps
         <h2>Add a connection</h2>
         <label>
           Type
-          <select value={newKind} onChange={(e) => setNewKind(e.target.value)}>
+          <select value={newKind} onChange={(e) => setChosenKind(e.target.value)}>
             {kinds.map((k) => (
               <option key={k.kind} value={k.kind}>
                 {k.label}

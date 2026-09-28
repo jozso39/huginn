@@ -1,4 +1,4 @@
-import { and, desc, eq, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import type { Category, Item, ItemFeatures, ItemKind, NewItem } from '@/core/items/Item.types';
 import { Category as CategoryEnum, ItemState } from '@/core/items/Item.types';
 import type { IItemStore, ItemFilter, UpsertResult } from '@/core/items/ItemStore.types';
@@ -137,6 +137,30 @@ export class SqliteItemStore implements IItemStore {
           eq(items.connectionId, connectionId),
           eq(items.threadKey, threadKey),
           eq(items.state, ItemState.Open)
+        )
+      )
+      .returning()
+      .all();
+
+    return Promise.resolve(rows.map((row) => SqliteItemStore.toItem(row)));
+  }
+
+  public closeByExternalIds(
+    connectionId: string,
+    externalIds: readonly string[]
+  ): Promise<readonly Item[]> {
+    if (externalIds.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    const rows = this.db
+      .update(items)
+      .set({ state: ItemState.Done, stateChangedAt: new Date() })
+      .where(
+        and(
+          eq(items.connectionId, connectionId),
+          eq(items.state, ItemState.Open),
+          inArray(items.externalId, [...externalIds])
         )
       )
       .returning()

@@ -47,7 +47,13 @@ interface SlackCursor {
  */
 export class SlackConnector implements IConnector {
   public readonly kind = ConnectorKind.Slack;
-  public readonly capabilities: ConnectorCapabilities = { reply: true, react: true, ack: false };
+  public static readonly capabilities: ConnectorCapabilities = {
+    reply: true,
+    draft: false,
+    react: true,
+    ack: false,
+  };
+  public readonly capabilities = SlackConnector.capabilities;
   private ctx: ConnectorContext | null = null;
   private identity: SlackIdentity | null = null;
   private relevance: RelevanceContext | null = null;

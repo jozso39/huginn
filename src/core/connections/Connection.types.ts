@@ -10,6 +10,8 @@ export enum ConnectorKind {
 export enum ConnectionStatus {
   Idle = 'Idle',
   Running = 'Running',
+  /** Waiting for the user to sign in (OAuth) before it can start. */
+  NeedsAuth = 'NeedsAuth',
   Error = 'Error',
   Disabled = 'Disabled',
 }

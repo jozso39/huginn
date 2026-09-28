@@ -30,6 +30,8 @@ export const api = {
   getItem: (id: string) => request<{ item: Item; actions: Action[] }>('GET', `/items/${id}`),
   reply: (id: string, text: string) =>
     request<{ item: Item }>('POST', `/items/${id}/reply`, { text }).then((r) => r.item),
+  draft: (id: string, text: string) =>
+    request<{ item: Item }>('POST', `/items/${id}/draft`, { text }).then((r) => r.item),
   react: (id: string, emoji: string) =>
     request<{ item: Item }>('POST', `/items/${id}/react`, { emoji }).then((r) => r.item),
   done: (id: string) => request<{ item: Item }>('POST', `/items/${id}/done`).then((r) => r.item),
@@ -54,4 +56,10 @@ export const api = {
   setEnabled: (id: string, enabled: boolean) =>
     request<{ connection: Connection }>('PUT', `/connections/${id}/enabled`, { enabled }),
   removeConnection: (id: string) => request<{ ok: true }>('DELETE', `/connections/${id}`),
+  beginSignIn: (id: string) =>
+    request<{ url: string; mode: 'Redirect' | 'PasteBack' }>('POST', `/connections/${id}/sign-in`),
+  completeSignIn: (redirectedTo: string) =>
+    request<{ connection: Connection }>('POST', '/connections/sign-in/complete', {
+      redirectedTo,
+    }).then((r) => r.connection),
 };

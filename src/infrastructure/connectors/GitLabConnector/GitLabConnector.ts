@@ -18,7 +18,13 @@ import { todoExternalId, todoToItem } from './GitLabConnector.utils';
  */
 export class GitLabConnector implements IConnector {
   public readonly kind = ConnectorKind.GitLab;
-  public readonly capabilities: ConnectorCapabilities = { reply: true, react: false, ack: true };
+  public static readonly capabilities: ConnectorCapabilities = {
+    reply: true,
+    draft: false,
+    react: false,
+    ack: true,
+  };
+  public readonly capabilities = GitLabConnector.capabilities;
   private timer: ReturnType<typeof setInterval> | null = null;
   private ctx: ConnectorContext | null = null;
 

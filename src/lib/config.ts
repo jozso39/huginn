@@ -10,10 +10,14 @@ export const createConfig = () => {
     dbPath: env.HUGINN_DB_PATH,
     secretKey: env.HUGINN_SECRET_KEY,
     ingestKey: env.HUGINN_INGEST_KEY,
+    publicUrl: env.HUGINN_PUBLIC_URL?.replace(/\/$/, '') ?? null,
     connectors: {
       // Polling cadence for connectors without a push channel. GitLab has no
       // documented per-token limit that a 60 s poll would approach.
       gitlabPollMs: 60_000,
+      // Gmail allows 250 quota units per second per user; one history call a
+      // minute is about 2 of them. A minute is plenty for mail.
+      gmailPollMs: 60_000,
       // A connector that crashes is restarted with this backoff so a dead
       // token does not hammer the provider.
       restartBackoffMs: [5_000, 30_000, 120_000, 600_000],

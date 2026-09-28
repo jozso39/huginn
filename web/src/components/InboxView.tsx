@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
-import type { Connection, Item } from '../api.types';
+import type { Connection, ConnectorCapabilities, ConnectorDescriptor, Item } from '../api.types';
 import { ThreadCard } from './ThreadCard';
 
 interface InboxViewProps {
   items: Item[];
   connections: Connection[];
+  kinds: ConnectorDescriptor[];
   onChanged: (item: Item) => void;
 }
+
+const NONE: ConnectorCapabilities = { reply: false, draft: false, react: false, ack: false };
 
 interface Thread {
   key: string;
@@ -30,7 +33,7 @@ const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable);
 
-export const InboxView = ({ items, connections, onChanged }: InboxViewProps) => {
+export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewProps) => {
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [cursor, setCursor] = useState(0);
   const [replyFor, setReplyFor] = useState<string | null>(null);
@@ -41,6 +44,8 @@ export const InboxView = ({ items, connections, onChanged }: InboxViewProps) => 
   );
   const threads = useMemo(() => groupByThread(filtered), [filtered]);
   const connectionById = useMemo(() => new Map(connections.map((c) => [c.id, c])), [connections]);
+  const capabilitiesOf = (connection: Connection | undefined): ConnectorCapabilities =>
+    kinds.find((kind) => kind.kind === connection?.kind)?.capabilities ?? NONE;
   const countBySource = useMemo(
     () =>
       new Map(
@@ -124,6 +129,7 @@ export const InboxView = ({ items, connections, onChanged }: InboxViewProps) => 
               key={thread.key}
               items={thread.items}
               connection={connectionById.get(thread.items[0]?.connectionId ?? '')}
+              capabilities={capabilitiesOf(connectionById.get(thread.items[0]?.connectionId ?? ''))}
               selected={index === selected}
               replying={replyFor === thread.key}
               onStartReply={() => setReplyFor(thread.key)}
