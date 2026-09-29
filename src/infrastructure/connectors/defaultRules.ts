@@ -87,3 +87,9 @@ export const LINKEDIN_DEFAULT_RULES: readonly RuleDraft[] = [
     predicate: { field: 'notice', op: ConditionOp.In, value: ['Job', 'Update'] },
   },
 ];
+
+// Condition rules only: no Signal text goes to a model unless you add a sentence rule.
+export const SIGNAL_DEFAULT_RULES: readonly RuleDraft[] = [
+  important('Direct message', isTrue('isDm')),
+  important('Mentions me in a group', isTrue('isMention')),
+];

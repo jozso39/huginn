@@ -7,6 +7,7 @@ import { ConnectionForm } from './ConnectionForm';
 import { SignInConnect, startSignIn } from './SignInConnect';
 import { ConnectorIcon } from './ConnectorIcon';
 import { NotificationsPanel } from './NotificationsPanel';
+import { PairConnect } from './PairConnect';
 
 interface ConnectionsViewProps {
   connections: Connection[];
@@ -152,6 +153,9 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
                   </button>
                 </div>
               )}
+              {descriptor?.pairing && connection.status === 'NeedsAuth' && (
+                <PairConnect target={{ connectionId: connection.id }} onLinked={onChanged} />
+              )}
               {descriptor && editing === connection.id && (
                 <ConnectionForm
                   descriptor={descriptor}
@@ -186,7 +190,14 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
             descriptor={{ ...newDescriptor, signInProvider: newDescriptor.signInProvider }}
           />
         )}
-        {newDescriptor && !newDescriptor.signInProvider && (
+        {newDescriptor?.pairing && (
+          <PairConnect
+            key={newDescriptor.kind}
+            target={{ kind: newDescriptor.kind }}
+            onLinked={onChanged}
+          />
+        )}
+        {newDescriptor && !newDescriptor.signInProvider && !newDescriptor.pairing && (
           // Keyed by kind so switching type starts a fresh form with that type's defaults.
           <ConnectionForm
             key={newDescriptor.kind}

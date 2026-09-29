@@ -2,9 +2,14 @@ import { z } from 'zod';
 import type { Logger } from '@/lib/logger';
 import type { Connection, NewConnection, Secrets } from '@/core/connections/Connection.types';
 import type { IConnectionStore } from '@/core/connections/ConnectionStore.types';
-import type { IConnectorAuthorization, IConnectorFactory } from '@/core/connectors/Connector.types';
+import type {
+  IConnectorAuthorization,
+  IConnectorFactory,
+  IConnectorPairing,
+  SignInResult,
+} from '@/core/connectors/Connector.types';
 import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
-import { ErrorCode, HuginnError } from '@/core/errors/errors';
+import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import type { ISecretBox } from '@/core/secrets/SecretBox.types';
 import type { IConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost.types';
 import type { IOAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService.types';
@@ -12,9 +17,12 @@ import type { IRuleService } from '@/core/services/RuleService/RuleService.types
 import type {
   ConnectorDescriptor,
   IConnectionService,
+  PairingStart,
+  PairingStatus,
   SignInStart,
   SignInTarget,
 } from './ConnectionService.types';
+import { PairingState } from './ConnectionService.types';
 
 /** Long enough to find the password manager; short enough that a stray link dies. */
 const SIGN_IN_TTL_MS = 15 * 60 * 1000;
@@ -27,10 +35,18 @@ interface PendingSignIn {
   readonly expiresAt: number;
 }
 
+/** A QR code the phone has not scanned by then is dead anyway. */
+const PAIRING_TTL_MS = 10 * 60 * 1000;
+
+interface Pairing extends PairingStatus {
+  readonly expiresAt: number;
+}
+
 export class ConnectionService implements IConnectionService {
   // The OAuth `state` is the only thing tying a redirect back to a connection, and
   // it is single-use; losing these on restart just means clicking Sign in again.
   private readonly pendingSignIns = new Map<string, PendingSignIn>();
+  private readonly pairings = new Map<string, Pairing>();
 
   constructor(
     private readonly logger: Logger,
@@ -52,6 +68,7 @@ export class ConnectionService implements IConnectionService {
       secretFields: factory.secretFields,
       capabilities: factory.capabilities,
       signInProvider: factory.authorization?.provider ?? null,
+      pairing: Boolean(factory.pairing),
     }));
   }
 
@@ -186,14 +203,87 @@ export class ConnectionService implements IConnectionService {
     const app = await this.appFor(authorization);
     // The code is bound to the redirect it was issued for, even if the setting changed since.
     const result = await authorization.complete({ ...app, redirectUri: pending.redirectUri }, code);
-    const existing =
-      pending.connectionId ?? (await this.findByAccount(pending.kind, result.account));
+
+    return this.applySignIn(pending.kind, pending.connectionId, result);
+  }
+
+  public async beginPairing(target: SignInTarget): Promise<PairingStart> {
+    const connection = 'connectionId' in target ? await this.require(target.connectionId) : null;
+    const kind = connection?.kind ?? ('kind' in target ? target.kind : null);
+
+    if (!kind) {
+      throw new HuginnError(ErrorCode.Validation, 'say which connection or kind to link');
+    }
+
+    const pairing = this.pairingOf(kind);
+    const { code } = await pairing.start();
+    const pairingId = crypto.randomUUID();
+    const now = Date.now();
+
+    [...this.pairings.entries()]
+      .filter(([, entry]) => entry.expiresAt < now)
+      .forEach(([key]) => this.pairings.delete(key));
+    this.pairings.set(pairingId, {
+      state: PairingState.Waiting,
+      connection: null,
+      error: null,
+      expiresAt: now + PAIRING_TTL_MS,
+    });
+
+    // The phone may take minutes; the dashboard polls pairingStatus meanwhile.
+    void pairing
+      .finish(code)
+      .then((result) => this.applySignIn(kind, connection?.id ?? null, result))
+      .then((linked) => this.settlePairing(pairingId, { connection: linked }))
+      .catch((error: unknown) => {
+        this.logger.warn({ kind, err: toError(error) }, 'pairing failed');
+        this.settlePairing(pairingId, { error: toError(error).message });
+      });
+
+    return { pairingId, code };
+  }
+
+  public pairingStatus(pairingId: string): PairingStatus {
+    const entry = this.pairings.get(pairingId);
+
+    if (!entry) {
+      throw new HuginnError(ErrorCode.NotFound, 'This link attempt expired — start it again');
+    }
+
+    return { state: entry.state, connection: entry.connection, error: entry.error };
+  }
+
+  private settlePairing(
+    pairingId: string,
+    outcome: { connection: Connection } | { error: string }
+  ): void {
+    const entry = this.pairings.get(pairingId);
+
+    if (!entry) {
+      return;
+    }
+
+    this.pairings.set(
+      pairingId,
+      'connection' in outcome
+        ? { ...entry, state: PairingState.Linked, connection: outcome.connection }
+        : { ...entry, state: PairingState.Failed, error: outcome.error }
+    );
+  }
+
+  /** Creates the connection for that account, or refreshes the one it already has. */
+  private async applySignIn(
+    kind: Connection['kind'],
+    connectionId: string | null,
+    result: SignInResult
+  ): Promise<Connection> {
+    const existing = connectionId ?? (await this.findByAccount(kind, result.account));
     const secrets = { ...result.secrets, account: result.account };
 
     if (!existing) {
-      this.logger.info({ kind: pending.kind }, 'signed in, creating connection');
+      this.logger.info({ kind }, 'signed in, creating connection');
 
-      return this.create({ kind: pending.kind, name: result.account, config: {}, secrets });
+      return this.create({ kind, name: result.account, config: {}, secrets });
     }
 
     const current = await this.openSecrets(existing);
@@ -205,6 +295,16 @@ export class ConnectionService implements IConnectionService {
     this.logger.info({ connectionId: existing }, 'connection signed in again');
 
     return this.restartAndReload(existing);
+  }
+
+  private pairingOf(kind: Connection['kind']): IConnectorPairing {
+    const pairing = this.factory(kind).pairing;
+
+    if (!pairing) {
+      throw new HuginnError(ErrorCode.Unsupported, `${kind} is not linked by scanning a code`);
+    }
+
+    return pairing;
   }
 
   /**

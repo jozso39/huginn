@@ -14,7 +14,8 @@ export type ItemKind =
 
 export type ItemState = 'Open' | 'Done' | 'Archived';
 export type Category = 'Important' | 'Undecided' | 'Spam';
-export type ConnectorKind = 'GitLab' | 'Slack' | 'Gmail' | 'ClickUp' | 'LinkedIn' | 'Ingest';
+export type ConnectorKind =
+  'GitLab' | 'Slack' | 'Gmail' | 'ClickUp' | 'LinkedIn' | 'Signal' | 'Ingest';
 export type ConnectionStatus = 'Idle' | 'Running' | 'NeedsAuth' | 'Error' | 'Disabled';
 
 export interface Item {
@@ -94,6 +95,8 @@ export interface ConnectorDescriptor {
   capabilities: ConnectorCapabilities;
   /** Set when connections of this kind are created by signing in, not by a form. */
   signInProvider: OAuthProvider | null;
+  /** Created by linking a phone (scan a QR code). */
+  pairing: boolean;
   configSchema: { properties?: Record<string, JsonSchemaProperty>; required?: string[] };
   secretFields: SecretField[];
 }
@@ -248,4 +251,12 @@ export interface PushSettings {
   /** Null when the server has no VAPID keys. */
   publicKey: string | null;
   devices: PushDevice[];
+}
+
+export type PairingState = 'Waiting' | 'Linked' | 'Failed';
+
+export interface PairingStatus {
+  state: PairingState;
+  connection: Connection | null;
+  error: string | null;
 }

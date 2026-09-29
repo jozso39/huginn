@@ -7,6 +7,7 @@ import {
   createConnectionBodySchema,
   ruleDraftBodySchema,
   setEnabledBodySchema,
+  signInBodySchema,
   updateConnectionBodySchema,
   updateSecretsBodySchema,
 } from '@/interface/http/schemas';
@@ -17,6 +18,17 @@ export const createConnectionRoutes = (container: Container) => {
   app.get('/kinds', (c) => c.json({ kinds: container.connectionService.describeConnectors() }));
 
   app.get('/', async (c) => c.json({ connections: await container.connectionService.list() }));
+
+  // Linking a phone (Signal): start returns the code to show as a QR; poll the status.
+  app.post('/pairings', async (c) => {
+    const target = parseBody(signInBodySchema, await c.req.json());
+
+    return c.json(await container.connectionService.beginPairing(target));
+  });
+
+  app.get('/pairings/:id', (c) =>
+    c.json(container.connectionService.pairingStatus(c.req.param('id')))
+  );
 
   app.get('/:id', async (c) => {
     const connection = await container.connectionService.get(c.req.param('id'));

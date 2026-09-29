@@ -7,6 +7,7 @@ import type { IGmailClient } from '@/core/clients/GmailClient/GmailClient.types'
 import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
 import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
 import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
+import type { ISignalClient } from '@/core/clients/SignalClient/SignalClient.types';
 import type { ISlackClient } from '@/core/clients/SlackClient/SlackClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { MockClickUpClient } from '@/infrastructure/clients/ClickUpClient/ClickUpClient.mock';
@@ -16,12 +17,14 @@ import { MockGoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClien
 import { MockJevClient } from '@/core/clients/JevClient/JevClient.mock';
 import { MockLlmClient } from '@/core/clients/LlmClient/LlmClient.mock';
 import { MockPushClient } from '@/core/clients/PushClient/PushClient.mock';
+import { MockSignalClient } from '@/infrastructure/clients/SignalClient/SignalClient.mock';
 import { MockSlackClient } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
 import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { IngestConnectorFactory } from '@/infrastructure/connectors/IngestConnector/IngestConnectorFactory';
 import { LinkedInConnectorFactory } from '@/infrastructure/connectors/LinkedInConnector/LinkedInConnectorFactory';
+import { SignalConnectorFactory } from '@/infrastructure/connectors/SignalConnector/SignalConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
 import { createContainer } from './container';
 import type { Container } from './container.types';
@@ -36,6 +39,8 @@ export interface CreateTestContainerOptions {
   readonly gmailClient?: IGmailClient;
   /** Same for ClickUp. */
   readonly clickUpClient?: IClickUpClient;
+  /** Same for Signal. */
+  readonly signalClient?: ISignalClient;
   /** Hand in a MockJevClient to decide what soft rules and guardrails answer. */
   readonly jev?: IJevClient;
   readonly llm?: ILlmClient;
@@ -93,6 +98,7 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
         config,
         () => options.clickUpClient ?? new MockClickUpClient()
       ),
+      new SignalConnectorFactory(logger, config, options.signalClient ?? new MockSignalClient()),
       new IngestConnectorFactory(),
     ],
   });

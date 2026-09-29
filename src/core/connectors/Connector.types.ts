@@ -85,6 +85,18 @@ export interface IConnectorAuthorization {
   complete(app: OAuthAppCredentials, code: string): Promise<SignInResult>;
 }
 
+/**
+ * Linking as a device (Signal): the user scans a code with their phone. There is no
+ * provider app; the connector's own service does the handshake.
+ */
+export interface IConnectorPairing {
+  isPaired(secrets: Secrets): boolean;
+  /** Starts a link; `code` is what the phone scans, shown as a QR code. */
+  start(): Promise<{ readonly code: string }>;
+  /** Resolves once the phone accepted `code`, which can take minutes. */
+  finish(code: string): Promise<SignInResult>;
+}
+
 export interface IConnectorFactory {
   readonly kind: ConnectorKind;
   readonly label: string;
@@ -94,6 +106,8 @@ export interface IConnectorFactory {
   readonly secretFields: readonly SecretField[];
   /** Present when the connection needs a sign-in before it can run. */
   readonly authorization?: IConnectorAuthorization;
+  /** Present when the connection is linked by scanning a code instead. */
+  readonly pairing?: IConnectorPairing;
   /**
    * Origin triage: the rules a new connection of this kind starts with, in
    * priority order. What the connector knows is important (a DM, a review

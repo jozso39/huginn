@@ -10,6 +10,7 @@ import type {
   ItemState,
   OAuthAppView,
   OAuthProvider,
+  PairingStatus,
   PushDevice,
   PushSettings,
   RedirectMode,
@@ -105,6 +106,10 @@ export const api = {
     body: { clientId: string; clientSecret: string; redirectMode: RedirectMode }
   ) => request<{ app: OAuthAppView }>('PUT', `/oauth/apps/${provider}`, body).then((r) => r.app),
   /** Returns the provider page to send the browser to. */
+  startPairing: (target: { kind: ConnectorKind } | { connectionId: string }) =>
+    request<{ pairingId: string; code: string }>('POST', '/connections/pairings', target),
+  pairingStatus: (pairingId: string) =>
+    request<PairingStatus>('GET', `/connections/pairings/${pairingId}`),
   signIn: (target: { kind: ConnectorKind } | { connectionId: string }) =>
     request<{ url: string }>('POST', '/oauth/sign-in', target).then((r) => r.url),
 

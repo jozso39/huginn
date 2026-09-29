@@ -20,6 +20,7 @@ export const createConfig = () => {
             subject: env.HUGINN_VAPID_SUBJECT,
           }
         : null,
+    signalSocket: env.HUGINN_SIGNAL_SOCKET ?? null,
     ai: {
       openRouterApiKey: env.HUGINN_OPENROUTER_API_KEY ?? null,
       jevModel: env.HUGINN_JEV_MODEL,

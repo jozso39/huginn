@@ -3,6 +3,7 @@ import clickupLogo from './assets/logos/clickup.svg';
 import gitlabLogo from './assets/logos/gitlab.svg';
 import gmailLogo from './assets/logos/gmail.svg';
 import linkedInLogo from './assets/logos/linkedin.svg';
+import signalLogo from './assets/logos/signal.svg';
 import slackLogo from './assets/logos/slack.svg';
 
 /**
@@ -18,6 +19,7 @@ export const CONNECTOR_META: Record<
   Gmail: { glyph: 'GM', color: '#d0473c', label: 'Gmail', logo: gmailLogo },
   ClickUp: { glyph: 'CU', color: '#6a6ae8', label: 'ClickUp', logo: clickupLogo },
   LinkedIn: { glyph: 'IN', color: '#0a66c2', label: 'LinkedIn', logo: linkedInLogo },
+  Signal: { glyph: 'SG', color: '#3a76f0', label: 'Signal', logo: signalLogo },
   Ingest: { glyph: 'IN', color: '#5a8a6e', label: 'Ingest' },
 };
 

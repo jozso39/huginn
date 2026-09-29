@@ -1158,3 +1158,24 @@ a.button {
   gap: 6px;
   color: var(--muted);
 }
+
+.pairing {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.pairing__qr {
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  /* Scanners need dark-on-light, whatever the theme. */
+  background: #fff;
+  border-radius: 8px;
+  image-rendering: pixelated;
+}
+
+.pairing ol {
+  margin: 0;
+  padding-left: 20px;
+}

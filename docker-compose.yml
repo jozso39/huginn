@@ -9,6 +9,8 @@ services:
       - 127.0.0.1:${HUGINN_HOST_PORT:-9929}:3000
     volumes:
       - ./data:/app/data
+      # signal-cli's Unix socket (docs/signal.md); an empty folder when Signal is not used.
+      - ./signal:/app/signal
     env_file: .env
     environment:
       HUGINN_DB_PATH: /app/data/huginn.db

@@ -148,6 +148,12 @@ export class ConnectorHost implements IConnectorHost {
       return;
     }
 
+    if (factory.pairing && !factory.pairing.isPaired(secrets)) {
+      await this.setStatus(connection.id, ConnectionStatus.NeedsAuth, 'Link your phone to start');
+
+      return;
+    }
+
     const connector = factory.create(connection, secrets, app);
     const generation = ++this.generation;
 

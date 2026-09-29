@@ -1,0 +1,26 @@
+# A signal-cli daemon for Huginn: the owner's Signal account as a linked device.
+# Install as a systemd *user* service of the account that runs Huginn's container
+# (uid 1000 here), then `systemctl --user enable --now signal-huginn`. It needs
+# `loginctl enable-linger <user>` to run without a login session.
+#
+# The daemon talks JSON-RPC on a Unix socket only: whoever can reach it can read and
+# send as the account, so it never listens on a port. Attachments, stories, avatars
+# and stickers are not downloaded. Messages wait on Signal's servers while Huginn is
+# not connected (receive-mode on-connection).
+[Unit]
+Description=signal-cli for Huginn (linked device)
+After=network-online.target
+
+[Service]
+ExecStartPre=/usr/bin/mkdir -p %h/work/huginn/signal
+ExecStart=/usr/local/bin/signal-cli --config %h/.local/share/signal-cli-huginn daemon \
+  --socket %h/work/huginn/signal/signal.sock --receive-mode on-connection \
+  --ignore-attachments --ignore-stories --ignore-avatars --ignore-stickers
+Restart=always
+RestartSec=10
+# The JVM settles around 200 MB; stop it from growing past what a Pi can spare.
+Environment=JAVA_OPTS=-Xmx256m
+MemoryMax=512M
+
+[Install]
+WantedBy=default.target

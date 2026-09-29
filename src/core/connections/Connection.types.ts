@@ -5,6 +5,8 @@ export enum ConnectorKind {
   ClickUp = 'ClickUp',
   /** LinkedIn's notification mails, read from a Gmail mailbox (LinkedIn has no API). */
   LinkedIn = 'LinkedIn',
+  /** The user's own Signal account, as a linked device of their phone. */
+  Signal = 'Signal',
   /** No poller: items arrive through POST /api/items (Hermes, scripts). */
   Ingest = 'Ingest',
 }

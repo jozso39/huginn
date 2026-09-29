@@ -12,6 +12,26 @@ export interface ConnectorDescriptor {
   readonly capabilities: ConnectorCapabilities;
   /** Set when connections of this kind are created by signing in, not by a form. */
   readonly signInProvider: OAuthProvider | null;
+  /** Set when connections of this kind are created by linking a phone (a QR code). */
+  readonly pairing: boolean;
+}
+
+export enum PairingState {
+  Waiting = 'Waiting',
+  Linked = 'Linked',
+  Failed = 'Failed',
+}
+
+export interface PairingStart {
+  readonly pairingId: string;
+  /** Shown as a QR code for the phone to scan. */
+  readonly code: string;
+}
+
+export interface PairingStatus {
+  readonly state: PairingState;
+  readonly connection: Connection | null;
+  readonly error: string | null;
 }
 
 export interface SignInStart {
@@ -43,4 +63,7 @@ export interface IConnectionService {
    * refreshes the one that account already has. Returns it.
    */
   completeSignIn(callbackUrl: string): Promise<Connection>;
+  /** Starts linking a phone; the result finishes in the background. */
+  beginPairing(target: SignInTarget): Promise<PairingStart>;
+  pairingStatus(pairingId: string): PairingStatus;
 }
