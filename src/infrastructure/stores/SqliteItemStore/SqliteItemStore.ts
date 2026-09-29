@@ -1,5 +1,12 @@
 import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
-import type { Category, Item, ItemFeatures, ItemKind, NewItem } from '@/core/items/Item.types';
+import type {
+  Category,
+  Item,
+  ItemFeatures,
+  ItemKind,
+  NewItem,
+  RichContent,
+} from '@/core/items/Item.types';
 import { Category as CategoryEnum, ItemState } from '@/core/items/Item.types';
 import type { IItemStore, ItemFilter, UpsertResult } from '@/core/items/ItemStore.types';
 import type { TriageDecision } from '@/core/triage/Rule.types';
@@ -32,6 +39,7 @@ export class SqliteItemStore implements IItemStore {
           title: newItem.title,
           body: newItem.body,
           url: newItem.url,
+          rich: newItem.rich ? { ...newItem.rich } : null,
           receivedAt: newItem.receivedAt,
           features: newItem.features,
           raw: newItem.raw,
@@ -56,6 +64,7 @@ export class SqliteItemStore implements IItemStore {
         title: newItem.title,
         body: newItem.body,
         url: newItem.url,
+        rich: newItem.rich ? { ...newItem.rich } : null,
         receivedAt: newItem.receivedAt,
         features: newItem.features as Record<string, unknown>,
         raw: newItem.raw,
@@ -197,6 +206,7 @@ export class SqliteItemStore implements IItemStore {
       title: row.title,
       body: row.body,
       url: row.url,
+      rich: (row.rich ?? null) as RichContent | null,
       receivedAt: row.receivedAt,
       features: row.features as ItemFeatures,
       raw: row.raw,

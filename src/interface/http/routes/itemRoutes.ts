@@ -30,6 +30,10 @@ export const createItemRoutes = (container: Container) => {
     return c.json(found);
   });
 
+  app.get('/:id/content', async (c) =>
+    c.json({ content: await container.inboxService.content(c.req.param('id')) })
+  );
+
   app.post('/:id/reply', async (c) => {
     const { text } = parseBody(replyBodySchema, await c.req.json());
 

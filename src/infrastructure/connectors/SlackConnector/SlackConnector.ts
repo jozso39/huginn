@@ -13,7 +13,8 @@ import type {
   IConnector,
 } from '@/core/connectors/Connector.types';
 import { toError } from '@/core/errors/errors';
-import type { Item } from '@/core/items/Item.types';
+import type { Item, NewItem } from '@/core/items/Item.types';
+import { RichFormat } from '@/core/items/Item.types';
 import type { SlackChannelSettings } from './SlackConnector.types';
 import { SlackChannelScope } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
@@ -24,6 +25,7 @@ import {
   mentionsMe,
   normalizeEvent,
   permalink,
+  referencedChannelIds,
   referencedUserIds,
   resolveChannels,
   replyThreadTs,
@@ -186,19 +188,27 @@ export class SlackConnector implements IConnector {
     verdict: SlackRelevance,
     relevance: RelevanceContext,
     identity: SlackIdentity
-  ) {
+  ): Promise<NewItem> {
     const text = event.text ?? '';
-    const [author, channel, names] = await Promise.all([
+    const [author, channel, names, channelRefs] = await Promise.all([
       event.user ? this.client.userName(event.user) : Promise.resolve(event.username ?? 'bot'),
       this.client.channelInfo(event.channel),
       Promise.all(
         referencedUserIds(text).map(async (id) => [id, await this.client.userName(id)] as const)
       ),
+      Promise.all(
+        referencedChannelIds(text).map(
+          async (id) => [id, (await this.client.channelInfo(id)).name] as const
+        )
+      ),
     ]);
     const isDm = event.channel_type === 'im' || event.channel_type === 'mpim';
     const where = isDm ? 'direct message' : `#${channel.name}`;
     const files = (event.files ?? []).map((file) => file.name ?? 'file').join(', ');
-    const body = [toPlainText(text, new Map(names), this.groupHandles), files ? `📎 ${files}` : '']
+    const body = [
+      toPlainText(text, new Map(names), this.groupHandles, new Map(channelRefs)),
+      files ? `📎 ${files}` : '',
+    ]
       .filter((part) => part !== '')
       .join('\n');
 
@@ -211,6 +221,14 @@ export class SlackConnector implements IConnector {
       title: SlackConnector.titleFor(verdict, author, where),
       body: body.slice(0, this.maxBodyChars),
       url: permalink(identity.teamUrl, event),
+      // The dashboard renders this like Slack does; the names are what it needs.
+      rich: {
+        format: RichFormat.SlackMrkdwn,
+        text: files ? `${text}\n📎 ${files}` : text,
+        users: Object.fromEntries(names),
+        channels: Object.fromEntries(channelRefs),
+        groups: Object.fromEntries(this.groupHandles),
+      },
       receivedAt: new Date(Number(event.ts) * 1000),
       features: {
         channel: event.channel,

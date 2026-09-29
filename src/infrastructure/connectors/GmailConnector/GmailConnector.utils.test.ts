@@ -8,11 +8,13 @@ import { GmailInboxScope } from './GmailConnector.types';
 import {
   backfillQuery,
   buildReply,
+  cleanText,
   encodeHeader,
   htmlToText,
   isWanted,
   messageToItem,
   parseAddresses,
+  sanitizeEmailHtml,
   stripQuoted,
   toItemRaw,
 } from './GmailConnector.utils';
@@ -106,5 +108,43 @@ describe('buildReply', () => {
 
     expect(head).toContain('To: team@example.com');
     expect(head).toContain('Subject: RE: plain\r\n');
+  });
+});
+
+describe('display', () => {
+  test('the LinkedIn digest preview loses its tracking links and dividers', () => {
+    const text = [
+      '----------------------------------------',
+      '',
+      '      Solutions Engineer job trends from the past week',
+      '----------------------------------------',
+      'View people in this rolehttps://www.linkedin.com/comm/search/results/people/?keywords=Solutions+Engineer&lipi=urn%3Ali%3Apage',
+      '',
+      '',
+      '',
+      'GoodData.AI',
+      'View roles',
+      'https://www.linkedin.com/comm/company/gooddata/jobs?lipi=urn%3Ali%3Apage%3Aemail_email_career',
+      'short link https://x.io/a stays',
+    ].join('\n');
+
+    expect(cleanText(text)).toBe(
+      'Solutions Engineer job trends from the past week\nView people in this role\n\nGoodData.AI\nView roles\n\nshort link https://x.io/a stays'
+    );
+  });
+
+  test('e-mail HTML keeps its layout and loses what never belongs in the frame', () => {
+    const html =
+      '<html><head><meta http-equiv="refresh" content="0;url=https://evil"><base href="https://evil/"><link rel="stylesheet" href="https://evil/x.css"><style>p{color:red}</style></head>' +
+      '<body onload="steal()"><script>steal()</script><p style="margin:0" onclick="x()">Hi</p>' +
+      '<a href="javascript:alert(1)">bad</a><a href="https://ok.example">ok</a><iframe src="https://evil"></iframe><img src="https://t.example/pixel.gif"></body></html>';
+    const clean = sanitizeEmailHtml(html);
+
+    expect(clean).not.toMatch(/script|onload|onclick|javascript:|<meta|<base|<link|<iframe/i);
+    expect(clean).toContain('<style>p{color:red}</style>');
+    expect(clean).toContain('<p style="margin:0">Hi</p>');
+    expect(clean).toContain('href="https://ok.example"');
+    // Remote images stay in the markup; the frame's policy decides whether they load.
+    expect(clean).toContain('pixel.gif');
   });
 });

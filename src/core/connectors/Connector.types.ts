@@ -6,7 +6,7 @@ import type {
   ConnectorKind,
   Secrets,
 } from '@/core/connections/Connection.types';
-import type { Item, NewItem } from '@/core/items/Item.types';
+import type { Item, NewItem, RichContent } from '@/core/items/Item.types';
 import type { OAuthAppCredentials, OAuthProvider } from '@/core/oauth/OAuthApp.types';
 import type { RuleDraft } from '@/core/triage/Rule.types';
 import type { UpsertResult } from '@/core/items/ItemStore.types';
@@ -56,6 +56,8 @@ export interface IConnector {
   draft?(item: Item, text: string): Promise<ActionResult>;
   react?(item: Item, emoji: string): Promise<ActionResult>;
   ack?(item: Item): Promise<ActionResult>;
+  /** The full message for display, fetched when the user opens it (e-mail HTML). */
+  content?(item: Item): Promise<RichContent>;
 }
 
 /** A secret the settings page asks for when adding a connection of this kind. */

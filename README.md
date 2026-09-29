@@ -31,8 +31,13 @@ built in the open and will become configurable for anyone once the shape settles
     flagged); reply in the comment's thread. Setup: [docs/clickup.md](docs/clickup.md).
   - **GitLab** — todos (review requests, mentions, assignments); done marks the todo done.
   - **Ingest API** anything can post to (`POST /api/items` with `X-Huginn-Key`).
-- Works in laptop and phone browsers; on a phone, *Add to Home Screen* gives it its
-  own icon and a full-screen window.
+- Messages look like they do at the source: Slack's formatting (bold, code, quotes,
+  mentions, dates, emoji) rendered like Slack; e-mail as a clean preview that opens into
+  the real HTML — in a sandboxed frame with no scripts and no remote images until you
+  ask for them.
+- Works in laptop and phone browsers, and installs as an app: Chrome → *Install*
+  (address bar icon, or ⋮ → *Cast, save and share* → *Install page as app*); on a
+  phone, *Add to Home Screen*. Installed, its icon shows how many items are important.
 - Connections are added in the UI; tokens are encrypted at rest (AES-256-GCM).
 
 ## Triage

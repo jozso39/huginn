@@ -11,6 +11,7 @@ import type {
   OAuthAppView,
   OAuthProvider,
   RedirectMode,
+  RichContent,
   Rule,
   RuleDraft,
   RuleHistoryEntry,
@@ -45,6 +46,8 @@ const request = async <T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   listItems: (state: ItemState) =>
     request<{ items: Item[] }>('GET', `/items?state=${state}&limit=500`).then((r) => r.items),
+  content: (id: string) =>
+    request<{ content: RichContent }>('GET', `/items/${id}/content`).then((r) => r.content),
   getItem: (id: string) => request<{ item: Item; actions: Action[] }>('GET', `/items/${id}`),
   reply: (id: string, text: string) =>
     request<{ item: Item }>('POST', `/items/${id}/reply`, { text }).then((r) => r.item),

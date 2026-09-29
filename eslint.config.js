@@ -61,7 +61,7 @@ export default defineConfig(
   // Tests: bun:test's `expect().rejects` is typed void but must be awaited, mocks lose
   // type info, and collecting events into an array is the honest way to assert on them.
   {
-    files: ['**/*.test.ts'],
+    files: ['**/*.test.ts', '**/*.test.tsx'],
     rules: {
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
@@ -169,6 +169,13 @@ export default defineConfig(
         },
       ],
     },
+  },
+
+  // The Slack mrkdwn scanner walks the text character by character to apply Slack's
+  // boundary rules exactly; an immutable rewrite would hide the algorithm.
+  {
+    files: ['web/src/slack/**/*.{ts,tsx}'],
+    rules: { 'functional/immutable-data': 'off' },
   },
 
   prettierConfig

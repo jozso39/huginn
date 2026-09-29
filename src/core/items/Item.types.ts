@@ -26,6 +26,29 @@ export enum Category {
   Spam = 'Spam',
 }
 
+export enum RichFormat {
+  /** Slack's own markup; the dashboard renders it like Slack does. */
+  SlackMrkdwn = 'SlackMrkdwn',
+  /** A whole e-mail body; the dashboard shows it in a sandboxed frame. */
+  Html = 'Html',
+  Text = 'Text',
+}
+
+/**
+ * How to show a message properly, next to the plain-text `body` that rules and
+ * Jev read. Slack's comes with the names its references point to.
+ */
+export type RichContent =
+  | {
+      readonly format: RichFormat.SlackMrkdwn;
+      readonly text: string;
+      readonly users: Readonly<Record<string, string>>;
+      readonly channels: Readonly<Record<string, string>>;
+      readonly groups: Readonly<Record<string, string>>;
+    }
+  | { readonly format: RichFormat.Html; readonly html: string }
+  | { readonly format: RichFormat.Text; readonly text: string };
+
 /**
  * Flat metadata a connector derives from the raw payload. This — not the body —
  * is what hard rules match on and what the feedback agent gets when a message
@@ -46,6 +69,8 @@ export interface Item {
   readonly body: string;
   /** Deep link to the message in its own tool. */
   readonly url: string | null;
+  /** Stored rich form when it is small (Slack); large ones (e-mail) are fetched on demand. */
+  readonly rich: RichContent | null;
   readonly receivedAt: Date;
   readonly features: ItemFeatures;
   readonly raw: unknown;
@@ -71,4 +96,4 @@ export type NewItem = Pick<
   | 'receivedAt'
   | 'features'
   | 'raw'
->;
+> & { readonly rich?: RichContent | null };

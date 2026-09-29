@@ -27,6 +27,7 @@ export interface Item {
   title: string;
   body: string;
   url: string | null;
+  rich: RichContent | null;
   receivedAt: string;
   features: Record<string, string | number | boolean | null>;
   category: Category;
@@ -215,3 +216,14 @@ export interface FeedbackResult {
   rule: Rule | null;
   message: string;
 }
+
+export type RichContent =
+  | {
+      format: 'SlackMrkdwn';
+      text: string;
+      users: Record<string, string>;
+      channels: Record<string, string>;
+      groups: Record<string, string>;
+    }
+  | { format: 'Html'; html: string }
+  | { format: 'Text'; text: string };

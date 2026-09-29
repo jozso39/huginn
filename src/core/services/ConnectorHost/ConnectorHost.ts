@@ -109,7 +109,23 @@ export class ConnectorHost implements IConnectorHost {
       return;
     }
 
-    const secrets = await this.loadSecrets(connection.id);
+    const secrets = await this.loadSecrets(connection.id).catch((error: unknown) => {
+      // One unreadable connection must not take the others (or the server) down.
+      this.logger.error({ connectionId: connection.id, err: toError(error) }, 'secrets unreadable');
+
+      return null;
+    });
+
+    if (!secrets) {
+      await this.setStatus(
+        connection.id,
+        ConnectionStatus.Error,
+        'Its stored tokens cannot be decrypted (was HUGINN_SECRET_KEY changed?) — enter them again'
+      );
+
+      return;
+    }
+
     const authorization = factory.authorization;
     const app: OAuthAppCredentials | null = authorization
       ? await this.oauthApps.credentials(authorization.provider)

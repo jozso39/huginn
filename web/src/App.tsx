@@ -48,6 +48,18 @@ export const App = () => {
 
   useEffect(() => {
     document.title = importantCount > 0 ? `(${importantCount}) Huginn` : 'Huginn';
+
+    // Installed as an app, the dock / taskbar icon carries the same count.
+    const badge = navigator as Navigator & {
+      setAppBadge?: (count: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+
+    if (importantCount > 0) {
+      void badge.setAppBadge?.(importantCount).catch(() => undefined);
+    } else {
+      void badge.clearAppBadge?.().catch(() => undefined);
+    }
   }, [importantCount]);
 
   const failing = connections.filter((c) => c.status === 'Error');

@@ -89,4 +89,21 @@ describe('ConnectionService', () => {
       token: 'glpat-secret',
     });
   });
+
+  test('a connection whose secrets cannot be decrypted fails alone, with a reason', async () => {
+    const broken = await container.connectionStore.create({
+      kind: ConnectorKind.GitLab,
+      name: 'Broken',
+      config: { baseUrl: 'https://gitlab.example.com' },
+      secretsCiphertext: 'v1.not.valid',
+      groupName: null,
+    });
+
+    await container.connectorHost.startAll();
+
+    const after = await container.connectionService.get(broken.id);
+
+    expect(after?.status).toBe(ConnectionStatus.Error);
+    expect(after?.statusMessage).toContain('cannot be decrypted');
+  });
 });

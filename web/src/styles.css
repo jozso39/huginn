@@ -945,3 +945,106 @@ a.button {
   z-index: 5;
   cursor: pointer;
 }
+
+/* Message bodies */
+.thread__body--preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: none;
+}
+
+.thread__body--full {
+  max-height: none;
+}
+
+.email {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.email__bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--surface-2);
+}
+
+.email__bar .linklike {
+  margin: 0;
+}
+
+.email__frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+/* Slack, rendered like Slack */
+.slack-text {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.slack-code {
+  font:
+    12.5px ui-monospace,
+    monospace;
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: #c0305a;
+}
+
+.slack-pre {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font:
+    12.5px/1.45 ui-monospace,
+    monospace;
+  white-space: pre-wrap;
+}
+
+.slack-quote {
+  margin: 4px 0;
+  padding-left: 10px;
+  border-left: 4px solid var(--border);
+  color: var(--text);
+}
+
+.slack-mention {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: #1d9bd11f;
+  color: #1264a3;
+}
+
+.slack-mention--broadcast {
+  background: #ecb22e33;
+  color: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  .slack-mention {
+    color: #6fb8e8;
+  }
+
+  .slack-code {
+    color: #e8779a;
+  }
+}
+
+.slack-emoji {
+  font-size: 1.15em;
+  line-height: 1;
+}

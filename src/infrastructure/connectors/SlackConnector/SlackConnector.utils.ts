@@ -149,9 +149,15 @@ export const permalink = (teamUrl: string, event: SlackMessageEvent): string => 
 };
 
 const USER_REF = /<@([UW][A-Z0-9]+)(?:\|[^>]*)?>/g;
+const CHANNEL_REF = /<#([CG][A-Z0-9]+)(?:\|([^>]*))?>/g;
 
 export const referencedUserIds = (text: string): string[] => [
   ...new Set([...text.matchAll(USER_REF)].map((match) => match[1] ?? '')),
+];
+
+/** Channels referenced without a name (`<#C123>`), which Slack expects the client to look up. */
+export const referencedChannelIds = (text: string): string[] => [
+  ...new Set([...text.matchAll(CHANNEL_REF)].filter((m) => !m[2]).map((match) => match[1] ?? '')),
 ];
 
 /**
@@ -161,19 +167,29 @@ export const referencedUserIds = (text: string): string[] => [
 export const toPlainText = (
   text: string,
   userNames: ReadonlyMap<string, string>,
-  groupHandles: ReadonlyMap<string, string> = new Map()
+  groupHandles: ReadonlyMap<string, string> = new Map(),
+  channelNames: ReadonlyMap<string, string> = new Map()
 ): string =>
   text
+    .replace(/```/g, '')
+    // Dates: the fallback text is Slack's own plain rendering.
+    .replace(/<!date\^[^|>]*\|([^>]*)>/g, '$1')
     .replace(USER_REF, (_, id: string) => `@${userNames.get(id) ?? id}`)
-    .replace(/<#[CG][A-Z0-9]+\|([^>]*)>/g, '#$1')
+    .replace(
+      CHANNEL_REF,
+      (_, id: string, label?: string) => `#${label ?? channelNames.get(id) ?? id}`
+    )
     .replace(
       /<!subteam\^([A-Z0-9]+)(?:\|([^>]*))?>/g,
       (_, id: string, label?: string) =>
         label ?? (groupHandles.has(id) ? `@${groupHandles.get(id) ?? ''}` : '@group')
     )
     .replace(/<!(here|channel|everyone)(?:\|[^>]*)?>/g, '@$1')
-    .replace(/<(https?:[^|>]+)\|([^>]+)>/g, '$2')
+    .replace(/<((?:https?|mailto):[^|>]+)\|([^>]+)>/g, '$2')
+    .replace(/<mailto:([^>]+)>/g, '$1')
     .replace(/<(https?:[^>]+)>/g, '$1')
+    // Emphasis markers at word boundaries, as Slack reads them.
+    .replace(/(^|[\s([{"'])([*_~])(\S(?:[^\n]*?\S)?)\2(?=$|[^\p{L}\p{N}])/gmu, '$1$3')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&');

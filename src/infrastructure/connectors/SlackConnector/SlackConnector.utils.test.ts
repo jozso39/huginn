@@ -136,6 +136,23 @@ describe('threads, links and replies', () => {
   });
 });
 
+describe('toPlainText: dates, mailto, code and emphasis', () => {
+  test('the message from the field reads like Slack shows it', () => {
+    expect(
+      toPlainText('*Today*-<!date^1790632800^{date_long}|Tuesday, September 29, 2026>', new Map())
+    ).toBe('Today-Tuesday, September 29, 2026');
+    expect(toPlainText('_really_ ~not~ this: <mailto:a@b.cz|mail me>', new Map())).toBe(
+      'really not this: mail me'
+    );
+    expect(toPlainText('```x = 1```', new Map())).toBe('x = 1');
+    expect(
+      toPlainText('see <#C1> and <#C2|general>', new Map(), new Map(), new Map([['C1', 'dev']]))
+    ).toBe('see #dev and #general');
+    // Snake_case and a lone asterisk are not emphasis.
+    expect(toPlainText('run my_long_name * 2', new Map())).toBe('run my_long_name * 2');
+  });
+});
+
 describe('toPlainText', () => {
   test('resolves references and unescapes', () => {
     const text =

@@ -8,6 +8,7 @@ import type {
   Verdict,
 } from '../api.types';
 import { CONNECTOR_META, KIND_LABEL, QUICK_EMOJI, relativeTime } from '../connectorMeta';
+import { MessageBody } from './MessageBody';
 
 interface ThreadCardProps {
   items: Item[];
@@ -192,7 +193,7 @@ export const ThreadCard = ({
       </header>
       <p className="why">{whyText(latest.decision)}</p>
 
-      {latest.body && <p className="thread__body">{latest.body}</p>}
+      <MessageBody item={latest} connection={connection} />
 
       {earlier.length > 0 && (
         <button
@@ -212,7 +213,7 @@ export const ThreadCard = ({
             <li key={item.id}>
               <strong>{item.author}</strong>{' '}
               <span className="muted">{relativeTime(item.receivedAt)}</span>
-              {item.body && <p>{item.body}</p>}
+              <MessageBody item={item} connection={connection} />
             </li>
           ))}
         </ol>

@@ -12,10 +12,19 @@ import type {
   IConnector,
 } from '@/core/connectors/Connector.types';
 import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
-import type { Item } from '@/core/items/Item.types';
+import type { Item, RichContent } from '@/core/items/Item.types';
+import { RichFormat } from '@/core/items/Item.types';
 import type { GmailItemRaw } from './GmailConnector.types';
 import type { GmailInboxScope } from './GmailConnector.types';
-import { backfillQuery, buildReply, isWanted, messageToItem } from './GmailConnector.utils';
+import {
+  backfillQuery,
+  bodyText,
+  buildReply,
+  htmlBody,
+  isWanted,
+  messageToItem,
+  sanitizeEmailHtml,
+} from './GmailConnector.utils';
 
 /** How far back the first sync (and a resync after a long outage) reaches. */
 const BACKFILL_DAYS = 7;
@@ -127,6 +136,16 @@ export class GmailConnector implements IConnector {
 
       return { ok: true, ref: raw.id };
     });
+  }
+
+  public async content(item: Item): Promise<RichContent> {
+    const raw = item.raw as GmailItemRaw;
+    const message = await this.client.getMessage(raw.id);
+    const html = htmlBody(message.payload);
+
+    return html
+      ? { format: RichFormat.Html, html: sanitizeEmailHtml(html) }
+      : { format: RichFormat.Text, text: bodyText(message.payload) };
   }
 
   private async act(action: () => Promise<ActionResult>): Promise<ActionResult> {

@@ -2,11 +2,11 @@ import type { Logger } from '@/lib/logger';
 import { ActionType } from '@/core/actions/Action.types';
 import type { IActionStore } from '@/core/actions/ActionStore.types';
 import type { ActionResult, IConnector } from '@/core/connectors/Connector.types';
-import { ErrorCode, HuginnError } from '@/core/errors/errors';
+import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import type { IEventBus } from '@/core/events/EventBus.types';
 import { HuginnEventType } from '@/core/events/EventBus.types';
-import type { Item, NewItem } from '@/core/items/Item.types';
-import { ItemState } from '@/core/items/Item.types';
+import type { Item, NewItem, RichContent } from '@/core/items/Item.types';
+import { ItemState, RichFormat } from '@/core/items/Item.types';
 import type { IItemStore } from '@/core/items/ItemStore.types';
 import type { IConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost.types';
 import type { ITriageService } from '@/core/services/TriageService/TriageService.types';
@@ -34,6 +34,27 @@ export class InboxService implements IInboxService {
     }
 
     return { item, actions: await this.actionStore.listForItem(id) };
+  }
+
+  public async content(id: string): Promise<RichContent> {
+    const item = await this.require(id);
+
+    if (item.rich) {
+      return item.rich;
+    }
+
+    const connector = this.connectorHost.getConnector(item.connectionId);
+
+    if (connector?.content) {
+      try {
+        return await connector.content(item);
+      } catch (error) {
+        // The source may have deleted it, or be down: the stored text still reads.
+        this.logger.warn({ itemId: id, err: toError(error) }, 'content fetch failed');
+      }
+    }
+
+    return { format: RichFormat.Text, text: item.body };
   }
 
   public async ingest(newItem: NewItem): Promise<Item> {

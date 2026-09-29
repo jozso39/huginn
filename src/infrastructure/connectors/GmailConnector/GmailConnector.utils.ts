@@ -132,6 +132,52 @@ export const stripQuoted = (text: string): string => {
   return kept.join('\n').trim();
 };
 
+/** A URL this long is a tracking link; in a preview it is noise. */
+const LONG_URL = /https?:\/\/\S{40,}/g;
+
+/**
+ * The preview text: tracking links, divider lines and layout whitespace removed.
+ * The full message, links and all, is one click away as HTML.
+ */
+export const cleanText = (text: string): string =>
+  text
+    .replace(/\r\n/g, '\n')
+    .replace(LONG_URL, '')
+    .split('\n')
+    .map((line) => line.replace(/[ \t\u00a0]+/g, ' ').trim())
+    .filter((line) => !/^[-=_*~#.·•|]{3,}$/.test(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+/** Upper bound for one e-mail's HTML; newsletters beyond this are cut. */
+const MAX_HTML_BYTES = 400_000;
+
+export const htmlBody = (payload: GmailPart): string | null => {
+  const part = findPart(payload, 'text/html');
+
+  return part?.body?.data ? decode(part.body.data) : null;
+};
+
+/**
+ * Defence in depth only: the dashboard shows mail in a sandboxed frame with no
+ * scripts and no network. This strips what never belongs there anyway, so the
+ * frame has less to refuse.
+ */
+export const sanitizeEmailHtml = (html: string): string =>
+  html
+    .slice(0, MAX_HTML_BYTES)
+    .replace(
+      /<(script|iframe|object|embed|frameset|frame|applet|noscript)\b[\s\S]*?<\/\1\s*>/gi,
+      ''
+    )
+    .replace(/<(script|iframe|object|embed|frame|applet|meta|base|link)\b[^>]*>/gi, '')
+    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(
+      /(href|src|action)\s*=\s*(["']?)\s*(javascript|vbscript|data:text\/html)[^"'\s>]*\2/gi,
+      '$1="#"'
+    );
+
 export const bodyText = (payload: GmailPart): string => {
   const plain = findPart(payload, 'text/plain');
 
@@ -176,7 +222,7 @@ export const messageToItem = (
   const to = parseAddresses(header(message.payload, 'To'));
   const cc = parseAddresses(header(message.payload, 'Cc'));
   const labels = message.labelIds ?? [];
-  const body = stripQuoted(bodyText(message.payload)) || (message.snippet ?? '');
+  const body = cleanText(stripQuoted(bodyText(message.payload))) || (message.snippet ?? '');
   const category = CATEGORY_TABS.find((tab) => labels.includes(tab))?.replace('CATEGORY_', '');
 
   return {
