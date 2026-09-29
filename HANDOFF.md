@@ -36,7 +36,7 @@ a Mac and an iPhone. 8 commits, ~13k lines, **94 tests** (`bun run test`).
 | Connectors: **Slack** (Socket Mode, user token), **Gmail** (any number, Google sign-in), **GitLab** (todos), **ClickUp** (polling), **Ingest API** | done — see §5 for what is verified live |
 | Google sign-in: one shared OAuth app, connections created by signing in, relay page | done, used live |
 | Triage: hard + soft (Jev) rules, default rules per connector, rules page, dry run, history | done, running live |
-| Learning from Spam / Important + reason (agent + Jev guardrails) | done, **not yet exercised live** |
+| Learning from Spam / Important + reason (agent + Jev guardrails) | done, first live runs 2026-09-29 (§5) |
 | Rendering: Slack mrkdwn like Slack, e-mail HTML in a sandboxed frame | done |
 | Installable web app (manifest, service worker, dock badge) | done |
 | Tokens encrypted at rest; one bad connection cannot crash the server | done |
@@ -78,10 +78,11 @@ These were argued out with the owner; keep them unless there is a reason.
 
 ## 4. Next steps (the owner's priority order, as far as known)
 
-1. **Exercise the learning loop live** — mark real items Spam/Important *with a reason*,
-   check the created rules and the history; tune the guardrail thresholds from the
-   scores stored in `rule_history.checks` (Jev scored an ordinary message 0.33 on the
-   injection question in testing).
+1. **Tune the learning loop** — keep feeding reasons; tune thresholds from
+   `rule_history.checks`. Known gap found live: a Spam click whose reason is "this should
+   not be Important" makes the agent *narrow* the Important rule; the message then lands
+   in Undecided, not Spam, so the "verified" check fails and it becomes a proposal.
+   Consider: a narrowing counts as verified when the message leaves the rejected category.
 2. **LinkedIn** — no API for messages; derive items from LinkedIn's notification e-mails
    in the personal Gmail (sender `linkedin.com`), probably as a Gmail-side mapper.
 3. **Signal** — the owner's own account as a *linked device* (a second `signal-cli`,
@@ -101,8 +102,9 @@ These were argued out with the owner; keep them unless there is a reason.
 | Slack connection running | yes — but **no real message has arrived yet** (quiet holiday); the event flow is proven only by tests |
 | ClickUp connection running | yes — no real comment yet; the *tag* mention format is an assumption (plain `@Name` in text is the fallback) |
 | GitLab connector | built and tested, **no live connection** yet |
-| Feedback agent (Haiku) writing a rule from a reason | **not yet** — tests use a mock model |
-| Reply / draft / done against real Gmail / Slack / ClickUp | not yet exercised live |
+| Feedback agent (Haiku) writing a rule from a reason | yes, 2026-09-29: 3 reasons → 1 rule live (Gmail, soft), 2 proposals. Guard-in scored 0.12–0.32 on ordinary messages |
+| Reply to Slack from Huginn | yes — and it posted top-level in a DM, hence replies now always thread |
+| Draft / done against real Gmail / ClickUp | not yet exercised live |
 | Chrome "Install app", dock badge | built; not confirmed on the owner's machine |
 
 ## 6. Known gaps and quirks
