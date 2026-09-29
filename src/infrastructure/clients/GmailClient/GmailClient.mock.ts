@@ -42,6 +42,51 @@ export const MOCK_GMAIL_MESSAGE: GmailMessage = {
 };
 
 /**
+ * LinkedIn's mail about a new message: the navigation bar links come first, the
+ * conversation link after them, every link wrapped in /comm/ and tracking parameters.
+ */
+export const MOCK_LINKEDIN_MESSAGE: GmailMessage = {
+  id: 'li1',
+  threadId: 'lt1',
+  labelIds: ['INBOX', 'UNREAD', 'CATEGORY_SOCIAL'],
+  internalDate: '1759046500000',
+  snippet: 'Hi Jozef, are you open to a chat about a role?',
+  payload: {
+    mimeType: 'multipart/alternative',
+    headers: [
+      {
+        name: 'From',
+        value: 'Petra Dubovská via LinkedIn <messaging-digest-noreply@linkedin.com>',
+      },
+      { name: 'To', value: 'Jozef Čambora <jozef@example.com>' },
+      { name: 'Subject', value: 'Petra Dubovská sent you a new message' },
+      { name: 'X-LinkedIn-Template', value: 'email_messaging_single_01' },
+      { name: 'List-Unsubscribe', value: '<https://www.linkedin.com/comm/psettings/unsub>' },
+    ],
+    parts: [
+      {
+        mimeType: 'text/plain',
+        body: {
+          data: b64(
+            'Petra Dubovská\nHi Jozef, are you open to a chat about a role?\n\nReply\n\nThis email was intended for Jozef Čambora (Engineer)\nUnsubscribe'
+          ),
+        },
+      },
+      {
+        mimeType: 'text/html',
+        body: {
+          data: b64(
+            '<a href="https://www.linkedin.com/comm/feed/?lipi=urn">Home</a>' +
+              '<a href="https://www.linkedin.com/comm/messaging/?lipi=urn">Messaging</a>' +
+              '<a href="https://www.linkedin.com/comm/messaging/thread/2-ABC=/?midToken=secret&amp;trk=x">Reply</a>'
+          ),
+        },
+      },
+    ],
+  },
+};
+
+/**
  * One unread message in the inbox and an empty history. Tests that need changes
  * set `nextHistory` before calling the connector's poll through the host.
  */

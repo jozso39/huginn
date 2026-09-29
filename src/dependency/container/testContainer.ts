@@ -21,6 +21,7 @@ import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConn
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { IngestConnectorFactory } from '@/infrastructure/connectors/IngestConnector/IngestConnectorFactory';
+import { LinkedInConnectorFactory } from '@/infrastructure/connectors/LinkedInConnector/LinkedInConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
 import { createContainer } from './container';
 import type { Container } from './container.types';
@@ -76,6 +77,12 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
       new GitLabConnectorFactory(logger, config, () => new MockGitLabClient()),
       new SlackConnectorFactory(logger, config, () => options.slackClient ?? new MockSlackClient()),
       new GmailConnectorFactory(
+        logger,
+        config,
+        new MockGoogleOAuthClient(),
+        () => options.gmailClient ?? new MockGmailClient()
+      ),
+      new LinkedInConnectorFactory(
         logger,
         config,
         new MockGoogleOAuthClient(),

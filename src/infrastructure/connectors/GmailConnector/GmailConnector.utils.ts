@@ -1,7 +1,9 @@
 import type { GmailMessage, GmailPart } from '@/core/clients/GmailClient/GmailClient.types';
+import { ConnectorKind } from '@/core/connections/Connection.types';
+import type { ConnectorCapabilities } from '@/core/connectors/Connector.types';
 import type { NewItem } from '@/core/items/Item.types';
 import { ItemKind } from '@/core/items/Item.types';
-import type { GmailItemRaw, MailAddress } from './GmailConnector.types';
+import type { GmailItemRaw, MailAddress, MailSource } from './GmailConnector.types';
 import { GmailInboxScope } from './GmailConnector.types';
 
 const CATEGORY_TABS = [
@@ -50,16 +52,35 @@ export const isWanted = (labelIds: readonly string[], scope: GmailInboxScope): b
 };
 
 /** The search that finds the same set for the first sync. */
-export const backfillQuery = (scope: GmailInboxScope, days: number): string => {
+export const backfillQuery = (
+  scope: GmailInboxScope,
+  days: number,
+  skipDomains: readonly string[] = []
+): string => {
   const tab =
     scope === GmailInboxScope.PrimaryOnly
       ? ' category:primary'
       : scope === GmailInboxScope.NoPromotions
         ? ' -category:promotions'
         : '';
+  const skipped = skipDomains.map((domain) => ` -from:${domain}`).join('');
 
-  return `in:inbox is:unread newer_than:${days}d${tab}`;
+  return `in:inbox is:unread newer_than:${days}d${tab}${skipped}`;
 };
+
+/** `a@mail.linkedin.com` is from `linkedin.com`; `a@notlinkedin.com` is not. */
+export const isFromDomain = (address: string, domain: string): boolean => {
+  const host = address.split('@')[1]?.toLowerCase() ?? '';
+
+  return host === domain || host.endsWith(`.${domain}`);
+};
+
+/** "linkedin.com, @github.com " → ['linkedin.com', 'github.com']. */
+export const parseDomainList = (value: string): readonly string[] =>
+  value
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase().replace(/^@/, ''))
+    .filter((entry) => entry !== '');
 
 export const header = (part: GmailPart, name: string): string =>
   part.headers?.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value ?? '';
@@ -208,6 +229,38 @@ export const toItemRaw = (message: GmailMessage, mailbox: string): GmailItemRaw 
 
 export const gmailUrl = (mailbox: string, threadId: string): string =>
   `https://mail.google.com/mail/u/${encodeURIComponent(mailbox)}/#all/${threadId}`;
+
+export const senderAddress = (message: GmailMessage): string =>
+  parseAddresses(header(message.payload, 'From'))[0]?.address ?? '';
+
+export const GMAIL_CAPABILITIES: ConnectorCapabilities = {
+  reply: true,
+  draft: true,
+  react: false,
+  ack: true,
+};
+
+/** The Gmail connection: unread inbox mail in the chosen tabs, minus skipped senders. */
+export const inboxMailSource = (
+  scope: GmailInboxScope,
+  skipDomains: readonly string[]
+): MailSource => ({
+  kind: ConnectorKind.Gmail,
+  capabilities: GMAIL_CAPABILITIES,
+  backfillQuery: (days) => backfillQuery(scope, days, skipDomains),
+  accepts: (message) => {
+    const labels = message.labelIds ?? [];
+    const from = senderAddress(message);
+
+    return (
+      labels.includes('UNREAD') &&
+      isWanted(labels, scope) &&
+      !skipDomains.some((domain) => isFromDomain(from, domain))
+    );
+  },
+  toItem: (connectionId, message, mailbox, maxBodyChars) =>
+    messageToItem(connectionId, message, mailbox, maxBodyChars),
+});
 
 export const messageToItem = (
   connectionId: string,

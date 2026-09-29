@@ -3,6 +3,8 @@ export enum ConnectorKind {
   Slack = 'Slack',
   Gmail = 'Gmail',
   ClickUp = 'ClickUp',
+  /** LinkedIn's notification mails, read from a Gmail mailbox (LinkedIn has no API). */
+  LinkedIn = 'LinkedIn',
   /** No poller: items arrive through POST /api/items (Hermes, scripts). */
   Ingest = 'Ingest',
 }

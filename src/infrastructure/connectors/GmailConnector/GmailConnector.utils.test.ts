@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { ItemKind } from '@/core/items/Item.types';
 import {
   MOCK_GMAIL_MESSAGE,
+  MOCK_LINKEDIN_MESSAGE,
   MOCK_MAILBOX,
 } from '@/infrastructure/clients/GmailClient/GmailClient.mock';
 import { GmailInboxScope } from './GmailConnector.types';
@@ -11,9 +12,12 @@ import {
   cleanText,
   encodeHeader,
   htmlToText,
+  inboxMailSource,
+  isFromDomain,
   isWanted,
   messageToItem,
   parseAddresses,
+  parseDomainList,
   sanitizeEmailHtml,
   stripQuoted,
   toItemRaw,
@@ -146,5 +150,21 @@ describe('display', () => {
     expect(clean).toContain('href="https://ok.example"');
     // Remote images stay in the markup; the frame's policy decides whether they load.
     expect(clean).toContain('pixel.gif');
+  });
+
+  describe('leaving out senders', () => {
+    test('mail from a skipped domain (or its subdomains) stays out of the Gmail connection', () => {
+      const skipping = inboxMailSource(
+        GmailInboxScope.AllInbox,
+        parseDomainList(' @LinkedIn.com, ')
+      );
+
+      expect(parseDomainList(' @LinkedIn.com, ')).toEqual(['linkedin.com']);
+      expect(skipping.accepts(MOCK_LINKEDIN_MESSAGE)).toBe(false);
+      expect(skipping.accepts(MOCK_GMAIL_MESSAGE)).toBe(true);
+      expect(skipping.backfillQuery(7)).toBe('in:inbox is:unread newer_than:7d -from:linkedin.com');
+      expect(isFromDomain('a@mail.linkedin.com', 'linkedin.com')).toBe(true);
+      expect(isFromDomain('a@notlinkedin.com', 'linkedin.com')).toBe(false);
+    });
   });
 });

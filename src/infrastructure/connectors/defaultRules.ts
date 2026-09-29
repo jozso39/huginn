@@ -76,3 +76,14 @@ export const CLICKUP_DEFAULT_RULES: readonly RuleDraft[] = [
     threshold: 0.75,
   },
 ];
+
+export const LINKEDIN_DEFAULT_RULES: readonly RuleDraft[] = [
+  important('Message', isTrue('isMessage')),
+  important('Mentions me', isTrue('isMention')),
+  {
+    name: 'Jobs and feed updates',
+    verdict: RuleVerdict.Spam,
+    kind: RuleKind.Hard,
+    predicate: { field: 'notice', op: ConditionOp.In, value: ['Job', 'Update'] },
+  },
+];

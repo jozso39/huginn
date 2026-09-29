@@ -2,6 +2,7 @@ import type { ConnectorKind, ItemKind } from './api.types';
 import clickupLogo from './assets/logos/clickup.svg';
 import gitlabLogo from './assets/logos/gitlab.svg';
 import gmailLogo from './assets/logos/gmail.svg';
+import linkedInLogo from './assets/logos/linkedin.svg';
 import slackLogo from './assets/logos/slack.svg';
 
 /**
@@ -16,6 +17,7 @@ export const CONNECTOR_META: Record<
   Slack: { glyph: 'SL', color: '#8a5cc7', label: 'Slack', logo: slackLogo },
   Gmail: { glyph: 'GM', color: '#d0473c', label: 'Gmail', logo: gmailLogo },
   ClickUp: { glyph: 'CU', color: '#6a6ae8', label: 'ClickUp', logo: clickupLogo },
+  LinkedIn: { glyph: 'IN', color: '#0a66c2', label: 'LinkedIn', logo: linkedInLogo },
   Ingest: { glyph: 'IN', color: '#5a8a6e', label: 'Ingest' },
 };
 

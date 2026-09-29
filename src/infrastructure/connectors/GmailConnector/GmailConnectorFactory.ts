@@ -12,6 +12,7 @@ import { GmailClient } from '@/infrastructure/clients/GmailClient/GmailClient';
 import { GMAIL_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
 import { GmailConnector } from './GmailConnector';
 import { GmailInboxScope } from './GmailConnector.types';
+import { GMAIL_CAPABILITIES, inboxMailSource, parseDomainList } from './GmailConnector.utils';
 import { GoogleAuthorization } from './GoogleAuthorization';
 
 export const gmailConfigSchema = z.object({
@@ -27,6 +28,11 @@ export const gmailConfigSchema = z.object({
         [GmailInboxScope.AllInbox]: 'All inbox mail',
       },
     }),
+  skipSenders: z.string().default('').meta({
+    title: 'Leave out mail from',
+    description:
+      'Domains, comma-separated, e.g. linkedin.com when a LinkedIn connection reads those mails.',
+  }),
 });
 
 export type GmailClientFactory = (app: OAuthAppCredentials, refreshToken: string) => IGmailClient;
@@ -36,7 +42,7 @@ export class GmailConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.Gmail;
   public readonly label = 'Gmail';
   public readonly defaultRules = GMAIL_DEFAULT_RULES;
-  public readonly capabilities = GmailConnector.capabilities;
+  public readonly capabilities = GMAIL_CAPABILITIES;
   public readonly configSchema = gmailConfigSchema;
   public readonly secretFields: readonly SecretField[] = [];
   public readonly authorization: GoogleAuthorization;
@@ -61,11 +67,13 @@ export class GmailConnectorFactory implements IConnectorFactory {
       throw new HuginnError(ErrorCode.Validation, 'Gmail needs the Google sign-in app');
     }
 
+    const config = gmailConfigSchema.parse(connection.config);
+
     return new GmailConnector(
       this.logger,
       connection,
       this.createClient(app, secrets.refreshToken ?? ''),
-      gmailConfigSchema.parse(connection.config).inboxScope,
+      inboxMailSource(config.inboxScope, parseDomainList(config.skipSenders)),
       this.config.connectors.gmailPollMs,
       this.config.maxBodyChars
     );

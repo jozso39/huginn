@@ -4,27 +4,13 @@ import type {
   IGmailClient,
 } from '@/core/clients/GmailClient/GmailClient.types';
 import type { Connection } from '@/core/connections/Connection.types';
-import { ConnectionStatus, ConnectorKind } from '@/core/connections/Connection.types';
-import type {
-  ActionResult,
-  ConnectorCapabilities,
-  ConnectorContext,
-  IConnector,
-} from '@/core/connectors/Connector.types';
+import { ConnectionStatus } from '@/core/connections/Connection.types';
+import type { ActionResult, ConnectorContext, IConnector } from '@/core/connectors/Connector.types';
 import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import type { Item, RichContent } from '@/core/items/Item.types';
 import { RichFormat } from '@/core/items/Item.types';
-import type { GmailItemRaw } from './GmailConnector.types';
-import type { GmailInboxScope } from './GmailConnector.types';
-import {
-  backfillQuery,
-  bodyText,
-  buildReply,
-  htmlBody,
-  isWanted,
-  messageToItem,
-  sanitizeEmailHtml,
-} from './GmailConnector.utils';
+import type { GmailItemRaw, MailSource } from './GmailConnector.types';
+import { bodyText, buildReply, htmlBody, sanitizeEmailHtml } from './GmailConnector.utils';
 
 /** How far back the first sync (and a resync after a long outage) reaches. */
 const BACKFILL_DAYS = 7;
@@ -47,14 +33,6 @@ interface HistoryChanges {
  * for about a week, mail that arrived while Huginn was down is caught up on start.
  */
 export class GmailConnector implements IConnector {
-  public static readonly capabilities: ConnectorCapabilities = {
-    reply: true,
-    draft: true,
-    react: false,
-    ack: true,
-  };
-  public readonly kind = ConnectorKind.Gmail;
-  public readonly capabilities = GmailConnector.capabilities;
   private ctx: ConnectorContext | null = null;
   private mailbox = '';
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -64,10 +42,18 @@ export class GmailConnector implements IConnector {
     private readonly logger: Logger,
     private readonly connection: Connection,
     private readonly client: IGmailClient,
-    private readonly scope: GmailInboxScope,
+    private readonly source: MailSource,
     private readonly pollMs: number,
     private readonly maxBodyChars: number
   ) {}
+
+  public get kind() {
+    return this.source.kind;
+  }
+
+  public get capabilities() {
+    return this.source.capabilities;
+  }
 
   public async start(ctx: ConnectorContext): Promise<void> {
     this.ctx = ctx;
@@ -224,7 +210,7 @@ export class GmailConnector implements IConnector {
 
     // Take the history id before searching, so nothing arriving in between is lost.
     const ids = await this.client.searchMessageIds(
-      backfillQuery(this.scope, BACKFILL_DAYS),
+      this.source.backfillQuery(BACKFILL_DAYS),
       BACKFILL_MAX
     );
 
@@ -250,13 +236,11 @@ export class GmailConnector implements IConnector {
       messages
         .filter((message) => message !== null)
         // Re-check the current labels: it may have been read or archived meanwhile.
-        .filter((message) => {
-          const labels = message.labelIds ?? [];
-
-          return labels.includes('UNREAD') && isWanted(labels, this.scope);
-        })
+        .filter((message) => this.source.accepts(message))
         .map((message) =>
-          ctx.upsert(messageToItem(this.connection.id, message, this.mailbox, this.maxBodyChars))
+          ctx.upsert(
+            this.source.toItem(this.connection.id, message, this.mailbox, this.maxBodyChars)
+          )
         )
     );
   }

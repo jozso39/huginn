@@ -14,7 +14,7 @@ export type ItemKind =
 
 export type ItemState = 'Open' | 'Done' | 'Archived';
 export type Category = 'Important' | 'Undecided' | 'Spam';
-export type ConnectorKind = 'GitLab' | 'Slack' | 'Gmail' | 'ClickUp' | 'Ingest';
+export type ConnectorKind = 'GitLab' | 'Slack' | 'Gmail' | 'ClickUp' | 'LinkedIn' | 'Ingest';
 export type ConnectionStatus = 'Idle' | 'Running' | 'NeedsAuth' | 'Error' | 'Disabled';
 
 export interface Item {

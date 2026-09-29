@@ -29,6 +29,8 @@ built in the open and will become configurable for anyone once the shape settles
     in Gmail clears it here. Setup: [docs/gmail.md](docs/gmail.md).
   - **ClickUp** — tasks newly assigned to you and new comments on your tasks (mentions
     flagged); reply in the comment's thread. Setup: [docs/clickup.md](docs/clickup.md).
+  - **LinkedIn** — its notification mails (messages, mentions, invitations) read from
+    Gmail, linked to the conversation. Setup: [docs/linkedin.md](docs/linkedin.md).
   - **GitLab** — todos (review requests, mentions, assignments); done marks the todo done.
   - **Ingest API** anything can post to (`POST /api/items` with `X-Huginn-Key`).
 - Messages look like they do at the source: Slack's formatting (bold, code, quotes,
@@ -93,7 +95,7 @@ curl -X POST http://localhost:3000/api/items \
 - [docs/architecture.md](docs/architecture.md) — layers, data model, flows, API, security
 - [CLAUDE.md](CLAUDE.md) — coding conventions (hexagonal, enforced by ESLint)
 - [docs/triage.md](docs/triage.md) — how sorting and learning work
-- Connecting: [Slack](docs/slack-app.md) · [Gmail](docs/gmail.md) · [ClickUp](docs/clickup.md)
+- Connecting: [Slack](docs/slack-app.md) · [Gmail](docs/gmail.md) · [ClickUp](docs/clickup.md) · [LinkedIn](docs/linkedin.md)
 
 ## License
 
