@@ -87,11 +87,13 @@ curl -X POST http://localhost:3000/api/items \
 
 `externalId` makes the call idempotent; `threadKey` groups items into one conversation.
 
-## Architecture
+## Documentation
 
-Hexagonal: `core/` holds the domain and the contracts, `infrastructure/` the SQLite
-stores, API clients and connectors, `interface/http/` the thin Hono layer, and
-`dependency/` wires it together. Details and conventions in [CLAUDE.md](CLAUDE.md).
+- [HANDOFF.md](HANDOFF.md) — project state, decisions and why, what is next
+- [docs/architecture.md](docs/architecture.md) — layers, data model, flows, API, security
+- [CLAUDE.md](CLAUDE.md) — coding conventions (hexagonal, enforced by ESLint)
+- [docs/triage.md](docs/triage.md) — how sorting and learning work
+- Connecting: [Slack](docs/slack-app.md) · [Gmail](docs/gmail.md) · [ClickUp](docs/clickup.md)
 
 ## License
 

@@ -4,7 +4,12 @@ Self-hosted notification hub: connectors pull messages from Slack, Gmail, GitLab
 ClickUp, … into one inbox where they are answered, reacted to, or marked done.
 Bun + TypeScript, SQLite (Drizzle), Hono, a Vite/React SPA in `web/`.
 
-Run `bun run code:check && bun run test` after any change and fix everything it reports.
+**Start with [HANDOFF.md](HANDOFF.md)** (state, decisions, what is unverified, next steps),
+then [docs/architecture.md](docs/architecture.md) (layers, data model, flows, API).
+Keep both current when you change something they describe.
+
+Run `bun run code:check && bun run test` after any change and fix everything it reports
+(the pre-push hook runs the same).
 
 ## Architecture — hexagonal, strictly
 
@@ -36,18 +41,30 @@ ESLint enforces the layer boundaries; do not disable those rules.
 
 ## Tests
 
-`bun test src`. Always build the graph with `createTestContainer()` — real stores on an
+`bun run test` (server and web). Always build the graph with `createTestContainer()` — real stores on an
 in-memory SQLite, real services, mocked external clients (`*.mock.ts` beside the real
 client). Never mock modules, config or the logger. Go through public methods.
 
 ## Connectors
 
-A connector is an `IConnectorFactory` (config schema, secret fields, `create()`) plus an
-`IConnector` (`start/stop`, optional `reply/react/ack`). Register the factory in
-`dependency/container/container.ts`; the settings form is generated from its schema.
-Connectors never touch stores: they get a `ConnectorContext` (`upsert`, `closeOpenExcept`,
-cursor, status) from `ConnectorHost`. Map provider payloads to items in a pure
-`*.utils.ts` with a unit test and a fixture in the client's mock.
+A connector is an `IConnectorFactory` (capabilities, Zod config schema, secret fields,
+optional OAuth `authorization`, optional `defaultRules`, `create()`) plus an `IConnector`
+(`start/stop`, optional `reply/draft/react/ack/content`). Register the factory in
+`dependency/container/container.ts` **and** `testContainer.ts`; the settings form is
+generated from its schema (`.meta({ title, description, optionLabels })`). Connectors
+never touch stores: they get a `ConnectorContext` (`upsert`, `closeThread`, `closeItems`,
+`closeOpenExcept`, cursor, status) from `ConnectorHost`. Map provider payloads to items
+in a pure `*.utils.ts` with a unit test and a fixture in the client's mock. Full recipe:
+docs/architecture.md §5.
+
+Mocks sit beside what they mock; a core contract with no infrastructure implementation
+worth mocking separately (Jev, the chat model) keeps its mock in `core/clients/X`.
+
+## Web
+
+`web/src` is a client of the HTTP API only (ESLint blocks `@/` imports). API shapes are
+mirrored by hand in `web/src/api.types.ts` — change them together with the server.
+`web/src/slack/` is an imperative scanner and is exempt from `functional/immutable-data`.
 
 ## Secrets
 
