@@ -138,25 +138,25 @@ describe('FeedbackService', () => {
     const wrong = await container.ruleService.create(
       connectionId,
       {
-        name: 'Example.com is important',
+        name: 'Acme is important',
         verdict: RuleVerdict.Important,
         kind: RuleKind.Hard,
-        predicate: { field: 'fromDomain', op: ConditionOp.Equals, value: 'example.com' },
+        predicate: { field: 'fromDomain', op: ConditionOp.Equals, value: 'acme.test' },
       },
       { origin: RuleOrigin.User }
     );
-    const item = await ingest('Automatic reminder', 'example.com');
+    const item = await ingest('Automatic reminder', 'acme.test');
 
     expect(item.decision?.ruleId).toBe(wrong.id);
 
     llm.next = proposal({
       action: 'update',
       ruleId: wrong.id,
-      name: 'Example.com is important (not reminders)',
+      name: 'Acme is important (not reminders)',
       verdict: 'Important',
       predicateJson: JSON.stringify({
         all: [
-          { field: 'fromDomain', op: 'Equals', value: 'example.com' },
+          { field: 'fromDomain', op: 'Equals', value: 'acme.test' },
           { not: { field: 'title', op: 'Contains', value: 'reminder' } },
         ],
       }),
@@ -168,10 +168,13 @@ describe('FeedbackService', () => {
       'reminders are noise'
     );
 
-    // Narrowed: this message no longer matches, so it would fall to Undecided, not Spam.
-    expect(result.outcome).toBe(FeedbackOutcome.Proposed);
-    expect(result.message).toContain('would not have moved this message');
-    expect((await container.ruleService.get(wrong.id))?.name).toBe('Example.com is important');
+    // Narrowed: this message no longer matches and falls to Undecided — out of the wrong
+    // pile, which is what "reminders are noise" asks for.
+    expect(result.outcome).toBe(FeedbackOutcome.RuleUpdated);
+    expect(result.message).toContain('will wait in Undecided');
+    expect((await container.ruleService.get(wrong.id))?.name).toBe(
+      'Acme is important (not reminders)'
+    );
   });
 
   test('a message that talks to the AI is not learned from at all', async () => {

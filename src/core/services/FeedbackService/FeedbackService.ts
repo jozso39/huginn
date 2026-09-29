@@ -234,9 +234,16 @@ export class FeedbackService implements IFeedbackService {
     const hypothetical = [...rules.filter((rule) => rule.id !== candidate.id), candidate].sort(
       (a, b) => a.priority - b.priority
     );
-    const verified =
-      (await this.triage.classify({ ...original, decision: null }, hypothetical)).category ===
-      FeedbackService.category(verdict);
+    const wanted = FeedbackService.category(verdict);
+    const landed = (await this.triage.classify({ ...original, decision: null }, hypothetical))
+      .category;
+    // Narrowing the rule that sorted it wrong is enough: "this is not Important" rarely
+    // means "this is Spam", so landing in Undecided instead of the wrong pile counts.
+    const cleared =
+      landed === Category.Undecided &&
+      original.category !== Category.Undecided &&
+      original.category !== wanted;
+    const verified = landed === wanted || cleared;
     const guardOut = await this.askAbout(
       {
         explanation,
@@ -254,6 +261,7 @@ export class FeedbackService implements IFeedbackService {
       ...inputChecks,
       guardOut,
       verified,
+      landed,
       dryRun: {
         evaluated: dryRun.evaluated,
         hits: dryRun.hits.length,
@@ -265,7 +273,9 @@ export class FeedbackService implements IFeedbackService {
     const passes =
       verified && !tooBroad && dryRun.conflicts === 0 && (guardOut ?? 0) >= GUARD_RULE_FOLLOWS_MIN;
     const context = { origin: RuleOrigin.Feedback, reason: explanation, itemId: item.id, checks };
-    const reach = `(would catch ${dryRun.hits.length} of the last ${dryRun.evaluated})`;
+    const reach =
+      `(would catch ${dryRun.hits.length} of the last ${dryRun.evaluated})` +
+      (landed === wanted ? '' : '; messages like this will wait in Undecided');
 
     if (passes && target) {
       const rule = await this.ruleService.update(target.id, draft, context);
