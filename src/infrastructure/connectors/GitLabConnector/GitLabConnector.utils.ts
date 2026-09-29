@@ -1,6 +1,6 @@
 import type { GitLabTodo } from '@/core/clients/GitLabClient/GitLabClient.types';
-import type { NewItem } from '@/core/items/Item.types';
-import { ItemKind } from '@/core/items/Item.types';
+import type { ItemStatus, NewItem } from '@/core/items/Item.types';
+import { ItemKind, StatusTone } from '@/core/items/Item.types';
 
 const MENTION_ACTIONS = new Set(['mentioned', 'directly_addressed']);
 const REVIEW_ACTIONS = new Set(['review_requested', 'approval_required']);
@@ -25,6 +25,17 @@ const kindFor = (action: string): ItemKind => {
   return ItemKind.Todo;
 };
 
+/** GitLab's own wording and badge colours for a merge request's state. */
+const MR_STATUS: Readonly<Record<string, ItemStatus>> = {
+  opened: { label: 'Open', tone: StatusTone.Success },
+  merged: { label: 'Merged', tone: StatusTone.Info },
+  closed: { label: 'Closed', tone: StatusTone.Danger },
+  locked: { label: 'Locked', tone: StatusTone.Warning },
+};
+
+export const mergeRequestStatus = (todo: GitLabTodo): ItemStatus | null =>
+  todo.target_type === 'MergeRequest' ? (MR_STATUS[todo.target.state ?? ''] ?? null) : null;
+
 export const todoExternalId = (todo: GitLabTodo): string => `todo:${todo.id}`;
 
 /**
@@ -47,6 +58,7 @@ export const todoToItem = (
     title: `${project}!${todo.target.iid} ${todo.target.title}`,
     body: todo.body.slice(0, maxBodyChars),
     url: todo.target_url,
+    status: mergeRequestStatus(todo),
     receivedAt: new Date(todo.created_at),
     features: {
       action: todo.action_name,

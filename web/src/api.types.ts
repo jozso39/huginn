@@ -28,6 +28,7 @@ export interface Item {
   body: string;
   url: string | null;
   rich: RichContent | null;
+  status: ItemStatus | null;
   receivedAt: string;
   features: Record<string, string | number | boolean | null>;
   category: Category;
@@ -227,3 +228,11 @@ export type RichContent =
     }
   | { format: 'Html'; html: string }
   | { format: 'Text'; text: string };
+
+export type StatusTone = 'Success' | 'Info' | 'Danger' | 'Warning' | 'Neutral';
+
+/** The state of what the item is about (an MR: Open / Merged / Closed). */
+export interface ItemStatus {
+  label: string;
+  tone: StatusTone;
+}

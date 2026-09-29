@@ -3,6 +3,7 @@ import { api } from '../api';
 import type { Action, Connection, Item } from '../api.types';
 import { CONNECTOR_META, relativeTime } from '../connectorMeta';
 import { ConnectorIcon } from './ConnectorIcon';
+import { StatusPill } from './StatusPill';
 
 interface ArchiveViewProps {
   items: Item[];
@@ -68,7 +69,10 @@ export const ArchiveView = ({ items, connections, onChanged }: ArchiveViewProps)
           <li key={item.id} className="archive__row">
             <button type="button" className="archive__summary" onClick={() => void toggle(item.id)}>
               <ConnectorIcon kind={connectionById.get(item.connectionId)?.kind ?? 'Ingest'} small />
-              <span className="archive__title">{item.title}</span>
+              <span className="archive__title">
+                <StatusPill status={item.status} />
+                {item.title}
+              </span>
               <span className="muted">{item.author}</span>
               <time className="muted" dateTime={item.stateChangedAt}>
                 {relativeTime(item.stateChangedAt)}

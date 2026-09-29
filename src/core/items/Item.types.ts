@@ -49,6 +49,21 @@ export type RichContent =
   | { readonly format: RichFormat.Html; readonly html: string }
   | { readonly format: RichFormat.Text; readonly text: string };
 
+/** Colour families of a status pill; named after GitLab's badge variants, which they copy. */
+export enum StatusTone {
+  Success = 'Success',
+  Info = 'Info',
+  Danger = 'Danger',
+  Warning = 'Warning',
+  Neutral = 'Neutral',
+}
+
+/** The state of the thing an item is about (an MR: Open / Merged / Closed), shown as a pill. */
+export interface ItemStatus {
+  readonly label: string;
+  readonly tone: StatusTone;
+}
+
 /**
  * Flat metadata a connector derives from the raw payload. This — not the body —
  * is what hard rules match on and what the feedback agent gets when a message
@@ -71,6 +86,8 @@ export interface Item {
   readonly url: string | null;
   /** Stored rich form when it is small (Slack); large ones (e-mail) are fetched on demand. */
   readonly rich: RichContent | null;
+  /** Refreshed with the item, so it follows the source (an MR gets merged). */
+  readonly status: ItemStatus | null;
   readonly receivedAt: Date;
   readonly features: ItemFeatures;
   readonly raw: unknown;
@@ -96,4 +113,4 @@ export type NewItem = Pick<
   | 'receivedAt'
   | 'features'
   | 'raw'
-> & { readonly rich?: RichContent | null };
+> & { readonly rich?: RichContent | null; readonly status?: ItemStatus | null };

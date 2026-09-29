@@ -10,6 +10,7 @@ import type {
 import { CONNECTOR_META, KIND_LABEL, QUICK_EMOJI, relativeTime } from '../connectorMeta';
 import { ConnectorIcon } from './ConnectorIcon';
 import { MessageBody } from './MessageBody';
+import { StatusPill } from './StatusPill';
 
 interface ThreadCardProps {
   items: Item[];
@@ -156,7 +157,10 @@ export const ThreadCard = ({
       <header className="thread__head">
         <ConnectorIcon kind={connection?.kind ?? 'Ingest'} href={latest.url} />
         <div className="thread__titles">
-          <h3 className="thread__title">{latest.title}</h3>
+          <h3 className="thread__title">
+            <StatusPill status={latest.status} />
+            {latest.title}
+          </h3>
           <p className="thread__meta">
             <span>{latest.author}</span>
             <span>·</span>

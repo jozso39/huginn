@@ -12,6 +12,17 @@
   --warn: #a8741a;
   --select: #2f5d8a33;
   --radius: 10px;
+  /* Status pills copy GitLab's badge colours (Pajamas design system). */
+  --pill-success-bg: #c3e6cd;
+  --pill-success-text: #24663b;
+  --pill-info-bg: #cbe2f9;
+  --pill-info-text: #0b5cad;
+  --pill-danger-bg: #fdd4cd;
+  --pill-danger-text: #ae1800;
+  --pill-warning-bg: #f5d9a8;
+  --pill-warning-text: #8f4700;
+  --pill-neutral-bg: #dcdcde;
+  --pill-neutral-text: #4c4b51;
   color-scheme: light;
 }
 
@@ -29,6 +40,16 @@
     --ok: #6cc28d;
     --warn: #e0b060;
     --select: #7aa7d633;
+    --pill-success-bg: #0d532a;
+    --pill-success-text: #91d4a8;
+    --pill-info-bg: #033464;
+    --pill-info-text: #9dc7f1;
+    --pill-danger-bg: #8d1300;
+    --pill-danger-text: #fcb5aa;
+    --pill-warning-bg: #5c2900;
+    --pill-warning-text: #e9be74;
+    --pill-neutral-bg: #3a383f;
+    --pill-neutral-text: #bfbfc3;
     color-scheme: dark;
   }
 }
@@ -1064,4 +1085,41 @@ a.button {
 
 .badge--small.badge--logo {
   padding: 3px;
+}
+
+.status-pill {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+.status-pill--Success {
+  background: var(--pill-success-bg);
+  color: var(--pill-success-text);
+}
+
+.status-pill--Info {
+  background: var(--pill-info-bg);
+  color: var(--pill-info-text);
+}
+
+.status-pill--Danger {
+  background: var(--pill-danger-bg);
+  color: var(--pill-danger-text);
+}
+
+.status-pill--Warning {
+  background: var(--pill-warning-bg);
+  color: var(--pill-warning-text);
+}
+
+.status-pill--Neutral {
+  background: var(--pill-neutral-bg);
+  color: var(--pill-neutral-text);
 }

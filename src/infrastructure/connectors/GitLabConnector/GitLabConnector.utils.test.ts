@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ItemKind } from '@/core/items/Item.types';
+import { ItemKind, StatusTone } from '@/core/items/Item.types';
 import { MOCK_TODO } from '@/infrastructure/clients/GitLabClient/GitLabClient.mock';
 import { todoExternalId, todoToItem } from './GitLabConnector.utils';
 
@@ -24,6 +24,20 @@ describe('todoToItem', () => {
     expect(mention.kind).toBe(ItemKind.Mention);
     expect(assigned.kind).toBe(ItemKind.Assignment);
     expect(build.kind).toBe(ItemKind.Alert);
+  });
+
+  test('a merge request carries its state as GitLab names and colours it', () => {
+    const at = (state: string) => ({ ...MOCK_TODO, target: { ...MOCK_TODO.target, state } });
+
+    expect(todoToItem('c', MOCK_TODO, 4000).status).toEqual({
+      label: 'Open',
+      tone: StatusTone.Success,
+    });
+    expect(todoToItem('c', at('merged'), 4000).status?.tone).toBe(StatusTone.Info);
+    expect(todoToItem('c', at('closed'), 4000).status?.label).toBe('Closed');
+    // Issues and unknown states get no pill rather than a wrong one.
+    expect(todoToItem('c', { ...MOCK_TODO, target_type: 'Issue' }, 4000).status).toBeNull();
+    expect(todoToItem('c', at('something_new'), 4000).status).toBeNull();
   });
 
   test('caps the body and survives a missing project', () => {

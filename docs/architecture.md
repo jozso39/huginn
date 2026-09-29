@@ -43,7 +43,7 @@ no infrastructure implementation worth mocking separately (Jev, the chat model).
 | Table | Holds | Notes |
 |---|---|---|
 | `connections` | one row per connected account: kind, name, **group_name**, config (JSON, validated by the connector's Zod schema), **cursor** (connector's sync position), status + message, `secrets_ciphertext` | secrets are AES-256-GCM sealed JSON (`AesSecretBox`, key `HUGINN_SECRET_KEY`); never returned by the API |
-| `items` | one row per message/notification: `external_id` unique per connection, `thread_key`, kind, author, title, **body** (clean plain text — what rules and Jev read), `url` (deep link), **rich** (Slack mrkdwn + names; null for e-mail), **features** (flat metadata for rules), `raw` (what the connector needs to act, e.g. Slack event, compact Gmail headers), **category**, **decision** (TriageDecision JSON), state Open/Done/Archived | re-ingesting the same external id updates content but keeps state and decision |
+| `items` | one row per message/notification: `external_id` unique per connection, `thread_key`, kind, author, title, **body** (clean plain text — what rules and Jev read), `url` (deep link), **rich** (Slack mrkdwn + names; null for e-mail), **status** (source state pill, e.g. MR Open/Merged/Closed), **features** (flat metadata for rules), `raw` (what the connector needs to act, e.g. Slack event, compact Gmail headers), **category**, **decision** (TriageDecision JSON), state Open/Done/Archived | re-ingesting the same external id updates content but keeps state and decision |
 | `actions` | the archive: every reply, draft, reaction, done, mark-spam/important, with payload and provider result | |
 | `rules` | per-connection triage rules: verdict, kind Hard/Soft, predicate / criterion, threshold, **priority**, status Active/Proposed/Disabled, origin Default/User/Feedback, hits | |
 | `rule_history` | every rule change: before/after, reason (user's words), item, **checks** (guardrail scores, dry-run numbers) | outlives deleted rules |
@@ -167,6 +167,8 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
   `j/k r e i s o`; a toast for results that outlive their card.
 - `ConnectorIcon` — the source's logo (`web/src/assets/logos`, CC0 svg-logos set) or a
   coloured glyph for sources without one; doubles as the deep link.
+- `StatusPill` — `item.status` (e.g. an MR's Open / Merged / Closed), coloured by
+  `StatusTone` with GitLab's badge colours; connectors set it, refreshed on every sync.
 - `ThreadCard` → `MessageBody` (Slack / e-mail / text), category chip + why-line,
   reply/draft/emoji/Spam/Important/Done driven by the connector's `capabilities`.
 - `ConnectionsView`, `ConnectionForm` (generated from the config schema), `SignInConnect`
