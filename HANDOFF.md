@@ -3,7 +3,7 @@
 **Read this first.** It is the state of the project: what exists, why it was built this
 way, what is unverified, what comes next. How the code is organised is in
 [docs/architecture.md](docs/architecture.md); the coding rules are in
-[CLAUDE.md](CLAUDE.md). Last updated **2026-09-29**.
+[CLAUDE.md](CLAUDE.md). Last updated **2026-09-29** (evening).
 
 > The author's own deployment (host names, where keys live, which accounts are
 > connected) is deliberately **not** in this public repo. It is in the private ops notes
@@ -39,6 +39,9 @@ a Mac and an iPhone. 8 commits, ~13k lines, **94 tests** (`bun run test`).
 | Learning from Spam / Important + reason (agent + Jev guardrails) | done, first live runs 2026-09-29 (§5) |
 | Rendering: Slack mrkdwn like Slack, e-mail HTML in a sandboxed frame | done |
 | Installable web app (manifest, service worker, dock badge) | done |
+| Push notifications for Important items (Web Push, VAPID; iPhone via Home Screen app) | done, **not yet tried on a phone** |
+| Connectors: **LinkedIn** (its notification mails via Gmail), **Signal** (linked device via signal-cli on a Unix socket) | done — see §5 |
+| MR state pill (item `status`), ClickUp skips own tasks, Slack replies always thread | done |
 | Tokens encrypted at rest; one bad connection cannot crash the server | done |
 
 ## 3. Decisions and why
@@ -78,19 +81,18 @@ These were argued out with the owner; keep them unless there is a reason.
 
 ## 4. Next steps (the owner's priority order, as far as known)
 
-1. **Tune the learning loop** — keep feeding reasons; tune thresholds from
-   `rule_history.checks`. Known gap found live: a Spam click whose reason is "this should
-   not be Important" makes the agent *narrow* the Important rule; the message then lands
-   in Undecided, not Spam, so the "verified" check fails and it becomes a proposal.
-   Consider: a narrowing counts as verified when the message leaves the rejected category.
-2. **LinkedIn** — no API for messages; derive items from LinkedIn's notification e-mails
-   in the personal Gmail (sender `linkedin.com`), probably as a Gmail-side mapper.
-3. **Signal** — the owner's own account as a *linked device* (a second `signal-cli`,
-   QR scan), separate from Hermes' bot number.
-4. **Push only Important items to the phone** — the service worker is the hook (Web Push);
-   or via Hermes' Signal.
-5. Slack backfill (messages sent while Huginn was down), Slack `blocks`-only bot messages.
-6. Modular-for-anyone: auth for the dashboard itself, onboarding, per-user settings.
+1. **Owner actions**: link Signal (Connections → Signal → scan); add LinkedIn (sign in
+   with Google) and set the personal Gmail's *Leave out mail from* to `linkedin.com`;
+   turn on LinkedIn's message e-mails (it currently mails only jobs/digests); install
+   the Home Screen app on the iPhone and turn notifications on.
+2. **Tune the learning loop** from `rule_history.checks` (now also `landed`). A rule
+   change that moves the message out of the wrong pile into Undecided counts as
+   verified (2026-09-29).
+3. Verify live: Signal envelopes (group names, edits, read sync), LinkedIn message mails
+   (parser built from templates/subjects, only job/digest mails seen so far), Web Push on
+   iOS.
+4. Slack backfill (messages sent while Huginn was down), Slack `blocks`-only bot messages.
+5. Modular-for-anyone: auth for the dashboard itself, onboarding, per-user settings.
 
 ## 5. What is verified live, and what is not
 
@@ -106,6 +108,9 @@ These were argued out with the owner; keep them unless there is a reason.
 | Reply to Slack from Huginn | yes — and it posted top-level in a DM, hence replies now always thread |
 | Draft / done against real Gmail / ClickUp | not yet exercised live |
 | Chrome "Install app", dock badge | built; not confirmed on the owner's machine |
+| Web Push | server + keys live on the Pi; no device subscribed yet |
+| LinkedIn parser | run over the owner's 17 real LinkedIn mails: all classified right (jobs, updates, security); no message mail exists yet to test |
+| Signal | daemon live on the Pi, container reaches it, `startLink` works; **not linked yet** |
 
 ## 6. Known gaps and quirks
 
@@ -161,6 +166,9 @@ bun run build                   # web → web/dist, served by the server
    that and phones keep an old app after a deploy.
 8. One-off data fixes on a running instance: copy a small Bun script into the container
    (`docker cp`), run it with `bun`, delete it — it can import the app's own utilities.
+9. **Push endpoints are allow-listed** (Apple, FCM, Mozilla, Windows): the server POSTs
+   to whatever a browser registers, so anything else is refused.
+10. **signal-cli never on a port**: JSON-RPC has no auth; the Unix socket is the boundary.
 
 ## 8. Documentation map
 

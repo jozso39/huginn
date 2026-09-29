@@ -48,6 +48,7 @@ no infrastructure implementation worth mocking separately (Jev, the chat model).
 | `rules` | per-connection triage rules: verdict, kind Hard/Soft, predicate / criterion, threshold, **priority**, status Active/Proposed/Disabled, origin Default/User/Feedback, hits | |
 | `rule_history` | every rule change: before/after, reason (user's words), item, **checks** (guardrail scores, dry-run numbers) | outlives deleted rules |
 | `oauth_apps` | one OAuth client per provider (Google): client id, sealed secret, redirect mode | |
+| `push_devices` | browsers subscribed to Web Push: endpoint (unique), p256dh, auth, label | a push answered 404/410 removes the device |
 
 Migrations: `drizzle/000N_*.sql`, applied at boot (`SqliteDatabase.migrate`).
 
@@ -155,6 +156,8 @@ an end-to-end test through `createTestContainer`, a `docs/<x>.md`.
 | `GET /api/oauth/apps/:provider` · `PUT /api/oauth/apps/:provider` · `POST /api/oauth/sign-in` · `GET /api/oauth/callback` | sign-in |
 | `GET /api/events` | SSE: `ItemUpserted`, `ItemChanged`, `ConnectionChanged`, keep-alive `ping` |
 | `GET /api/health` | liveness |
+| `GET /api/push`, `POST /api/push/devices`, `…/devices/remove`, `…/test` | Web Push: VAPID public key + devices; subscribe, forget, test |
+| `POST /api/connections/pairings`, `GET …/pairings/:id` | link a phone (Signal): QR code, then poll until Linked/Failed |
 
 Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
 
@@ -165,6 +168,9 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
 - `InboxView` — category tabs; groups by `connection.groupName ?? name`, collapsed by
   default (open ones remembered in `localStorage`), header counts; keyboard
   `j/k r e i s o`; a toast for results that outlive their card.
+- `NotificationsPanel` (Connections page) — Web Push on/off per device, test, device list;
+  `web/public/sw.js` shows pushes and sets the app badge.
+- `PairConnect` — linking a phone: QR (uqr, as a data: image) + polling the pairing.
 - `ConnectorIcon` — the source's logo (`web/src/assets/logos`, CC0 svg-logos set) or a
   coloured glyph for sources without one; doubles as the deep link.
 - `StatusPill` — `item.status` (e.g. an MR's Open / Merged / Closed), coloured by
