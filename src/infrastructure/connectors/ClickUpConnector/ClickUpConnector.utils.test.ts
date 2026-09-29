@@ -94,8 +94,16 @@ describe('items', () => {
     expect(item.kind).toBe(ItemKind.Assignment);
     expect(item.author).toBe(MOCK_CLICKUP_BOSS.username);
     expect(item.body).toBe('The -wt-cluster and -wt-limit ones.');
-    expect(isNewAssignment(MOCK_CLICKUP_TASK, new Set())).toBe(true);
-    expect(isNewAssignment(MOCK_CLICKUP_TASK, new Set(['task1']))).toBe(false);
-    expect(isNewAssignment(closed, new Set())).toBe(false);
+    expect(isNewAssignment(MOCK_CLICKUP_TASK, new Set(), MOCK_CLICKUP_ME)).toBe(true);
+    expect(isNewAssignment(MOCK_CLICKUP_TASK, new Set(['task1']), MOCK_CLICKUP_ME)).toBe(false);
+    expect(isNewAssignment(closed, new Set(), MOCK_CLICKUP_ME)).toBe(false);
+    // A task I created and assigned to myself is not news.
+    expect(
+      isNewAssignment(
+        { ...MOCK_CLICKUP_TASK, creator: MOCK_CLICKUP_ME },
+        new Set(),
+        MOCK_CLICKUP_ME
+      )
+    ).toBe(false);
   });
 });

@@ -113,5 +113,9 @@ export const assignmentToItem = (
   };
 };
 
-export const isNewAssignment = (task: ClickUpTask, known: ReadonlySet<string>): boolean =>
-  !known.has(task.id) && !isClosed(task);
+/** A task the user created is their own work, never news to them — even when assigned to them. */
+export const isNewAssignment = (
+  task: ClickUpTask,
+  known: ReadonlySet<string>,
+  me: ClickUpUser
+): boolean => !known.has(task.id) && !isClosed(task) && task.creator?.id !== me.id;

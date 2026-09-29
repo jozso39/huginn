@@ -17,6 +17,9 @@ roadmap" in 2025), so Huginn watches **the tasks assigned to you**:
 | …and tags you, or assigns the comment to you | a *mention* item |
 | You comment on the task (in ClickUp or from Huginn) | the task's items close |
 
+**Nothing you wrote ever comes in** — your own comments, and tasks you created (even
+when assigned to yourself). This is built into the connector, not a triage rule.
+
 **Reply** answers in the comment's thread (or, for an assignment, as a task comment).
 There is no *Done* at ClickUp's side — no API for it — so Done only clears it here.
 

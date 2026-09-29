@@ -39,7 +39,8 @@ const MAX_KNOWN_TASKS = 3000;
 /**
  * ClickUp has no notifications API (not on its roadmap), so this polls the tasks
  * assigned to the user: a newly assigned task and new comments on those tasks come
- * in; the user's own comment closes the task's conversation.
+ * in; the user's own comment closes the task's conversation. Nothing the user wrote
+ * (their comments, tasks they created) ever becomes an item.
  */
 export class ClickUpConnector implements IConnector {
   public static readonly capabilities: ConnectorCapabilities = {
@@ -197,7 +198,7 @@ export class ClickUpConnector implements IConnector {
     known: ReadonlySet<string>,
     since: number
   ): Promise<void> {
-    if (isNewAssignment(task, known)) {
+    if (isNewAssignment(task, known, me)) {
       await ctx.upsert(assignmentToItem(this.connection.id, task, this.maxBodyChars));
     }
 
