@@ -62,11 +62,16 @@ export class MockSlackClient implements ISlackClient {
     ]);
   }
 
+  /** Messages sent through the client, oldest first. */
+  public posted: readonly { channel: string; text: string; threadTs?: string }[] = [];
+
   public postMessage(
     channel: string,
-    _text: string,
-    _threadTs?: string
+    text: string,
+    threadTs?: string
   ): Promise<SlackPostedMessage> {
+    this.posted = [...this.posted, { channel, text, threadTs }];
+
     return Promise.resolve({ channel, ts: '1759046500.000200' });
   }
 

@@ -8,8 +8,8 @@ import type {
   Item,
   Verdict,
 } from '../api.types';
-import { CONNECTOR_META } from '../connectorMeta';
 import { ThreadCard } from './ThreadCard';
+import { ConnectorIcon } from './ConnectorIcon';
 
 interface InboxViewProps {
   items: Item[];
@@ -233,13 +233,7 @@ export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewPro
                   </span>
                   <span className="group__badges">
                     {[...new Set(group.connections.map((c) => c.kind))].map((kind) => (
-                      <span
-                        key={kind}
-                        className="badge badge--small"
-                        style={{ background: CONNECTOR_META[kind].color }}
-                      >
-                        {CONNECTOR_META[kind].glyph}
-                      </span>
+                      <ConnectorIcon key={kind} kind={kind} small />
                     ))}
                   </span>
                   <span className="group__name">{group.name}</span>

@@ -124,7 +124,7 @@ export class SlackConnector implements IConnector {
       const posted = await this.client.postMessage(event.channel, text, threadTs);
 
       // Remember the thread so the other side's answer comes back in.
-      await this.rememberThread(`${event.channel}:${threadTs ?? posted.ts}`);
+      await this.rememberThread(`${event.channel}:${threadTs}`);
 
       return {
         ok: true,

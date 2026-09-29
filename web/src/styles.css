@@ -1048,3 +1048,20 @@ a.button {
   font-size: 1.15em;
   line-height: 1;
 }
+
+/* Brand logos sit on a light tile in both themes so their own colours read. */
+.badge--logo {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 8%);
+  padding: 5px;
+}
+
+.badge--logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.badge--small.badge--logo {
+  padding: 3px;
+}

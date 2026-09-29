@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import type { Action, Connection, Item } from '../api.types';
 import { CONNECTOR_META, relativeTime } from '../connectorMeta';
+import { ConnectorIcon } from './ConnectorIcon';
 
 interface ArchiveViewProps {
   items: Item[];
@@ -66,9 +67,7 @@ export const ArchiveView = ({ items, connections, onChanged }: ArchiveViewProps)
         return (
           <li key={item.id} className="archive__row">
             <button type="button" className="archive__summary" onClick={() => void toggle(item.id)}>
-              <span className="badge badge--small" style={{ background: meta.color }}>
-                {meta.glyph}
-              </span>
+              <ConnectorIcon kind={connectionById.get(item.connectionId)?.kind ?? 'Ingest'} small />
               <span className="archive__title">{item.title}</span>
               <span className="muted">{item.author}</span>
               <time className="muted" dateTime={item.stateChangedAt}>

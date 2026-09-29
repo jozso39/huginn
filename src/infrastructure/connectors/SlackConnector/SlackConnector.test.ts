@@ -47,26 +47,43 @@ describe('Slack connector end to end', () => {
     expect(item?.features.isPersonalMention).toBe(true);
   });
 
-  test('replying from Huginn archives the item and follows the thread', async () => {
+  test('replying from Huginn answers in a thread and archives the item', async () => {
     const [item] = await container.inboxService.list({ state: ItemState.Open, connectionId });
     const replied = await container.inboxService.reply(item?.id ?? '', 'Sure, today.');
     const detail = await container.inboxService.get(replied.id);
 
     expect(replied.state).toBe(ItemState.Done);
     expect(detail?.actions[0]?.type).toBe(ActionType.Reply);
+    // Even in a DM the answer goes under the message it answers, as a thread reply.
+    expect(slack.posted.at(-1)).toEqual({
+      channel: MOCK_SLACK_DM.channel,
+      text: 'Sure, today.',
+      threadTs: MOCK_SLACK_DM.ts,
+    });
 
-    // The boss answers in the same DM: a new open item in the same conversation.
-    slack.deliver({ ...MOCK_SLACK_DM, text: 'Thanks!', ts: '1759046600.000300' });
+    // The boss answers in that thread: a new open item.
+    slack.deliver({
+      ...MOCK_SLACK_DM,
+      text: 'Thanks!',
+      ts: '1759046600.000300',
+      thread_ts: MOCK_SLACK_DM.ts,
+    });
     await settle();
 
     const open = await container.inboxService.list({ state: ItemState.Open, connectionId });
 
     expect(open).toHaveLength(1);
-    expect(open[0]?.threadKey).toBe(replied.threadKey);
+    expect(open[0]?.body).toBe('Thanks!');
   });
 
-  test('answering in Slack itself clears the conversation here', async () => {
-    slack.deliver({ ...MOCK_SLACK_DM, user: MOCK_SLACK_ME, text: '👍', ts: '1759046700.000400' });
+  test('answering in Slack itself clears the thread here', async () => {
+    slack.deliver({
+      ...MOCK_SLACK_DM,
+      user: MOCK_SLACK_ME,
+      text: '👍',
+      ts: '1759046700.000400',
+      thread_ts: MOCK_SLACK_DM.ts,
+    });
     await settle();
 
     expect(await container.inboxService.list({ state: ItemState.Open, connectionId })).toHaveLength(

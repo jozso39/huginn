@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { api } from '../api';
 import type { Connection, ConnectorDescriptor } from '../api.types';
-import { CONNECTOR_META, relativeTime } from '../connectorMeta';
+import { relativeTime } from '../connectorMeta';
 import type { ConnectionFormValues } from './ConnectionForm';
 import { ConnectionForm } from './ConnectionForm';
 import { SignInConnect, startSignIn } from './SignInConnect';
+import { ConnectorIcon } from './ConnectorIcon';
 
 interface ConnectionsViewProps {
   connections: Connection[];
@@ -83,15 +84,12 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
       <ul className="connection-list">
         {connections.length === 0 && <li className="muted">No connections yet.</li>}
         {connections.map((connection) => {
-          const meta = CONNECTOR_META[connection.kind];
           const descriptor = descriptorOf(connection.kind);
 
           return (
             <li key={connection.id} className="connection">
               <div className="connection__row">
-                <span className="badge" style={{ background: meta.color }}>
-                  {meta.glyph}
-                </span>
+                <ConnectorIcon kind={connection.kind} />
                 <div className="connection__info">
                   <strong>{connection.name}</strong>
                   {connection.groupName && (

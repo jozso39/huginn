@@ -195,13 +195,7 @@ export const toPlainText = (
     .replace(/&amp;/g, '&');
 
 /**
- * Where a reply to this message belongs: in the thread if there is one, top level in a
- * DM that was not threaded, otherwise in a new thread under the message.
+ * Where a reply to this message belongs: always in a thread — the existing one, or a new
+ * one under the message. Also in DMs: a threaded answer says which message it answers.
  */
-export const replyThreadTs = (event: SlackMessageEvent): string | undefined => {
-  if (event.thread_ts) {
-    return event.thread_ts;
-  }
-
-  return event.channel_type === 'im' || event.channel_type === 'mpim' ? undefined : event.ts;
-};
+export const replyThreadTs = (event: SlackMessageEvent): string => event.thread_ts ?? event.ts;

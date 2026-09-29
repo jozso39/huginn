@@ -8,6 +8,7 @@ import type {
   Verdict,
 } from '../api.types';
 import { CONNECTOR_META, KIND_LABEL, QUICK_EMOJI, relativeTime } from '../connectorMeta';
+import { ConnectorIcon } from './ConnectorIcon';
 import { MessageBody } from './MessageBody';
 
 interface ThreadCardProps {
@@ -153,23 +154,7 @@ export const ThreadCard = ({
       onClick={onSelect}
     >
       <header className="thread__head">
-        {latest.url ? (
-          <a
-            className="badge"
-            style={{ background: meta.color }}
-            href={latest.url}
-            target="_blank"
-            rel="noreferrer"
-            title={`Open in ${meta.label}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {meta.glyph}
-          </a>
-        ) : (
-          <span className="badge" style={{ background: meta.color }} title={meta.label}>
-            {meta.glyph}
-          </span>
-        )}
+        <ConnectorIcon kind={connection?.kind ?? 'Ingest'} href={latest.url} />
         <div className="thread__titles">
           <h3 className="thread__title">{latest.title}</h3>
           <p className="thread__meta">

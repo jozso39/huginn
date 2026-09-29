@@ -165,6 +165,8 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
 - `InboxView` — category tabs; groups by `connection.groupName ?? name`, collapsed by
   default (open ones remembered in `localStorage`), header counts; keyboard
   `j/k r e i s o`; a toast for results that outlive their card.
+- `ConnectorIcon` — the source's logo (`web/src/assets/logos`, CC0 svg-logos set) or a
+  coloured glyph for sources without one; doubles as the deep link.
 - `ThreadCard` → `MessageBody` (Slack / e-mail / text), category chip + why-line,
   reply/draft/emoji/Spam/Important/Done driven by the connector's `capabilities`.
 - `ConnectionsView`, `ConnectionForm` (generated from the config schema), `SignInConnect`

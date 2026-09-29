@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import type { Connection, FieldInfo, Rule, RuleHistoryEntry } from '../api.types';
-import { CONNECTOR_META, relativeTime } from '../connectorMeta';
+import { relativeTime } from '../connectorMeta';
 import { RuleEditor } from './RuleEditor';
+import { ConnectorIcon } from './ConnectorIcon';
 
 interface RulesViewProps {
   connection: Connection;
@@ -48,7 +49,6 @@ export const RulesView = ({ connection }: RulesViewProps) => {
   const [editing, setEditing] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const meta = CONNECTOR_META[connection.kind];
 
   const fetchAll = useCallback(
     () => Promise.all([api.listRules(connection.id), api.fields(connection.id)]),
@@ -189,9 +189,7 @@ export const RulesView = ({ connection }: RulesViewProps) => {
         ← Connections
       </a>
       <header className="rules-view__head">
-        <span className="badge" style={{ background: meta.color }}>
-          {meta.glyph}
-        </span>
+        <ConnectorIcon kind={connection.kind} />
         <div>
           <h2>{connection.name}</h2>
           <p className="muted small">

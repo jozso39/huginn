@@ -92,6 +92,9 @@ list. Like a Slack mute, it does not silence a direct @mention.
 Your own messages close the conversation in Huginn — answer in Slack and the item
 disappears here too.
 
+**Replies from Huginn always go into a thread** under the message you answer — in
+channels and in DMs alike — so the other side sees which message you mean.
+
 ## Known limits
 
 - **No backfill yet.** Messages sent while Huginn was not running are not fetched

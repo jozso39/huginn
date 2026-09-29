@@ -129,10 +129,10 @@ describe('threads, links and replies', () => {
     );
   });
 
-  test('replies go into the thread, except in an unthreaded DM', () => {
+  test('replies always go into a thread, DMs included', () => {
     expect(replyThreadTs(message({}))).toBe('1700000500.000200');
     expect(replyThreadTs(message({ thread_ts: '1700000000.000100' }))).toBe('1700000000.000100');
-    expect(replyThreadTs(message({ channel_type: 'im' }))).toBeUndefined();
+    expect(replyThreadTs(message({ channel_type: 'im' }))).toBe('1700000500.000200');
   });
 });
 
