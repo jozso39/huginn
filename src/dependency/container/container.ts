@@ -5,17 +5,20 @@ import type { Logger } from '@/lib/logger';
 import { createLogger } from '@/lib/logger';
 import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
 import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
+import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { ConnectionService } from '@/core/services/ConnectionService/ConnectionService';
 import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
 import { FeedbackService } from '@/core/services/FeedbackService/FeedbackService';
 import { InboxService } from '@/core/services/InboxService/InboxService';
 import { OAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService';
+import { PushService } from '@/core/services/PushService/PushService';
 import { RuleService } from '@/core/services/RuleService/RuleService';
 import { TriageService } from '@/core/services/TriageService/TriageService';
 import { GoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient';
 import { JevClient } from '@/infrastructure/clients/JevClient/JevClient';
 import { OpenRouterLlmClient } from '@/infrastructure/clients/OpenRouterLlmClient/OpenRouterLlmClient';
+import { WebPushClient } from '@/infrastructure/clients/WebPushClient/WebPushClient';
 import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
@@ -28,6 +31,7 @@ import { SqliteActionStore } from '@/infrastructure/stores/SqliteActionStore/Sql
 import { SqliteConnectionStore } from '@/infrastructure/stores/SqliteConnectionStore/SqliteConnectionStore';
 import { SqliteItemStore } from '@/infrastructure/stores/SqliteItemStore/SqliteItemStore';
 import { SqliteOAuthAppStore } from '@/infrastructure/stores/SqliteOAuthAppStore/SqliteOAuthAppStore';
+import { SqlitePushDeviceStore } from '@/infrastructure/stores/SqlitePushDeviceStore/SqlitePushDeviceStore';
 import { SqliteRuleStore } from '@/infrastructure/stores/SqliteRuleStore/SqliteRuleStore';
 import type { Container } from './container.types';
 
@@ -38,6 +42,7 @@ export interface CreateContainerOptions {
   readonly connectorFactories?: readonly IConnectorFactory[];
   readonly jev?: IJevClient;
   readonly llm?: ILlmClient;
+  readonly push?: IPushClient;
 }
 
 const MIGRATIONS_FOLDER = resolve(import.meta.dir, '../../../drizzle');
@@ -141,6 +146,14 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     llm,
     eventBus
   );
+  const pushService = new PushService(
+    logger,
+    new SqlitePushDeviceStore(database.db),
+    options.push ?? new WebPushClient(logger, config.vapid),
+    itemStore,
+    connectionStore,
+    eventBus
+  );
 
   return {
     logger,
@@ -158,6 +171,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     triageService,
     ruleService,
     feedbackService,
+    pushService,
     close: () => database.close(),
   };
 };

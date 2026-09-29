@@ -67,4 +67,26 @@ describe('HTTP API', () => {
 
     expect(kinds.map((kind) => kind.kind)).toContain('GitLab');
   });
+
+  test('push devices must come from a real push service', async () => {
+    const keys = { p256dh: 'BPublicKeyOfTheBrowser-xxxxxxxx', auth: 'authsecret' };
+    const rogue = await json('/api/push/devices', {
+      endpoint: 'https://internal.example/admin',
+      keys,
+      label: 'x',
+    });
+    const phone = await json('/api/push/devices', {
+      endpoint: 'https://web.push.apple.com/QGx',
+      keys,
+      label: 'iPhone',
+    });
+    const listed = (await (await app.request('/api/push')).json()) as {
+      publicKey: string | null;
+      devices: { label: string }[];
+    };
+
+    expect(rogue.status).toBe(400);
+    expect(phone.status).toBe(200);
+    expect(listed.devices.map((d) => d.label)).toEqual(['iPhone']);
+  });
 });

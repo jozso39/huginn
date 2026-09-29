@@ -1123,3 +1123,38 @@ a.button {
   background: var(--pill-neutral-bg);
   color: var(--pill-neutral-text);
 }
+
+.notifications {
+  display: grid;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.notifications h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.notifications p {
+  margin: 0;
+}
+
+.notifications__row,
+.notifications__devices li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.notifications__devices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+}

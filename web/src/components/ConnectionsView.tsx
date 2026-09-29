@@ -6,6 +6,7 @@ import type { ConnectionFormValues } from './ConnectionForm';
 import { ConnectionForm } from './ConnectionForm';
 import { SignInConnect, startSignIn } from './SignInConnect';
 import { ConnectorIcon } from './ConnectorIcon';
+import { NotificationsPanel } from './NotificationsPanel';
 
 interface ConnectionsViewProps {
   connections: Connection[];
@@ -81,6 +82,7 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
 
   return (
     <section className="connections">
+      <NotificationsPanel />
       <ul className="connection-list">
         {connections.length === 0 && <li className="muted">No connections yet.</li>}
         {connections.map((connection) => {

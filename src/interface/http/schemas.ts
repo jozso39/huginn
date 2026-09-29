@@ -93,3 +93,29 @@ export const ruleDraftBodySchema = z.object({
 export const ruleStatusBodySchema = z.object({ status: z.enum(RuleStatus) });
 
 export const ruleMoveBodySchema = z.object({ direction: z.enum(MoveDirection) });
+
+// Huginn POSTs to the endpoint a browser registers, so only real push services are
+// accepted — anything else would let a page make the server call arbitrary URLs.
+const PUSH_SERVICE_HOSTS = [
+  'push.apple.com',
+  'fcm.googleapis.com',
+  'push.services.mozilla.com',
+  'notify.windows.com',
+];
+
+const pushEndpointSchema = z
+  .url({ protocol: /^https$/ })
+  .max(2_000)
+  .refine((url) => {
+    const host = new URL(url).hostname;
+
+    return PUSH_SERVICE_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+  }, 'not a known push service');
+
+export const pushDeviceBodySchema = z.object({
+  endpoint: pushEndpointSchema,
+  keys: z.object({ p256dh: z.string().min(20).max(200), auth: z.string().min(8).max(100) }),
+  label: z.string().trim().min(1).max(100),
+});
+
+export const pushEndpointBodySchema = z.object({ endpoint: pushEndpointSchema });

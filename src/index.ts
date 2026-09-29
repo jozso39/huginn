@@ -8,6 +8,8 @@ const main = async () => {
 
   // Connections from before triage existed get their connector's default rules.
   await container.ruleService.installMissingDefaults();
+  // Before the connectors, so nothing Important slips past the phone.
+  container.pushService.start();
   await container.connectorHost.startAll();
 
   const app = createApp(container, resolve(import.meta.dir, '../web/dist'));
@@ -23,6 +25,7 @@ const main = async () => {
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down');
+    container.pushService.stop();
     await container.connectorHost.stopAll();
     await server.stop();
     container.close();

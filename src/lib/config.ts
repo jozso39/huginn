@@ -12,6 +12,14 @@ export const createConfig = () => {
     ingestKey: env.HUGINN_INGEST_KEY,
     publicUrl: env.HUGINN_PUBLIC_URL?.replace(/\/$/, '') ?? null,
     oauthRelayUrl: env.HUGINN_OAUTH_RELAY_URL ?? null,
+    vapid:
+      env.HUGINN_VAPID_PUBLIC_KEY && env.HUGINN_VAPID_PRIVATE_KEY
+        ? {
+            publicKey: env.HUGINN_VAPID_PUBLIC_KEY,
+            privateKey: env.HUGINN_VAPID_PRIVATE_KEY,
+            subject: env.HUGINN_VAPID_SUBJECT,
+          }
+        : null,
     ai: {
       openRouterApiKey: env.HUGINN_OPENROUTER_API_KEY ?? null,
       jevModel: env.HUGINN_JEV_MODEL,

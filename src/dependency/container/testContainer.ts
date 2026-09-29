@@ -6,6 +6,7 @@ import type { IClickUpClient } from '@/core/clients/ClickUpClient/ClickUpClient.
 import type { IGmailClient } from '@/core/clients/GmailClient/GmailClient.types';
 import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
 import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
+import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
 import type { ISlackClient } from '@/core/clients/SlackClient/SlackClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { MockClickUpClient } from '@/infrastructure/clients/ClickUpClient/ClickUpClient.mock';
@@ -14,6 +15,7 @@ import { MockGmailClient } from '@/infrastructure/clients/GmailClient/GmailClien
 import { MockGoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient.mock';
 import { MockJevClient } from '@/core/clients/JevClient/JevClient.mock';
 import { MockLlmClient } from '@/core/clients/LlmClient/LlmClient.mock';
+import { MockPushClient } from '@/core/clients/PushClient/PushClient.mock';
 import { MockSlackClient } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
 import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
@@ -36,6 +38,8 @@ export interface CreateTestContainerOptions {
   /** Hand in a MockJevClient to decide what soft rules and guardrails answer. */
   readonly jev?: IJevClient;
   readonly llm?: ILlmClient;
+  /** Hand in a MockPushClient to see what would reach the phone. */
+  readonly push?: IPushClient;
 }
 
 const createTestConfig = (): IConfig => ({
@@ -67,6 +71,7 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
     logger,
     jev: options.jev ?? new MockJevClient(),
     llm: options.llm ?? new MockLlmClient(),
+    push: options.push ?? new MockPushClient(),
     connectorFactories: options.connectorFactories ?? [
       new GitLabConnectorFactory(logger, config, () => new MockGitLabClient()),
       new SlackConnectorFactory(logger, config, () => options.slackClient ?? new MockSlackClient()),

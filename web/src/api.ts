@@ -10,6 +10,8 @@ import type {
   ItemState,
   OAuthAppView,
   OAuthProvider,
+  PushDevice,
+  PushSettings,
   RedirectMode,
   RichContent,
   Rule,
@@ -44,6 +46,17 @@ const request = async <T>(method: string, path: string, body?: unknown): Promise
 };
 
 export const api = {
+  push: () => request<PushSettings>('GET', '/push'),
+  addPushDevice: (subscription: PushSubscriptionJSON, label: string) =>
+    request<{ device: PushDevice }>('POST', '/push/devices', {
+      endpoint: subscription.endpoint,
+      keys: subscription.keys,
+      label,
+    }),
+  removePushDevice: (endpoint: string) =>
+    request<{ ok: true }>('POST', '/push/devices/remove', { endpoint }),
+  testPush: (endpoint: string) =>
+    request<{ delivered: boolean }>('POST', '/push/test', { endpoint }).then((r) => r.delivered),
   listItems: (state: ItemState) =>
     request<{ items: Item[] }>('GET', `/items?state=${state}&limit=500`).then((r) => r.items),
   content: (id: string) =>

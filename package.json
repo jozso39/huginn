@@ -10,6 +10,7 @@
     "dev:web": "vite",
     "build": "vite build",
     "start": "bun src/index.ts",
+    "vapid": "bun -e \"const k = require('web-push').generateVAPIDKeys(); console.log('HUGINN_VAPID_PUBLIC_KEY=' + k.publicKey + '\\nHUGINN_VAPID_PRIVATE_KEY=' + k.privateKey)\"",
     "type-check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json",
     "lint": "eslint src web/src",
     "lint:fix": "eslint src web/src --fix",
@@ -27,6 +28,7 @@
     "drizzle-orm": "^0.45.3",
     "hono": "^4.13.9",
     "pino": "^10.3.1",
+    "web-push": "^3.6.7",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -34,6 +36,7 @@
     "@types/bun": "^1.3.14",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^5.1.0",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.11.0",

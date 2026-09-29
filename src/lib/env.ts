@@ -17,6 +17,14 @@ const envSchema = z.object({
   HUGINN_OPENROUTER_API_KEY: z.string().min(10).optional(),
   HUGINN_JEV_MODEL: z.string().default('typesafe/jev-1.13'),
   HUGINN_FEEDBACK_MODEL: z.string().default('anthropic/claude-haiku-4.5'),
+  // Web Push to phones (Important items only). Generate with `bun run vapid`; without
+  // them notifications are simply off.
+  HUGINN_VAPID_PUBLIC_KEY: z.string().min(40).optional(),
+  HUGINN_VAPID_PRIVATE_KEY: z.string().min(20).optional(),
+  HUGINN_VAPID_SUBJECT: z
+    .string()
+    .regex(/^(mailto:|https:)/)
+    .default('mailto:huginn@localhost'),
   PORT: z.coerce.number().int().min(0).default(3000),
   LOG_LEVEL: z.enum(['silent', 'debug', 'info', 'warn', 'error']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
