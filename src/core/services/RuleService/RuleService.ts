@@ -246,6 +246,8 @@ export class RuleService implements IRuleService {
         field,
         samples: samplesOf((item) => item[field as 'author' | 'title' | 'kind']),
       })),
+      // Matchable like any field; no samples, a message text makes a poor example.
+      { field: 'body', samples: [] },
       ...keys.map((field) => ({ field, samples: samplesOf((item) => item.features[field]) })),
     ];
   }
