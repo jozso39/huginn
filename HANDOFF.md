@@ -121,7 +121,9 @@ These were argued out with the owner; keep them unless there is a reason.
 - Rule hit counts count newly arriving items only, not re-sorts.
 - Slack: no backfill; threads the user wrote in *before* connecting are unknown until
   they write again; `message.channels` delivers every channel message (filtered locally).
-- Slack messages whose content is only in `blocks` (some bots) render empty.
+- Slack app messages: legacy attachments and section/header/context blocks are shown
+  like Slack (since 2026-10-01); other block types (images, inputs) and app-only
+  buttons are not.
 - Emoji: ~150 common shortcodes bundled; others show as `:name:` (like Slack's plain text).
 - OAuth sign-in `state` lives in memory (15 min); a restart mid-sign-in means "sign in
   again".
