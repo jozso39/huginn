@@ -1179,3 +1179,61 @@ a.button {
   margin: 0;
   padding-left: 20px;
 }
+
+.slack-attachments {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.slack-attachment {
+  border-left: 4px solid;
+  border-radius: 2px;
+  padding: 0 0 0 12px;
+}
+
+.slack-attachment .slack-text,
+.slack-attachment-group > .slack-text {
+  margin-top: 2px;
+}
+
+.slack-attachment__author {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.slack-attachment__title {
+  display: block;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a.slack-attachment__title:hover {
+  text-decoration: underline;
+}
+
+.slack-attachment__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px 16px;
+  margin: 6px 0 0;
+}
+
+.slack-attachment__fields dt {
+  font-weight: 700;
+}
+
+.slack-attachment__fields dd {
+  margin: 0;
+}
+
+.slack-attachment__fields .slack-text {
+  margin-top: 0;
+}
+
+.slack-attachment__footer {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}

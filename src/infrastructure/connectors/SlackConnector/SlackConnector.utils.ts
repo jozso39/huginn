@@ -2,6 +2,7 @@ import type {
   SlackChannelInfo,
   SlackMessageEvent,
 } from '@/core/clients/SlackClient/SlackClient.types';
+import type { SlackAttachmentView } from '@/core/items/Item.types';
 import { ItemKind } from '@/core/items/Item.types';
 import { SlackChannelScope } from './SlackConnector.types';
 
@@ -199,3 +200,100 @@ export const toPlainText = (
  * one under the message. Also in DMs: a threaded answer says which message it answers.
  */
 export const replyThreadTs = (event: SlackMessageEvent): string => event.thread_ts ?? event.ts;
+
+// Slack's named attachment colours.
+const NAMED_COLORS: Readonly<Record<string, string>> = {
+  good: '#2eb67d',
+  warning: '#ecb22e',
+  danger: '#e01e5a',
+};
+
+const attachmentColor = (color: string | undefined): string | null => {
+  if (!color) {
+    return null;
+  }
+
+  const named = NAMED_COLORS[color];
+
+  if (named) {
+    return named;
+  }
+
+  // Only a hex colour: the value ends up in a style attribute.
+  return /^#?[0-9a-f]{3,8}$/i.test(color) ? `#${color.replace(/^#/, '')}` : null;
+};
+
+/** Attachments as the dashboard draws them; empty ones (only buttons) are dropped. */
+export const attachmentViews = (event: SlackMessageEvent): SlackAttachmentView[] =>
+  (event.attachments ?? [])
+    .map((attachment) => {
+      const fields = (attachment.fields ?? [])
+        .map((field) => ({ title: field.title ?? '', value: field.value ?? '' }))
+        .filter((field) => field.title !== '' || field.value !== '');
+      const hasContent =
+        Boolean(attachment.text ?? attachment.title ?? attachment.pretext) || fields.length > 0;
+
+      return {
+        color: attachmentColor(attachment.color),
+        pretext: attachment.pretext ?? '',
+        author: attachment.author_name ?? '',
+        title: attachment.title ?? '',
+        titleLink: /^https?:\/\//.test(attachment.title_link ?? '')
+          ? (attachment.title_link ?? null)
+          : null,
+        // `fallback` is the plain summary; use it only when nothing else is there.
+        text: attachment.text ?? (hasContent ? '' : (attachment.fallback ?? '')),
+        fields,
+        footer: attachment.footer ?? '',
+      };
+    })
+    .filter(
+      (view) =>
+        view.text !== '' || view.title !== '' || view.pretext !== '' || view.fields.length > 0
+    );
+
+const DISPLAY_BLOCKS = new Set(['section', 'header', 'context']);
+
+/**
+ * What an app's Block Kit message says, as mrkdwn. Slack shows blocks instead of
+ * `text` (then only the notification fallback); `rich_text` blocks just repeat the
+ * text, so a message with only those keeps its text (null).
+ */
+export const blocksText = (blocks: SlackMessageEvent['blocks']): string | null => {
+  const shown = (blocks ?? []).filter((block) => DISPLAY_BLOCKS.has(block.type));
+
+  if (shown.length === 0) {
+    return null;
+  }
+
+  return shown
+    .map((block) => {
+      if (block.type === 'header') {
+        return `*${block.text?.text ?? ''}*`;
+      }
+
+      if (block.type === 'context') {
+        return (block.elements ?? [])
+          .map((element) => element.text ?? '')
+          .filter((text) => text !== '')
+          .join(' · ');
+      }
+
+      return [block.text?.text ?? '', ...(block.fields ?? []).map((field) => field.text)]
+        .filter((text) => text !== '')
+        .join('\n');
+    })
+    .filter((text) => text !== '')
+    .join('\n');
+};
+
+/** Every piece of mrkdwn an attachment shows, in reading order. */
+export const attachmentTexts = (view: SlackAttachmentView): string[] =>
+  [
+    view.pretext,
+    view.author,
+    view.title,
+    view.text,
+    ...view.fields.map((field) => (field.title ? `${field.title}: ${field.value}` : field.value)),
+    view.footer,
+  ].filter((text) => text !== '');

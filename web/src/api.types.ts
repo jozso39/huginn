@@ -221,10 +221,23 @@ export interface FeedbackResult {
   message: string;
 }
 
+/** A Slack attachment (the coloured side-bar box); text fields are Slack mrkdwn. */
+export interface SlackAttachmentView {
+  color: string | null;
+  pretext: string;
+  author: string;
+  title: string;
+  titleLink: string | null;
+  text: string;
+  fields: { title: string; value: string }[];
+  footer: string;
+}
+
 export type RichContent =
   | {
       format: 'SlackMrkdwn';
       text: string;
+      attachments?: SlackAttachmentView[];
       users: Record<string, string>;
       channels: Record<string, string>;
       groups: Record<string, string>;

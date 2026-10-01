@@ -20,6 +20,9 @@ import { SlackChannelScope } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
 import {
   SlackRelevance,
+  attachmentTexts,
+  attachmentViews,
+  blocksText,
   classify,
   itemKindFor,
   mentionsMe,
@@ -189,15 +192,18 @@ export class SlackConnector implements IConnector {
     relevance: RelevanceContext,
     identity: SlackIdentity
   ): Promise<NewItem> {
-    const text = event.text ?? '';
+    // What Slack shows: app blocks over the fallback text, then the attachments.
+    const text = blocksText(event.blocks) ?? event.text ?? '';
+    const attachments = attachmentViews(event);
+    const allText = [text, ...attachments.flatMap(attachmentTexts)].join('\n');
     const [author, channel, names, channelRefs] = await Promise.all([
       event.user ? this.client.userName(event.user) : Promise.resolve(event.username ?? 'bot'),
       this.client.channelInfo(event.channel),
       Promise.all(
-        referencedUserIds(text).map(async (id) => [id, await this.client.userName(id)] as const)
+        referencedUserIds(allText).map(async (id) => [id, await this.client.userName(id)] as const)
       ),
       Promise.all(
-        referencedChannelIds(text).map(
+        referencedChannelIds(allText).map(
           async (id) => [id, (await this.client.channelInfo(id)).name] as const
         )
       ),
@@ -205,8 +211,11 @@ export class SlackConnector implements IConnector {
     const isDm = event.channel_type === 'im' || event.channel_type === 'mpim';
     const where = isDm ? 'direct message' : `#${channel.name}`;
     const files = (event.files ?? []).map((file) => file.name ?? 'file').join(', ');
+    const plain = (mrkdwn: string) =>
+      toPlainText(mrkdwn, new Map(names), this.groupHandles, new Map(channelRefs));
     const body = [
-      toPlainText(text, new Map(names), this.groupHandles, new Map(channelRefs)),
+      plain(text),
+      ...attachments.map((attachment) => attachmentTexts(attachment).map(plain).join('\n')),
       files ? `📎 ${files}` : '',
     ]
       .filter((part) => part !== '')
@@ -225,6 +234,7 @@ export class SlackConnector implements IConnector {
       rich: {
         format: RichFormat.SlackMrkdwn,
         text: files ? `${text}\n📎 ${files}` : text,
+        attachments,
         users: Object.fromEntries(names),
         channels: Object.fromEntries(channelRefs),
         groups: Object.fromEntries(this.groupHandles),

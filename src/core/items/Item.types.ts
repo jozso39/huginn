@@ -38,10 +38,25 @@ export enum RichFormat {
  * How to show a message properly, next to the plain-text `body` that rules and
  * Jev read. Slack's comes with the names its references point to.
  */
+/** A Slack attachment as the dashboard draws it; text fields are Slack mrkdwn. */
+export interface SlackAttachmentView {
+  /** `#rrggbb` for the side bar, or null for Slack's grey. */
+  readonly color: string | null;
+  readonly pretext: string;
+  readonly author: string;
+  readonly title: string;
+  readonly titleLink: string | null;
+  readonly text: string;
+  readonly fields: readonly { readonly title: string; readonly value: string }[];
+  readonly footer: string;
+}
+
 export type RichContent =
   | {
       readonly format: RichFormat.SlackMrkdwn;
       readonly text: string;
+      /** Missing on items stored before attachments were kept. */
+      readonly attachments?: readonly SlackAttachmentView[];
       readonly users: Readonly<Record<string, string>>;
       readonly channels: Readonly<Record<string, string>>;
       readonly groups: Readonly<Record<string, string>>;

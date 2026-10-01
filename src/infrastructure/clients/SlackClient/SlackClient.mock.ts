@@ -21,6 +21,35 @@ export const MOCK_SLACK_DM: SlackMessageEvent = {
 };
 
 /**
+ * Google Calendar's morning agenda: the text is only a heading, each event is a
+ * legacy attachment with a date token, a link and an RSVP button.
+ */
+export const MOCK_SLACK_AGENDA: SlackMessageEvent = {
+  type: 'message',
+  channel: 'DCAL',
+  channel_type: 'im',
+  bot_id: 'BCAL',
+  username: 'Google Calendar',
+  text: '*Today*-<!date^1790805600^{date_long_pretty}|Thursday, October 1st>',
+  ts: '1790832650.068969',
+  blocks: [{ type: 'rich_text', elements: [] }],
+  attachments: [
+    {
+      color: '3AA3E3',
+      fallback: 'standup',
+      text: '<!date^1790838900^{time}|9:15>-<!date^1790839800^{time}|9:30> *<https://www.google.com/calendar/event?eid=abc|Daily DEV standup>*\n*Going?* Yes',
+    },
+    {
+      color: 'good',
+      title: 'Release',
+      title_link: 'javascript:alert(1)',
+      fields: [{ title: 'Owner', value: 'Jana' }],
+    },
+    { color: 'url(evil)', fallback: 'Only buttons here' },
+  ],
+};
+
+/**
  * Replays MOCK_SLACK_DM as soon as someone listens. Tests that need more events
  * keep the handler through `listen` and call it themselves via `deliver`.
  */

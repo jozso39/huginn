@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Connection, Item } from '../api.types';
+import { SlackAttachments } from '../slack/SlackAttachments';
 import { SlackText } from '../slack/SlackText';
 import { EmailFrame } from './EmailFrame';
 
@@ -16,11 +17,18 @@ export const MessageBody = ({ item, connection }: MessageBodyProps) => {
   const [open, setOpen] = useState(false);
 
   if (item.rich?.format === 'SlackMrkdwn') {
+    const names = {
+      users: item.rich.users,
+      channels: item.rich.channels,
+      groups: item.rich.groups,
+    };
+    const attachments = item.rich.attachments ?? [];
+
     return (
-      <SlackText
-        text={item.rich.text}
-        names={{ users: item.rich.users, channels: item.rich.channels, groups: item.rich.groups }}
-      />
+      <>
+        {item.rich.text && <SlackText text={item.rich.text} names={names} />}
+        {attachments.length > 0 && <SlackAttachments attachments={attachments} names={names} />}
+      </>
     );
   }
 

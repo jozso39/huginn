@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test';
+import { MOCK_SLACK_AGENDA } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
 import type { SlackMessageEvent } from '@/core/clients/SlackClient/SlackClient.types';
 import { ItemKind } from '@/core/items/Item.types';
 import { SlackChannelScope } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
 import {
+  attachmentViews,
+  blocksText,
   SlackRelevance,
   classify,
   itemKindFor,
@@ -163,5 +166,48 @@ describe('toPlainText', () => {
     expect(toPlainText(text, names)).toBe(
       'Hi @jozef, see #general and the doc & https://y.io @here @backend'
     );
+  });
+});
+
+describe('attachments and blocks', () => {
+  test('an agenda keeps each event box, with safe colours and links only', () => {
+    const views = attachmentViews(MOCK_SLACK_AGENDA);
+
+    expect(views).toHaveLength(3);
+    expect(views[0]).toMatchObject({
+      color: '#3AA3E3',
+      text: expect.stringContaining('Daily DEV standup'),
+    });
+    // Named colour mapped; a javascript: link dropped; a field kept.
+    expect(views[1]).toMatchObject({
+      color: '#2eb67d',
+      titleLink: null,
+      fields: [{ title: 'Owner', value: 'Jana' }],
+    });
+    // Not a colour: no colour. Nothing but a fallback: the fallback is the text.
+    expect(views[2]).toMatchObject({ color: null, text: 'Only buttons here' });
+  });
+
+  test('app blocks are shown instead of the fallback text; rich_text blocks are not', () => {
+    expect(blocksText(MOCK_SLACK_AGENDA.blocks)).toBeNull();
+    expect(
+      blocksText([
+        { type: 'header', text: { type: 'plain_text', text: 'Deploy' } },
+        {
+          type: 'section',
+          text: { type: 'mrkdwn', text: 'api *green*' },
+          fields: [{ type: 'mrkdwn', text: '*Env* prod' }],
+        },
+        {
+          type: 'context',
+          elements: [
+            { type: 'mrkdwn', text: 'by CI' },
+            { type: 'image' },
+            { type: 'mrkdwn', text: '2 min' },
+          ],
+        },
+        { type: 'actions', elements: [{ type: 'button', text: 'Retry' }] },
+      ])
+    ).toBe('*Deploy*\napi *green*\n*Env* prod\nby CI · 2 min');
   });
 });

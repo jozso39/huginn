@@ -1,4 +1,25 @@
 /** The fields of a Slack `message` event Huginn reads. Names follow the Events API. */
+/** A legacy message attachment: the coloured side-bar box apps (Google Calendar, Jira…) send. */
+export interface SlackAttachment {
+  readonly color?: string;
+  readonly pretext?: string;
+  readonly author_name?: string;
+  readonly title?: string;
+  readonly title_link?: string;
+  readonly text?: string;
+  readonly fallback?: string;
+  readonly fields?: readonly { readonly title?: string; readonly value?: string }[];
+  readonly footer?: string;
+}
+
+/** The subset of Block Kit Huginn reads: text in sections, headers and context lines. */
+export interface SlackBlock {
+  readonly type: string;
+  readonly text?: { readonly type: string; readonly text: string };
+  readonly fields?: readonly { readonly type: string; readonly text: string }[];
+  readonly elements?: readonly { readonly type: string; readonly text?: string }[];
+}
+
 export interface SlackMessageEvent {
   readonly type: 'message';
   readonly channel: string;
@@ -12,6 +33,8 @@ export interface SlackMessageEvent {
   readonly subtype?: string;
   readonly hidden?: boolean;
   readonly files?: readonly { readonly name?: string }[];
+  readonly attachments?: readonly SlackAttachment[];
+  readonly blocks?: readonly SlackBlock[];
   /** Present on `message_changed`: the edited message. */
   readonly message?: Omit<SlackMessageEvent, 'channel' | 'message'>;
 }
