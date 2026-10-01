@@ -111,6 +111,13 @@ export class SlackClient implements ISlackClient {
     return lookup;
   }
 
+  public async lastRead(channelId: string): Promise<string | null> {
+    // Not cached: it moves whenever the user reads, on any device.
+    const response = await this.web.conversations.info({ channel: channelId });
+
+    return response.channel?.last_read ?? null;
+  }
+
   public async myChannels(): Promise<readonly SlackChannelInfo[]> {
     const collect = async (
       cursor: string | undefined,

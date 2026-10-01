@@ -33,6 +33,8 @@ export interface ConnectorContext {
   closeThread(threadKey: string): Promise<void>;
   /** These were dealt with at the source (read, archived, resolved). */
   closeItems(externalIds: readonly string[]): Promise<void>;
+  /** What of this connection is still waiting, for connectors that check the source's state. */
+  openItems(): Promise<readonly Pick<Item, 'externalId' | 'threadKey'>[]>;
   getCursor(): ConnectionCursor;
   setCursor(cursor: ConnectionCursor): Promise<void>;
   report(status: ConnectionStatus, message?: string | null): Promise<void>;

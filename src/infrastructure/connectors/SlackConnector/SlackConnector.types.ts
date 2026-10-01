@@ -9,9 +9,16 @@ export enum SlackChannelScope {
   AllMyChannels = 'AllMyChannels',
 }
 
+/** What happens to an item once the user has read the message in Slack. */
+export enum SlackReadMode {
+  Keep = 'Keep',
+  Clear = 'Clear',
+}
+
 /** Channel lists as the user typed them: `#name`, `name` or an ID, comma-separated. */
 export interface SlackChannelSettings {
   readonly scope: SlackChannelScope;
   readonly watch: readonly string[];
   readonly ignore: readonly string[];
+  readonly whenRead: SlackReadMode;
 }

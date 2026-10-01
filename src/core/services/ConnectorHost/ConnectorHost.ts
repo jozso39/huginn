@@ -218,6 +218,14 @@ export class ConnectorHost implements IConnectorHost {
       closeItems: async (externalIds): Promise<void> => {
         this.announceChanged(await this.itemStore.closeByExternalIds(connection.id, externalIds));
       },
+      openItems: async () =>
+        (
+          await this.itemStore.list({
+            connectionId: connection.id,
+            state: ItemState.Open,
+            limit: 500,
+          })
+        ).map((item) => ({ externalId: item.externalId, threadKey: item.threadKey })),
       getCursor: (): ConnectionCursor => cursor,
       setCursor: async (next: ConnectionCursor): Promise<void> => {
         cursor = next;

@@ -5,6 +5,8 @@ import { ItemKind } from '@/core/items/Item.types';
 import { SlackChannelScope } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
 import {
+  channelsToCheck,
+  readItemIds,
   attachmentViews,
   blocksText,
   SlackRelevance,
@@ -214,5 +216,33 @@ describe('attachments and blocks', () => {
         { type: 'actions', elements: [{ type: 'button', text: 'Retry' }] },
       ])
     ).toBe('*Deploy*\napi *green*\n*Env* prod\nby CI · 2 min');
+  });
+});
+
+describe('read in Slack', () => {
+  const open = [
+    // An unthreaded DM: its key is the channel.
+    { externalId: 'D1:100.1', threadKey: 'D1' },
+    { externalId: 'D1:300.1', threadKey: 'D1' },
+    // A top-level channel message: its key is itself.
+    { externalId: 'C1:150.1', threadKey: 'C1:150.1' },
+    // A reply in a thread: the channel marker says nothing about it.
+    { externalId: 'C1:120.1', threadKey: 'C1:90.1' },
+  ];
+
+  test('what the read marker has passed closes; newer messages and thread replies stay', () => {
+    const markers = new Map([
+      ['D1', '200.0'],
+      ['C1', '160.0'],
+    ]);
+
+    expect(readItemIds(open, markers)).toEqual(['D1:100.1', 'C1:150.1']);
+    expect(readItemIds(open, new Map([['D1', null]]))).toEqual([]);
+  });
+
+  test('only conversations with waiting top-level messages are asked about', () => {
+    expect(channelsToCheck(open, 20)).toEqual(['D1', 'C1']);
+    expect(channelsToCheck([{ externalId: 'C2:1.1', threadKey: 'C2:0.5' }], 20)).toEqual([]);
+    expect(channelsToCheck(open, 1)).toEqual(['D1']);
   });
 });

@@ -81,6 +81,13 @@ export class MockSlackClient implements ISlackClient {
     );
   }
 
+  /** Read markers per channel; tests set them. */
+  public readMarkers: ReadonlyMap<string, string> = new Map();
+
+  public lastRead(channelId: string): Promise<string | null> {
+    return Promise.resolve(this.readMarkers.get(channelId) ?? null);
+  }
+
   public channelInfo(channelId: string): Promise<SlackChannelInfo> {
     return Promise.resolve({
       id: channelId,

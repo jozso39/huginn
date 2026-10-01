@@ -60,6 +60,7 @@ const createTestConfig = (): IConfig => ({
     gitlabPollMs: 60 * 60 * 1000,
     gmailPollMs: 60 * 60 * 1000,
     clickUpPollMs: 60 * 60 * 1000,
+    slackReadCheckMs: 60 * 60 * 1000,
     restartBackoffMs: [60 * 60 * 1000],
   },
 });

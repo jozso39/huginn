@@ -38,6 +38,8 @@ export const createConfig = () => {
       gmailPollMs: 60_000,
       // ClickUp: 100 requests/min per token; a minute's poll uses a handful.
       clickUpPollMs: 60_000,
+      // Slack read markers, when a connection clears what was read there.
+      slackReadCheckMs: 60_000,
       // A connector that crashes is restarted with this backoff so a dead
       // token does not hammer the provider.
       restartBackoffMs: [5_000, 30_000, 120_000, 600_000],

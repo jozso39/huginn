@@ -78,6 +78,8 @@ export interface ISlackClient {
   myUserGroups(userId: string): Promise<readonly SlackUserGroup[]>;
   userName(userId: string): Promise<string>;
   channelInfo(channelId: string): Promise<SlackChannelInfo>;
+  /** The user's read marker in a conversation (a message ts); null if Slack gives none. */
+  lastRead(channelId: string): Promise<string | null>;
   /** Public and private channels the user is a member of (not DMs). */
   myChannels(): Promise<readonly SlackChannelInfo[]>;
   postMessage(channel: string, text: string, threadTs?: string): Promise<SlackPostedMessage>;

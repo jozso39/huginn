@@ -16,18 +16,20 @@ import { toError } from '@/core/errors/errors';
 import type { Item, NewItem } from '@/core/items/Item.types';
 import { RichFormat } from '@/core/items/Item.types';
 import type { SlackChannelSettings } from './SlackConnector.types';
-import { SlackChannelScope } from './SlackConnector.types';
+import { SlackChannelScope, SlackReadMode } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
 import {
   SlackRelevance,
   attachmentTexts,
   attachmentViews,
   blocksText,
+  channelsToCheck,
   classify,
   itemKindFor,
   mentionsMe,
   normalizeEvent,
   permalink,
+  readItemIds,
   referencedChannelIds,
   referencedUserIds,
   resolveChannels,
@@ -38,6 +40,8 @@ import {
 
 /** How many of the user's own threads to remember for "replies in my threads". */
 const MAX_REMEMBERED_THREADS = 500;
+/** conversations.info is Tier 3 (~50/min); one sweep a minute asks about at most this many. */
+const MAX_READ_CHECKS = 20;
 
 interface SlackCursor {
   readonly myThreads?: readonly string[];
@@ -67,13 +71,15 @@ export class SlackConnector implements IConnector {
   // Events are handled one at a time so "my reply" can never overtake the
   // message it answers and leave it open.
   private queue: Promise<void> = Promise.resolve();
+  private readTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly logger: Logger,
     private readonly connection: Connection,
     private readonly client: ISlackClient,
     private readonly channels: SlackChannelSettings,
-    private readonly maxBodyChars: number
+    private readonly maxBodyChars: number,
+    private readonly readCheckMs: number
   ) {}
 
   public async start(ctx: ConnectorContext): Promise<void> {
@@ -108,12 +114,24 @@ export class SlackConnector implements IConnector {
       this.queue = this.queue.then(() => this.handle(event));
     });
 
+    if (this.channels.whenRead === SlackReadMode.Clear) {
+      // Through the event queue, so a sweep never races a message being stored.
+      this.readTimer = setInterval(() => {
+        this.queue = this.queue.then(() => this.clearRead());
+      }, this.readCheckMs);
+    }
+
     if (unknown.length > 0) {
       await ctx.report(ConnectionStatus.Running, `Not a channel you are in: ${unknown.join(', ')}`);
     }
   }
 
   public async stop(): Promise<void> {
+    if (this.readTimer) {
+      clearInterval(this.readTimer);
+      this.readTimer = null;
+    }
+
     await this.client.close();
     await this.queue;
     this.ctx = null;
@@ -150,6 +168,33 @@ export class SlackConnector implements IConnector {
       return { ok: true, ref: `${event.ts}:${emoji}` };
     } catch (error) {
       return { ok: false, error: toError(error).message };
+    }
+  }
+
+  /** Closes what the user has read in Slack since it came in (main timelines only). */
+  private async clearRead(): Promise<void> {
+    const ctx = this.ctx;
+
+    if (!ctx) {
+      return;
+    }
+
+    try {
+      const open = await ctx.openItems();
+      const channels = channelsToCheck(open, MAX_READ_CHECKS);
+      const markers = await Promise.all(
+        channels.map(async (channel) => [channel, await this.client.lastRead(channel)] as const)
+      );
+      const read = readItemIds(open, new Map(markers));
+
+      if (read.length > 0) {
+        await ctx.closeItems(read);
+      }
+    } catch (error) {
+      this.logger.warn(
+        { connectionId: this.connection.id, err: toError(error) },
+        'slack read check failed'
+      );
     }
   }
 

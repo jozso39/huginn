@@ -309,3 +309,39 @@ export const attachmentTexts = (view: SlackAttachmentView): string[] =>
     view.footer,
     ...view.links.map((link) => link.text),
   ].filter((text) => text !== '');
+
+/**
+ * Items Slack's read markers show as read. The marker covers a conversation's main
+ * timeline only: thread replies have their own read state, which Slack does not give
+ * apps, so they are never closed this way.
+ */
+export const readItemIds = (
+  open: readonly { readonly externalId: string; readonly threadKey: string }[],
+  lastRead: ReadonlyMap<string, string | null>
+): string[] =>
+  open
+    .filter(({ externalId, threadKey }) => {
+      const [channel = '', ts = ''] = externalId.split(':');
+      const marker = lastRead.get(channel);
+      const mainTimeline = threadKey === channel || threadKey === externalId;
+
+      return mainTimeline && Boolean(marker) && Number(ts) <= Number(marker);
+    })
+    .map(({ externalId }) => externalId);
+
+/** The conversations to ask Slack about: those with waiting top-level messages. */
+export const channelsToCheck = (
+  open: readonly { readonly externalId: string; readonly threadKey: string }[],
+  max: number
+): string[] =>
+  [
+    ...new Set(
+      open
+        .filter(({ externalId, threadKey }) => {
+          const channel = externalId.split(':')[0] ?? '';
+
+          return threadKey === channel || threadKey === externalId;
+        })
+        .map(({ externalId }) => externalId.split(':')[0] ?? '')
+    ),
+  ].slice(0, max);

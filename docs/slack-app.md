@@ -95,6 +95,16 @@ disappears here too.
 **Replies from Huginn always go into a thread** under the message you answer — in
 channels and in DMs alike — so the other side sees which message you mean.
 
+## Read in Slack
+
+**Edit → Read in Slack → Clear it from Huginn** makes Huginn check, once a minute, how
+far you have read each conversation that has something waiting (Slack's read marker,
+`conversations.info` → `last_read`) and close what you have read — on any device.
+Default: *Keep*, so reading on the phone does not make things vanish here.
+
+Thread replies are not covered: their read state is separate and Slack does not give
+it to apps. Answering in the thread still closes them.
+
 ## Known limits
 
 - **No backfill yet.** Messages sent while Huginn was not running are not fetched

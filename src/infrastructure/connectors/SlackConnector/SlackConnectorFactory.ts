@@ -8,7 +8,7 @@ import type { IConnector, IConnectorFactory, SecretField } from '@/core/connecto
 import { SlackClient } from '@/infrastructure/clients/SlackClient/SlackClient';
 import { SLACK_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
 import { SlackConnector } from './SlackConnector';
-import { SlackChannelScope } from './SlackConnector.types';
+import { SlackChannelScope, SlackReadMode } from './SlackConnector.types';
 import { parseChannelList } from './SlackConnector.utils';
 
 // DMs, mentions and replies in your threads always come in; these settings decide
@@ -34,6 +34,18 @@ export const slackConfigSchema = z.object({
     title: 'Ignore',
     description: '#random, #lunch — used with "Everything"; mentions still come through',
   }),
+  whenRead: z
+    .enum(SlackReadMode)
+    .default(SlackReadMode.Keep)
+    .meta({
+      title: 'Read in Slack',
+      description:
+        'Checked once a minute. Thread replies have their own read state Slack does not share, so they stay.',
+      optionLabels: {
+        [SlackReadMode.Keep]: 'Keep it in Huginn until I deal with it here',
+        [SlackReadMode.Clear]: 'Clear it from Huginn',
+      },
+    }),
 });
 
 export type SlackClientFactory = (userToken: string, appToken: string) => ISlackClient;
@@ -75,8 +87,10 @@ export class SlackConnectorFactory implements IConnectorFactory {
         scope: parsed.channelScope,
         watch: parseChannelList(parsed.watchChannels),
         ignore: parseChannelList(parsed.ignoreChannels),
+        whenRead: parsed.whenRead,
       },
-      this.config.maxBodyChars
+      this.config.maxBodyChars,
+      this.config.connectors.slackReadCheckMs
     );
   }
 }
