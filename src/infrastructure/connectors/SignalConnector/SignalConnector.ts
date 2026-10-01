@@ -57,6 +57,7 @@ export class SignalConnector implements IConnector {
       await this.client.subscribe(this.account, (envelope) => {
         this.queue = this.queue.then(() => this.handle(envelope));
       });
+      await ctx.markSynced();
     } catch (error) {
       if (error instanceof HuginnError && error.code === ErrorCode.Unauthorized) {
         await ctx.report(ConnectionStatus.NeedsAuth, error.message);
@@ -115,6 +116,9 @@ export class SignalConnector implements IConnector {
     }
 
     try {
+      // Receipts and typing notices too: the link to the phone is alive.
+      await ctx.markSynced();
+
       const sent = envelope.syncMessage?.sentMessage;
       const reads = envelope.syncMessage?.readMessages;
 

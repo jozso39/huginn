@@ -41,9 +41,11 @@ describe('Signal connector end to end', () => {
     expect(status.state).toBe(PairingState.Linked);
     expect(status.connection?.name).toBe(MOCK_SIGNAL_ACCOUNT);
     connectionId = status.connection?.id ?? '';
-    expect((await container.connectionService.get(connectionId))?.status).toBe(
-      ConnectionStatus.Running
-    );
+    const linked = await container.connectionService.get(connectionId);
+
+    expect(linked?.status).toBe(ConnectionStatus.Running);
+    // A live connection, not "never synced": nothing to poll, but the link is up.
+    expect(linked?.lastSyncAt).toBeInstanceOf(Date);
   });
 
   test('a direct message comes in as Important; a reply quotes it', async () => {

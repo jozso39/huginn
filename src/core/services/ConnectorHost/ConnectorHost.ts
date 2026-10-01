@@ -25,6 +25,9 @@ interface RunningConnector {
   readonly generation: number;
 }
 
+/** How often a push connector's "heard from the source" is written down. */
+const SYNC_MARK_INTERVAL_MS = 10_000;
+
 export class ConnectorHost implements IConnectorHost {
   private readonly running = new Map<string, RunningConnector>();
   private readonly failures = new Map<string, number>();
@@ -204,6 +207,8 @@ export class ConnectorHost implements IConnectorHost {
     // The cursor is read through a closure so a connector always sees what it
     // last wrote, without a round trip to the store on every poll.
     let cursor: ConnectionCursor = connection.cursor;
+    // A busy Slack delivers several events a second; the time shown is in minutes.
+    let syncedAt = 0;
 
     return {
       connection,
@@ -226,6 +231,16 @@ export class ConnectorHost implements IConnectorHost {
             limit: 500,
           })
         ).map((item) => ({ externalId: item.externalId, threadKey: item.threadKey })),
+      markSynced: async (): Promise<void> => {
+        const now = Date.now();
+
+        if (now - syncedAt < SYNC_MARK_INTERVAL_MS) {
+          return;
+        }
+
+        syncedAt = now;
+        await this.connectionStore.update(connection.id, { lastSyncAt: new Date(now) });
+      },
       getCursor: (): ConnectionCursor => cursor,
       setCursor: async (next: ConnectionCursor): Promise<void> => {
         cursor = next;

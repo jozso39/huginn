@@ -35,6 +35,11 @@ export interface ConnectorContext {
   closeItems(externalIds: readonly string[]): Promise<void>;
   /** What of this connection is still waiting, for connectors that check the source's state. */
   openItems(): Promise<readonly Pick<Item, 'externalId' | 'threadKey'>[]>;
+  /**
+   * The source was heard from just now. Push connectors (Slack, Signal) call it per
+   * event; pollers get it with `setCursor`. Cheap to call often.
+   */
+  markSynced(): Promise<void>;
   getCursor(): ConnectionCursor;
   setCursor(cursor: ConnectionCursor): Promise<void>;
   report(status: ConnectionStatus, message?: string | null): Promise<void>;

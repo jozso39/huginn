@@ -204,6 +204,9 @@ export class SlackConnector implements IConnector {
     const identity = this.identity;
     const event = normalizeEvent(raw);
 
+    // Any event, kept or not, shows the connection is alive.
+    await ctx?.markSynced();
+
     if (!ctx || !relevance || !identity || !event) {
       return;
     }
