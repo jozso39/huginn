@@ -113,6 +113,7 @@ export class SlackConnector implements IConnector {
     await this.client.listen((event) => {
       this.queue = this.queue.then(() => this.handle(event));
     });
+    await ctx.markSynced();
 
     if (this.channels.whenRead === SlackReadMode.Clear) {
       // Through the event queue, so a sweep never races a message being stored.
