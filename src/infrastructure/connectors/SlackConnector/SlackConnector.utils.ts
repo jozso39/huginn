@@ -230,8 +230,14 @@ export const attachmentViews = (event: SlackMessageEvent): SlackAttachmentView[]
       const fields = (attachment.fields ?? [])
         .map((field) => ({ title: field.title ?? '', value: field.value ?? '' }))
         .filter((field) => field.title !== '' || field.value !== '');
+      const links = (attachment.actions ?? [])
+        .filter((action) => /^https?:\/\//.test(action.url ?? '') && action.text)
+        .map((action) => ({ text: action.text ?? '', url: action.url ?? '' }));
+      // Buttons count as content: then `fallback` ("[no preview available]") is noise.
       const hasContent =
-        Boolean(attachment.text ?? attachment.title ?? attachment.pretext) || fields.length > 0;
+        Boolean(attachment.text ?? attachment.title ?? attachment.pretext) ||
+        fields.length > 0 ||
+        (attachment.actions ?? []).length > 0;
 
       return {
         color: attachmentColor(attachment.color),
@@ -245,11 +251,16 @@ export const attachmentViews = (event: SlackMessageEvent): SlackAttachmentView[]
         text: attachment.text ?? (hasContent ? '' : (attachment.fallback ?? '')),
         fields,
         footer: attachment.footer ?? '',
+        links,
       };
     })
     .filter(
       (view) =>
-        view.text !== '' || view.title !== '' || view.pretext !== '' || view.fields.length > 0
+        view.text !== '' ||
+        view.title !== '' ||
+        view.pretext !== '' ||
+        view.fields.length > 0 ||
+        view.links.length > 0
     );
 
 const DISPLAY_BLOCKS = new Set(['section', 'header', 'context']);
@@ -296,4 +307,5 @@ export const attachmentTexts = (view: SlackAttachmentView): string[] =>
     view.text,
     ...view.fields.map((field) => (field.title ? `${field.title}: ${field.value}` : field.value)),
     view.footer,
+    ...view.links.map((link) => link.text),
   ].filter((text) => text !== '');

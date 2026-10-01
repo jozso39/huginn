@@ -45,7 +45,14 @@ export const MOCK_SLACK_AGENDA: SlackMessageEvent = {
       title_link: 'javascript:alert(1)',
       fields: [{ title: 'Owner', value: 'Jana' }],
     },
-    { color: 'url(evil)', fallback: 'Only buttons here' },
+    { color: 'url(evil)', fallback: 'Only a summary here' },
+    {
+      fallback: '[no preview available]',
+      actions: [
+        { text: 'Join Google Meet', url: 'https://meet.google.com/abc' },
+        { text: 'Change Response' },
+      ],
+    },
   ],
 };
 

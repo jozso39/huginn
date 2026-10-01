@@ -173,7 +173,7 @@ describe('attachments and blocks', () => {
   test('an agenda keeps each event box, with safe colours and links only', () => {
     const views = attachmentViews(MOCK_SLACK_AGENDA);
 
-    expect(views).toHaveLength(3);
+    expect(views).toHaveLength(4);
     expect(views[0]).toMatchObject({
       color: '#3AA3E3',
       text: expect.stringContaining('Daily DEV standup'),
@@ -185,7 +185,12 @@ describe('attachments and blocks', () => {
       fields: [{ title: 'Owner', value: 'Jana' }],
     });
     // Not a colour: no colour. Nothing but a fallback: the fallback is the text.
-    expect(views[2]).toMatchObject({ color: null, text: 'Only buttons here' });
+    expect(views[2]).toMatchObject({ color: null, text: 'Only a summary here' });
+    // Buttons: only real links survive, and the empty fallback is not shown.
+    expect(views[3]).toMatchObject({
+      text: '',
+      links: [{ text: 'Join Google Meet', url: 'https://meet.google.com/abc' }],
+    });
   });
 
   test('app blocks are shown instead of the fallback text; rich_text blocks are not', () => {

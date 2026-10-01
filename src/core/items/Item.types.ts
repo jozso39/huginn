@@ -49,6 +49,8 @@ export interface SlackAttachmentView {
   readonly text: string;
   readonly fields: readonly { readonly title: string; readonly value: string }[];
   readonly footer: string;
+  /** Link buttons ("Join Google Meet"); buttons that only call the app are left out. */
+  readonly links: readonly { readonly text: string; readonly url: string }[];
 }
 
 export type RichContent =

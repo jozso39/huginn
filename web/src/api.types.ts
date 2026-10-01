@@ -231,6 +231,8 @@ export interface SlackAttachmentView {
   text: string;
   fields: { title: string; value: string }[];
   footer: string;
+  /** Missing on attachments stored before link buttons were kept. */
+  links?: { text: string; url: string }[];
 }
 
 export type RichContent =

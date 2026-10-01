@@ -10,6 +10,8 @@ export interface SlackAttachment {
   readonly fallback?: string;
   readonly fields?: readonly { readonly title?: string; readonly value?: string }[];
   readonly footer?: string;
+  /** Buttons; only those with a `url` mean anything outside Slack. */
+  readonly actions?: readonly { readonly text?: string; readonly url?: string }[];
 }
 
 /** The subset of Block Kit Huginn reads: text in sections, headers and context lines. */
