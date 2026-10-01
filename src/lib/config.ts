@@ -30,14 +30,9 @@ export const createConfig = () => {
       feedbackTimeoutMs: 45_000,
     },
     connectors: {
-      // Polling cadence for connectors without a push channel. GitLab has no
-      // documented per-token limit that a 60 s poll would approach.
-      gitlabPollMs: 60_000,
-      // Gmail allows 250 quota units per second per user; one history call a
-      // minute is about 2 of them. A minute is plenty for mail.
-      gmailPollMs: 60_000,
-      // ClickUp: 100 requests/min per token; a minute's poll uses a handful.
-      clickUpPollMs: 60_000,
+      // Polling connectors take their cadence from each connection's "Check every"
+      // setting; tests set this to keep every interval from firing.
+      pollOverrideMs: null as number | null,
       // Slack read markers, when a connection clears what was read there.
       slackReadCheckMs: 60_000,
       // A connector that crashes is restarted with this backoff so a dead

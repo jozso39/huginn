@@ -51,7 +51,9 @@ A connector is an `IConnectorFactory` (capabilities, Zod config schema, secret f
 optional OAuth `authorization`, optional `defaultRules`, `create()`) plus an `IConnector`
 (`start/stop`, optional `reply/draft/react/ack/content`). Register the factory in
 `dependency/container/container.ts` **and** `testContainer.ts`; the settings form is
-generated from its schema (`.meta({ title, description, optionLabels })`). Connectors
+generated from its schema (`.meta({ title, description, optionLabels })`). A polling
+connector adds `checkEvery: pollIntervalField` (`infrastructure/connectors/pollInterval.ts`)
+and polls every `pollMs(checkEvery, config.connectors.pollOverrideMs)`; live ones have none. Connectors
 never touch stores: they get a `ConnectorContext` (`upsert`, `closeThread`, `closeItems`,
 `closeOpenExcept`, cursor, status) from `ConnectorHost`. Map provider payloads to items
 in a pure `*.utils.ts` with a unit test and a fixture in the client's mock. Full recipe:

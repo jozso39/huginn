@@ -7,6 +7,7 @@ import { ConnectorKind } from '@/core/connections/Connection.types';
 import type { IConnector, IConnectorFactory, SecretField } from '@/core/connectors/Connector.types';
 import { ClickUpClient } from '@/infrastructure/clients/ClickUpClient/ClickUpClient';
 import { CLICKUP_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
+import { pollIntervalField, pollMs } from '@/infrastructure/connectors/pollInterval';
 import { ClickUpConnector } from './ClickUpConnector';
 
 export const clickUpConfigSchema = z.object({
@@ -14,6 +15,7 @@ export const clickUpConfigSchema = z.object({
     title: 'Workspace ID',
     description: 'Only if your token sees several workspaces; Huginn tells you which.',
   }),
+  checkEvery: pollIntervalField,
 });
 
 export type ClickUpClientFactory = (token: string) => IClickUpClient;
@@ -40,14 +42,14 @@ export class ClickUpConnectorFactory implements IConnectorFactory {
   ) {}
 
   public create(connection: Connection, secrets: Secrets): IConnector {
-    const { workspaceId } = clickUpConfigSchema.parse(connection.config);
+    const { workspaceId, checkEvery } = clickUpConfigSchema.parse(connection.config);
 
     return new ClickUpConnector(
       this.logger,
       connection,
       this.createClient(secrets.token ?? ''),
       workspaceId === '' ? null : workspaceId,
-      this.config.connectors.clickUpPollMs,
+      pollMs(checkEvery, this.config.connectors.pollOverrideMs),
       this.config.maxBodyChars
     );
   }

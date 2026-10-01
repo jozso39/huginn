@@ -9,10 +9,13 @@ import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
 import { GmailClient } from '@/infrastructure/clients/GmailClient/GmailClient';
 import { LINKEDIN_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
+import { pollIntervalField, pollMs } from '@/infrastructure/connectors/pollInterval';
 import { GmailConnector } from '@/infrastructure/connectors/GmailConnector/GmailConnector';
 import type { GmailClientFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { GoogleAuthorization } from '@/infrastructure/connectors/GmailConnector/GoogleAuthorization';
 import { LINKEDIN_CAPABILITIES, linkedInMailSource } from './LinkedInConnector.utils';
+
+export const linkedInConfigSchema = z.object({ checkEvery: pollIntervalField });
 
 /**
  * LinkedIn through the mails it sends: sign in with the Google account LinkedIn
@@ -24,7 +27,7 @@ export class LinkedInConnectorFactory implements IConnectorFactory {
   public readonly label = 'LinkedIn (via Gmail)';
   public readonly defaultRules = LINKEDIN_DEFAULT_RULES;
   public readonly capabilities = LINKEDIN_CAPABILITIES;
-  public readonly configSchema = z.object({});
+  public readonly configSchema = linkedInConfigSchema;
   public readonly secretFields: readonly SecretField[] = [];
   public readonly authorization: GoogleAuthorization;
 
@@ -52,7 +55,10 @@ export class LinkedInConnectorFactory implements IConnectorFactory {
       connection,
       this.createClient(app, secrets.refreshToken ?? ''),
       linkedInMailSource(),
-      this.config.connectors.gmailPollMs,
+      pollMs(
+        linkedInConfigSchema.parse(connection.config).checkEvery,
+        this.config.connectors.pollOverrideMs
+      ),
       this.config.maxBodyChars
     );
   }

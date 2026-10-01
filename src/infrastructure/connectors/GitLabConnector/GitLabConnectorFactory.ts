@@ -7,10 +7,12 @@ import { ConnectorKind } from '@/core/connections/Connection.types';
 import type { IConnector, IConnectorFactory, SecretField } from '@/core/connectors/Connector.types';
 import { GitLabClient } from '@/infrastructure/clients/GitLabClient/GitLabClient';
 import { GITLAB_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
+import { pollIntervalField, pollMs } from '@/infrastructure/connectors/pollInterval';
 import { GitLabConnector } from './GitLabConnector';
 
 export const gitLabConfigSchema = z.object({
   baseUrl: z.url().meta({ title: 'GitLab URL', description: 'https://gitlab.example.com' }),
+  checkEvery: pollIntervalField,
 });
 
 export type GitLabConfig = z.infer<typeof gitLabConfigSchema>;
@@ -40,13 +42,13 @@ export class GitLabConnectorFactory implements IConnectorFactory {
   ) {}
 
   public create(connection: Connection, secrets: Secrets): IConnector {
-    const { baseUrl } = gitLabConfigSchema.parse(connection.config);
+    const { baseUrl, checkEvery } = gitLabConfigSchema.parse(connection.config);
 
     return new GitLabConnector(
       this.logger,
       connection,
       this.createClient(baseUrl, secrets.token ?? ''),
-      this.config.connectors.gitlabPollMs,
+      pollMs(checkEvery, this.config.connectors.pollOverrideMs),
       this.config.maxBodyChars
     );
   }

@@ -10,6 +10,7 @@ import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
 import { GmailClient } from '@/infrastructure/clients/GmailClient/GmailClient';
 import { GMAIL_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
+import { pollIntervalField, pollMs } from '@/infrastructure/connectors/pollInterval';
 import { GmailConnector } from './GmailConnector';
 import { GmailInboxScope } from './GmailConnector.types';
 import { GMAIL_CAPABILITIES, inboxMailSource, parseDomainList } from './GmailConnector.utils';
@@ -33,6 +34,7 @@ export const gmailConfigSchema = z.object({
     description:
       'Domains, comma-separated, e.g. linkedin.com when a LinkedIn connection reads those mails.',
   }),
+  checkEvery: pollIntervalField,
 });
 
 export type GmailClientFactory = (app: OAuthAppCredentials, refreshToken: string) => IGmailClient;
@@ -74,7 +76,7 @@ export class GmailConnectorFactory implements IConnectorFactory {
       connection,
       this.createClient(app, secrets.refreshToken ?? ''),
       inboxMailSource(config.inboxScope, parseDomainList(config.skipSenders)),
-      this.config.connectors.gmailPollMs,
+      pollMs(config.checkEvery, this.config.connectors.pollOverrideMs),
       this.config.maxBodyChars
     );
   }

@@ -57,9 +57,7 @@ const createTestConfig = (): IConfig => ({
   logLevel: 'silent',
   connectors: {
     // Long enough that no interval fires during a test.
-    gitlabPollMs: 60 * 60 * 1000,
-    gmailPollMs: 60 * 60 * 1000,
-    clickUpPollMs: 60 * 60 * 1000,
+    pollOverrideMs: 60 * 60 * 1000,
     slackReadCheckMs: 60 * 60 * 1000,
     restartBackoffMs: [60 * 60 * 1000],
   },
