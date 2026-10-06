@@ -74,6 +74,16 @@ describe('SlackText renders mrkdwn like Slack', () => {
     expect(out).toContain('👍🏼');
     expect(out).toContain(':party-parrot:');
   });
+
+  test('every emoji Slack knows by name, aliases too, not just the common ones', () => {
+    const out = html(':information_source: :satisfied: :point_up::skin-tone-2: :raven:');
+
+    expect(out).toContain('ℹ️');
+    expect(out).toContain('😆');
+    // A tone follows the base character itself, without its variation selector.
+    expect(out).toContain('\u261D\u{1F3FB}');
+    expect(out).toContain('🐦‍⬛');
+  });
 });
 
 describe('Slack date tokens', () => {
