@@ -17,12 +17,10 @@ export const allowedHosts = (port: number): ReadonlySet<string> =>
   new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
 
 /** Paths a request without the session may reach. */
-const isOpen = (path: string, method: string): boolean =>
+const isOpen = (path: string): boolean =>
   path === '/api/health' ||
   // The provider's redirect after sign-in; protected by its one-time `state`.
   path === '/api/oauth/callback' ||
-  // Scripts posting items carry the ingest key instead.
-  (path === '/api/items' && method === 'POST') ||
   // The web app's files hold no data; the API behind them does.
   !path.startsWith('/api/');
 
@@ -63,10 +61,7 @@ export const localAccess =
       return c.redirect('/');
     }
 
-    if (
-      isOpen(c.req.path, c.req.method) ||
-      sameSecret(getCookie(c, SESSION_COOKIE) ?? '', launchToken)
-    ) {
+    if (isOpen(c.req.path) || sameSecret(getCookie(c, SESSION_COOKIE) ?? '', launchToken)) {
       await next();
 
       return undefined;

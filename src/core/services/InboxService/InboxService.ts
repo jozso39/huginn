@@ -5,11 +5,10 @@ import type { ActionResult, IConnector } from '@/core/connectors/Connector.types
 import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import type { IEventBus } from '@/core/events/EventBus.types';
 import { HuginnEventType } from '@/core/events/EventBus.types';
-import type { Item, NewItem, RichContent } from '@/core/items/Item.types';
+import type { Item, RichContent } from '@/core/items/Item.types';
 import { ItemState, RichFormat } from '@/core/items/Item.types';
 import type { IItemStore } from '@/core/items/ItemStore.types';
 import type { IConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost.types';
-import type { ITriageService } from '@/core/services/TriageService/TriageService.types';
 import type { IInboxService, InboxFilter, ItemWithActions } from './InboxService.types';
 
 export class InboxService implements IInboxService {
@@ -18,8 +17,7 @@ export class InboxService implements IInboxService {
     private readonly itemStore: IItemStore,
     private readonly actionStore: IActionStore,
     private readonly connectorHost: IConnectorHost,
-    private readonly eventBus: IEventBus,
-    private readonly triage: ITriageService
+    private readonly eventBus: IEventBus
   ) {}
 
   public list(filter: InboxFilter): Promise<readonly Item[]> {
@@ -63,16 +61,6 @@ export class InboxService implements IInboxService {
     }
 
     return { format: RichFormat.Text, text: item.body };
-  }
-
-  public async ingest(newItem: NewItem): Promise<Item> {
-    const stored = await this.itemStore.upsert(newItem);
-    const item = stored.created ? await this.triage.triage(stored.item) : stored.item;
-    const created = stored.created;
-
-    this.eventBus.publish({ type: HuginnEventType.ItemUpserted, item, created });
-
-    return item;
   }
 
   public async reply(id: string, text: string): Promise<Item> {

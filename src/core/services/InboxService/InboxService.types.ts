@@ -1,5 +1,5 @@
 import type { Action } from '@/core/actions/Action.types';
-import type { Category, Item, ItemState, NewItem, RichContent } from '@/core/items/Item.types';
+import type { Category, Item, ItemState, RichContent } from '@/core/items/Item.types';
 
 export interface InboxFilter {
   readonly state?: ItemState;
@@ -23,8 +23,6 @@ export interface IInboxService {
   get(id: string): Promise<ItemWithActions | null>;
   /** How to show the whole message: stored rich form, fetched from the source, or the text. */
   content(id: string): Promise<RichContent>;
-  /** External writers (scripts, other tools) push straight into the inbox. */
-  ingest(item: NewItem): Promise<Item>;
   reply(id: string, text: string): Promise<Item>;
   /** Saves the reply as a draft at the source; the item stays open until it is sent. */
   draft(id: string, text: string): Promise<Item>;

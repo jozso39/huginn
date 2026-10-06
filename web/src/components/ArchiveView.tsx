@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { Action, Connection, Item } from '../api.types';
 import { tint } from '../colors';
-import { CONNECTOR_META, relativeTime } from '../connectorMeta';
+import { metaOf, relativeTime } from '../connectorMeta';
 import { ConnectorIcon } from './ConnectorIcon';
 import { StatusPill } from './StatusPill';
 
@@ -156,7 +156,7 @@ export const ArchiveView = ({ items, connections, onChanged }: ArchiveViewProps)
         <ul className="archive">
           {results.map((item) => {
             const connection = connectionById.get(item.connectionId);
-            const meta = CONNECTOR_META[connection?.kind ?? 'Ingest'];
+            const meta = metaOf(connection?.kind);
             const itemActions = actions[item.id];
 
             return (
@@ -166,7 +166,7 @@ export const ArchiveView = ({ items, connections, onChanged }: ArchiveViewProps)
                   className="archive__summary"
                   onClick={() => void toggle(item.id)}
                 >
-                  <ConnectorIcon kind={connection?.kind ?? 'Ingest'} small />
+                  <ConnectorIcon kind={connection?.kind} small />
                   <span className="archive__title">
                     <StatusPill status={item.status} />
                     {item.title}

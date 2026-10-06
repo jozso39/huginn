@@ -8,8 +8,6 @@ const envSchema = z.object({
     .string()
     .min(32, 'HUGINN_SECRET_KEY must be 32 random bytes, base64')
     .optional(),
-  // Scripts may post items with this key (X-Huginn-Key). Without it ingest is off.
-  HUGINN_INGEST_KEY: z.string().min(16).optional(),
   HUGINN_DB_PATH: z.string().default('./data/huginn.db'),
   // The Mac app: where its data lives (the database goes in here, overriding
   // HUGINN_DB_PATH) and where the bundled web app and migrations are.

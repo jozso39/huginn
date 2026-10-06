@@ -4,7 +4,7 @@ import { OAuthProvider, RedirectMode } from '@/core/oauth/OAuthApp.types';
 import { MoveDirection } from '@/core/services/RuleService/RuleService.types';
 import { predicateSchema } from '@/core/triage/predicate.utils';
 import { RuleKind, RuleStatus, RuleVerdict } from '@/core/triage/Rule.types';
-import { Category, ItemKind, ItemState } from '@/core/items/Item.types';
+import { Category, ItemState } from '@/core/items/Item.types';
 import { AiProvider } from '@/core/settings/AiKey.types';
 import { Theme } from '@/core/settings/Settings.types';
 
@@ -21,22 +21,6 @@ export const replyBodySchema = z.object({ text: z.string().trim().min(1).max(10_
 
 // An emoji ("👍") or a Slack short name ("thumbsup"); the connector checks it can send it.
 export const reactBodySchema = z.object({ emoji: z.string().trim().min(1).max(64) });
-
-/** What an external writer may post. Everything else is set by the hub. */
-export const ingestBodySchema = z.object({
-  connectionId: z.uuid().optional(),
-  externalId: z.string().min(1).max(256),
-  threadKey: z.string().min(1).max(256).optional(),
-  kind: z.enum(ItemKind).default(ItemKind.Alert),
-  author: z.string().min(1).max(200),
-  title: z.string().min(1).max(500),
-  body: z.string().max(20_000).default(''),
-  url: z.url().nullable().default(null),
-  receivedAt: z.iso.datetime().optional(),
-  features: z
-    .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
-    .default({}),
-});
 
 // The category: a ConnectionGroup's id, null for none.
 const groupIdSchema = z.uuid().nullable().optional();

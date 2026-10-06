@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { MockAttentionSink } from '@/core/attention/AttentionSink.mock';
 import { ConnectorKind } from '@/core/connections/Connection.types';
+import { MockConnectorFactory } from '@/core/connectors/Connector.mock';
 import { Category, ItemKind } from '@/core/items/Item.types';
 import { ConditionOp, RuleKind, RuleOrigin, RuleVerdict } from '@/core/triage/Rule.types';
 import { createTestContainer } from '@/dependency/container/testContainer';
@@ -11,12 +12,13 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 400));
 
 describe('AttentionService (menu-bar count and notifications)', () => {
   const sink = new MockAttentionSink();
+  const alerts = new MockConnectorFactory(ConnectorKind.GitLab);
   let container: Container;
   let connectionId: string;
   let counter = 0;
 
-  const ingest = (title: string, receivedAt = new Date()) =>
-    container.inboxService.ingest({
+  const deliver = (title: string, receivedAt = new Date()) =>
+    alerts.deliver({
       connectionId,
       externalId: `a${++counter}`,
       threadKey: `t${counter}`,
@@ -31,10 +33,10 @@ describe('AttentionService (menu-bar count and notifications)', () => {
     });
 
   beforeAll(async () => {
-    container = createTestContainer({ attentionSink: sink });
+    container = createTestContainer({ attentionSink: sink, connectorFactories: [alerts] });
     connectionId = (
       await container.connectionService.create({
-        kind: ConnectorKind.Ingest,
+        kind: ConnectorKind.GitLab,
         name: 'Alerts',
         config: {},
         secrets: {},
@@ -62,7 +64,7 @@ describe('AttentionService (menu-bar count and notifications)', () => {
   test('starts with the current count, then a new Important item is announced and counted', async () => {
     expect(sink.badges).toEqual([0]);
 
-    const item = await ingest('API is down');
+    const item = await deliver('API is down');
 
     await settle();
     expect(sink.notices).toEqual([
@@ -72,9 +74,9 @@ describe('AttentionService (menu-bar count and notifications)', () => {
   });
 
   test('Undecided and old items are not announced; done items lower the count', async () => {
-    await ingest('Weekly digest');
+    await deliver('Weekly digest');
 
-    await ingest('DB was down last night', new Date(Date.now() - 2 * 60 * 60 * 1000));
+    await deliver('DB was down last night', new Date(Date.now() - 2 * 60 * 60 * 1000));
     await settle();
     expect(sink.notices).toHaveLength(1);
     expect(sink.badges).toEqual([0, 1, 2]);

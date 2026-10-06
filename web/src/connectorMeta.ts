@@ -11,10 +11,15 @@ import slackLogo from './assets/logos/slack.svg';
  * the glyph and colour are the fallback for sources without one. `spamExample` is the
  * hint in the "why is this spam?" box: a reason that fits that source's messages.
  */
-export const CONNECTOR_META: Record<
-  ConnectorKind,
-  { glyph: string; color: string; label: string; logo?: string; spamExample: string }
-> = {
+interface ConnectorMeta {
+  glyph: string;
+  color: string;
+  label: string;
+  logo?: string;
+  spamExample: string;
+}
+
+export const CONNECTOR_META: Record<ConnectorKind, ConnectorMeta> = {
   GitLab: {
     glyph: 'GL',
     color: '#e0703a',
@@ -57,13 +62,18 @@ export const CONNECTOR_META: Record<
     logo: signalLogo,
     spamExample: 'e.g. forwarded chain messages in the family group',
   },
-  Ingest: {
-    glyph: 'IN',
-    color: '#5a8a6e',
-    label: 'Ingest',
-    spamExample: 'e.g. automatic alerts that need nothing from me',
-  },
 };
+
+/** For an item whose connection is not loaded (yet): a neutral tile. */
+const UNKNOWN_SOURCE: ConnectorMeta = {
+  glyph: '?',
+  color: '#8a8d93',
+  label: 'Unknown source',
+  spamExample: 'e.g. automatic notifications that need nothing from me',
+};
+
+export const metaOf = (kind: ConnectorKind | undefined): ConnectorMeta =>
+  kind ? CONNECTOR_META[kind] : UNKNOWN_SOURCE;
 
 export const KIND_LABEL: Record<ItemKind, string> = {
   Message: 'message',

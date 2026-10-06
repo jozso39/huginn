@@ -12,7 +12,7 @@ it is `bun run dev`.
 ```
 the Mac app's window (dashboard)   ──HTTP + SSE──▶  Bun process  ──▶  SQLite (WAL)
                                                     ├─ Hono routes (interface/http)
-external writers (scripts)         ──POST /api/items┤─ services (core/services)
+                                                    ├─ services (core/services)
                                                     ├─ ConnectorHost → one connector per connection
                                                     │     Slack (search poll), Gmail (history poll),
                                                     │     GitLab (todo poll), ClickUp (task poll),
@@ -134,7 +134,6 @@ unreadable secrets into an error on that connection only.
 | Gmail | `history.list` every 60 s; first sync = unread inbox ≤ 50 from 7 days; read/archived/answered elsewhere closes | reply in thread, draft, done = mark read, content = HTML |
 | GitLab | `GET /todos` every 60 s; a todo gone at GitLab closes the item | comment on MR/issue, done = mark todo done |
 | ClickUp | tasks assigned to the user changed since cursor (≤ 25/min) + their comments; new assignments; own comment closes | reply in comment thread / task comment |
-| Ingest | nothing — `POST /api/items` with `X-Huginn-Key` | — |
 
 **Adding one:** client contract in `core/clients/X`, implementation + mock in
 `infrastructure/clients/X`, pure mapping in `infrastructure/connectors/XConnector/*.utils.ts`
@@ -149,7 +148,6 @@ an end-to-end test through `createTestContainer`, a `docs/<x>.md`.
 | `GET /api/items?state=&category=&connectionId=&q=&limit=` | list items; `q` searches (every word must appear; case and accents ignored) |
 | `GET /api/items/:id` | item + its actions |
 | `GET /api/items/:id/content` | rich content for display (stored, fetched, or text) |
-| `POST /api/items` (header `X-Huginn-Key`) | ingest from outside; creates an Ingest connection on first use |
 | `POST /api/items/:id/reply` `{text}` · `/draft` `{text}` · `/react` `{emoji}` (the emoji, or a Slack short name) · `/done` · `/reopen` | act |
 | `POST /api/items/:id/feedback` `{verdict, explanation}` | Spam / Important (+ learn) |
 | `GET /api/connections` · `GET /api/connections/kinds` · `GET /api/connections/:id` | read |
@@ -198,8 +196,8 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
   answers only under its own host names (a DNS-rebinding page has a foreign Host
   header), takes writes only from its own origin, and serves the API only to the app's
   window: it proves itself once with the launch token from the shell (`/__launch`) and
-  then carries a SameSite=Strict, HttpOnly cookie. Open without it: health, the OAuth
-  callback (guarded by its one-time `state`) and `POST /api/items` (the ingest key).
+  then carries a SameSite=Strict, HttpOnly cookie. Open without it: health and the
+  OAuth callback (guarded by its one-time `state`).
 - **Secrets**: sealed with AES-256-GCM before storage; the API never returns them; the
   logger redacts common token keys. `.env` holds the master key.
 - **Untrusted content**: message text is data. Slack is rendered as React nodes (never

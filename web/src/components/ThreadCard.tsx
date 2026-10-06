@@ -8,7 +8,7 @@ import type {
   Verdict,
 } from '../api.types';
 import { tint } from '../colors';
-import { CONNECTOR_META, KIND_LABEL, relativeTime } from '../connectorMeta';
+import { KIND_LABEL, metaOf, relativeTime } from '../connectorMeta';
 import { ConnectorIcon } from './ConnectorIcon';
 import { itemLink, openLinkProps } from '../openLink';
 import { MessageBody } from './MessageBody';
@@ -102,7 +102,7 @@ export const ThreadCard = ({
     return null;
   }
 
-  const meta = CONNECTOR_META[connection?.kind ?? 'Ingest'];
+  const meta = metaOf(connection?.kind);
   const link = itemLink(latest);
 
   const run = async (action: () => Promise<Item | Item[]>) => {
@@ -164,7 +164,7 @@ export const ThreadCard = ({
       onClick={onSelect}
     >
       <header className="thread__head">
-        <ConnectorIcon kind={connection?.kind ?? 'Ingest'} href={link} />
+        <ConnectorIcon kind={connection?.kind} href={link} />
         <div className="thread__titles">
           <h3 className="thread__title">
             <StatusPill status={latest.status} />

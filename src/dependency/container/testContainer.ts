@@ -25,7 +25,6 @@ import { MockSlackClient } from '@/infrastructure/clients/SlackClient/SlackClien
 import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
-import { IngestConnectorFactory } from '@/infrastructure/connectors/IngestConnector/IngestConnectorFactory';
 import { LinkedInConnectorFactory } from '@/infrastructure/connectors/LinkedInConnector/LinkedInConnectorFactory';
 import { SignalConnectorFactory } from '@/infrastructure/connectors/SignalConnector/SignalConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
@@ -115,7 +114,6 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
         () => options.clickUpClient ?? new MockClickUpClient()
       ),
       new SignalConnectorFactory(logger, config, options.signalClient ?? new MockSignalClient()),
-      new IngestConnectorFactory(),
     ],
   });
 };

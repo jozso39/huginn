@@ -32,7 +32,6 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
     host: env.HUGINN_HOST,
     dbPath,
     secretKey,
-    ingestKey: env.HUGINN_INGEST_KEY ?? null,
     paths: {
       web: env.HUGINN_RESOURCES_DIR
         ? join(env.HUGINN_RESOURCES_DIR, 'web')

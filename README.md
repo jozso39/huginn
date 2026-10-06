@@ -73,14 +73,6 @@ The server on its own, in a browser: copy `.env.example` to `.env`, fill in the 
 A release: `bun run release 1.2.3` tags the version; GitHub Actions builds the app, signs
 the update and publishes both. Installed copies pick it up within the hour.
 
-When you run the server yourself with `HUGINN_INGEST_KEY`, scripts can post items:
-
-```bash
-curl -X POST http://localhost:3000/api/items \
-  -H "X-Huginn-Key: $HUGINN_INGEST_KEY" -H 'content-type: application/json' \
-  -d '{"externalId":"backup-2026-09-28","author":"restic","title":"Backup failed","kind":"Alert"}'
-```
-
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) — layers, data model, flows, API, security, the Mac app

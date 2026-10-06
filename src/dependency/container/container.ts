@@ -23,7 +23,6 @@ import { OpenRouterLlmClient } from '@/infrastructure/clients/OpenRouterLlmClien
 import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
-import { IngestConnectorFactory } from '@/infrastructure/connectors/IngestConnector/IngestConnectorFactory';
 import { LinkedInConnectorFactory } from '@/infrastructure/connectors/LinkedInConnector/LinkedInConnectorFactory';
 import { SignalConnectorFactory } from '@/infrastructure/connectors/SignalConnector/SignalConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
@@ -105,7 +104,6 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     new LinkedInConnectorFactory(logger, config, googleOAuth),
     new ClickUpConnectorFactory(logger, config),
     new SignalConnectorFactory(logger, config),
-    new IngestConnectorFactory(),
   ];
 
   const triageService = new TriageService(
@@ -135,14 +133,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     oauthAppService,
     triageService
   );
-  const inboxService = new InboxService(
-    logger,
-    itemStore,
-    actionStore,
-    connectorHost,
-    eventBus,
-    triageService
-  );
+  const inboxService = new InboxService(logger, itemStore, actionStore, connectorHost, eventBus);
   const connectionService = new ConnectionService(
     logger,
     connectorFactories,

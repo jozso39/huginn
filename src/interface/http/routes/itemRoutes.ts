@@ -1,12 +1,9 @@
 import { Hono } from 'hono';
 import type { Container } from '@/dependency/container/container.types';
-import { ConnectorKind } from '@/core/connections/Connection.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
-import { sameSecret } from '@/interface/http/localAccess';
 import { parseBody, parseQuery } from '@/interface/http/validation.utils';
 import {
   feedbackBodySchema,
-  ingestBodySchema,
   listItemsQuerySchema,
   reactBodySchema,
   replyBodySchema,
@@ -70,53 +67,5 @@ export const createItemRoutes = (container: Container) => {
     c.json({ item: await container.inboxService.reopen(c.req.param('id')) })
   );
 
-  // External writers (scripts), authenticated by the ingest key instead of the app's
-  // session. Only when the server is given HUGINN_INGEST_KEY; the Mac app is not.
-  app.post('/', async (c) => {
-    const ingestKey = container.config.ingestKey;
-
-    if (!ingestKey || !sameSecret(c.req.header('x-huginn-key') ?? '', ingestKey)) {
-      throw new HuginnError(ErrorCode.Unauthorized, 'bad ingest key');
-    }
-
-    const body = parseBody(ingestBodySchema, await c.req.json());
-    const connectionId = body.connectionId ?? (await resolveIngestConnection(container));
-    const item = await container.inboxService.ingest({
-      connectionId,
-      externalId: body.externalId,
-      threadKey: body.threadKey ?? body.externalId,
-      kind: body.kind,
-      author: body.author,
-      title: body.title,
-      body: body.body.slice(0, container.config.maxBodyChars),
-      url: body.url,
-      receivedAt: body.receivedAt ? new Date(body.receivedAt) : new Date(),
-      features: body.features,
-      raw: body,
-    });
-
-    return c.json({ item }, 201);
-  });
-
   return app;
-};
-
-/** The first Ingest connection, created on demand so a script needs no setup. */
-const resolveIngestConnection = async (container: Container): Promise<string> => {
-  const existing = (await container.connectionService.list()).find(
-    (connection) => connection.kind === ConnectorKind.Ingest
-  );
-
-  if (existing) {
-    return existing.id;
-  }
-
-  const created = await container.connectionService.create({
-    kind: ConnectorKind.Ingest,
-    name: 'Ingest',
-    config: {},
-    secrets: {},
-  });
-
-  return created.id;
 };

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { ActionType } from '@/core/actions/Action.types';
 import { ConnectorKind } from '@/core/connections/Connection.types';
+import { MockConnectorFactory } from '@/core/connectors/Connector.mock';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import type { HuginnEvent } from '@/core/events/EventBus.types';
 import { HuginnEventType } from '@/core/events/EventBus.types';
@@ -79,42 +80,50 @@ describe('InboxService with a GitLab connection', () => {
       ActionType.Done,
     ]);
   });
+});
 
-  test('ingest creates an item for a connection that has no poller', async () => {
-    const ingest = await container.connectionService.create({
-      kind: ConnectorKind.Ingest,
-      name: 'Scripts',
+describe('A source that cannot answer', () => {
+  test('refuses a reply instead of pretending it was sent', async () => {
+    const builds = new MockConnectorFactory(ConnectorKind.GitLab);
+    const container = createTestContainer({ connectorFactories: [builds] });
+    const connection = await container.connectionService.create({
+      kind: ConnectorKind.GitLab,
+      name: 'Builds',
       config: {},
       secrets: {},
     });
-    const item = await container.inboxService.ingest({
-      connectionId: ingest.id,
-      externalId: 'backup-2026-09-28',
-      threadKey: 'backups',
+    const item = await builds.deliver({
+      connectionId: connection.id,
+      externalId: 'pipeline-41',
+      threadKey: 'pipeline-41',
       kind: ItemKind.Alert,
-      author: 'restic',
-      title: 'Backup failed',
-      body: 'snapshot stale',
+      author: 'CI',
+      title: 'Pipeline failed',
+      body: 'main, job test',
       url: null,
       receivedAt: new Date(),
-      features: { severity: 'high' },
+      features: {},
       raw: {},
     });
 
     expect(item.state).toBe(ItemState.Open);
     await expect(container.inboxService.reply(item.id, 'hi')).rejects.toBeInstanceOf(HuginnError);
+
+    await container.connectorHost.stopAll();
+    container.close();
   });
 });
 
 describe('Searching the archive', () => {
+  const team = new MockConnectorFactory(ConnectorKind.Slack);
   let container: Container;
 
   beforeAll(async () => {
-    container = createTestContainer();
+    container = createTestContainer({ connectorFactories: [team] });
 
-    const scripts = await container.connectionService.create({
-      kind: ConnectorKind.Ingest,
-      name: 'Scripts',
+    const channel = await container.connectionService.create({
+      kind: ConnectorKind.Slack,
+      name: 'Team',
       config: {},
       secrets: {},
     });
@@ -125,8 +134,8 @@ describe('Searching the archive', () => {
     ];
     const items = await Promise.all(
       messages.map((m, index) =>
-        container.inboxService.ingest({
-          connectionId: scripts.id,
+        team.deliver({
+          connectionId: channel.id,
           externalId: m.id,
           threadKey: m.id,
           kind: ItemKind.Message,
