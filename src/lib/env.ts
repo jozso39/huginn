@@ -29,7 +29,7 @@ const envSchema = z.object({
   // HUGINN_PUBLIC_URL (see docs/oauth-relay.html). Optional.
   HUGINN_OAUTH_RELAY_URL: z.url().optional(),
   // Triage: Jev for sentence rules and guardrails, a chat model for the rule agent.
-  // The key itself is set in Settings → AI triage; these pin the models.
+  // The key itself is set in Settings → Triage; these pin the models.
   HUGINN_JEV_MODEL: z.string().default('typesafe/jev-1.13'),
   HUGINN_TYPESAFE_JEV_MODEL: z.string().default('jev-1.13.0'),
   HUGINN_FEEDBACK_MODEL: z.string().default('anthropic/claude-haiku-4.5'),

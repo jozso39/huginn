@@ -35,7 +35,7 @@ export class OpenRouterLlmClient implements ILlmClient {
     if (credentials?.provider !== AiProvider.OpenRouter) {
       throw new HuginnError(
         ErrorCode.Unsupported,
-        'Learning rules from a reason needs an OpenRouter key (Settings → AI triage)'
+        'Learning rules from a reason needs an OpenRouter key (Settings → Triage)'
       );
     }
 

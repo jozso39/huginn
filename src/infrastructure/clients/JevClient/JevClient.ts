@@ -45,7 +45,7 @@ export class JevClient implements IJevClient {
     if (!credentials) {
       throw new HuginnError(
         ErrorCode.Unsupported,
-        'Sentence rules need an AI key (Settings → AI triage)'
+        'Sentence rules need an AI key (Settings → Triage)'
       );
     }
 

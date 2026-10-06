@@ -1787,43 +1787,68 @@ a.slack-attachment__title:hover {
   margin: -4px 0 0;
 }
 
-/* AI triage key */
-.ai-key {
+/* Settings → Triage */
+.triage {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   max-width: 640px;
 }
 
-.ai-key p {
+.triage p {
   margin: 0;
 }
 
-.ai-key__status {
-  display: grid;
-  gap: 4px;
-  margin: 0;
+/* What sorts the messages and whether it runs: statuses with pills on the right, in
+   the manner of a settings list, so nothing reads as a checkbox. */
+.triage-features {
+  margin: 4px 0 0;
   padding: 0;
   list-style: none;
-  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
-.ai-key__status li::before {
-  display: inline-block;
-  width: 1.4em;
+.triage-features li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
 }
 
-.ai-key__on::before {
-  content: '●';
-  color: var(--ok);
+.triage-features li + li {
+  border-top: 1px solid var(--border);
 }
 
-.ai-key__off::before {
-  content: '○';
+.triage-features__text {
+  display: grid;
+  gap: 2px;
+}
+
+.triage-features__what {
   color: var(--muted);
+  font-size: 13px;
 }
 
-.ai-key__off {
-  color: var(--muted);
+.triage-features__off {
+  font-size: 13px;
+}
+
+.triage-features .status-pill {
+  flex-shrink: 0;
+  margin: 2px 0 0;
+}
+
+.ai-key {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ai-key h3 {
+  margin: 0;
+  font-size: 15px;
 }
 
 .ai-key__current {
@@ -1846,4 +1871,69 @@ a.slack-attachment__title:hover {
 .ai-key__form {
   display: grid;
   gap: 10px;
+}
+
+/* Folder tabs: the chosen tab opens into the frame below it, so it is plain which
+   fields belong to it and that they change with it. */
+.tabbed {
+  display: grid;
+}
+
+.tabs {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 12px;
+}
+
+.tabs button {
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: none;
+  padding: 6px 18px 7px;
+  color: var(--muted);
+}
+
+.tabs button:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Reaches 1px down over the frame's top border, which leaves the gap of an open tab. */
+.tabs button[aria-selected='true'],
+.tabs button[aria-selected='true']:hover:not(:disabled) {
+  margin-bottom: -1px;
+  padding-bottom: 8px;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tab-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px 16px;
+}
+
+.tab-panel__body {
+  display: grid;
+  gap: 10px;
+  animation: tab-panel-in 0.2s ease-out;
+}
+
+@keyframes tab-panel-in {
+  from {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-panel__body {
+    animation: none;
+  }
 }

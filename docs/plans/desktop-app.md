@@ -153,7 +153,7 @@ Each milestone ends with something Jozef uses daily.
 ### M3 — First run, guides, triage keys, backup (≈ 1 week) — §5, §7
 1. First-run wizard: welcome → triage key (OpenRouter / TypeSafe / skip) → add
    connections (each with its guide) → launch at login. The key itself is done
-   (2026-10-06): Settings → AI triage, write-only, checked with the provider.
+   (2026-10-06): Settings → Triage, write-only, checked with the provider.
 2. Setup guides for Gmail (Google Cloud project + Desktop client), Slack (signing in;
    creating the company app is an admin guide), GitLab, ClickUp, LinkedIn.
 3. Full backup export / restore.

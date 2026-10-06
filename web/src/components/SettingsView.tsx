@@ -95,7 +95,7 @@ export const SettingsView = ({
       </details>
 
       <section className="settings__section">
-        <h2>AI triage</h2>
+        <h2>Triage</h2>
         <AiKeySection ai={ai} onSave={onSaveAiKey} onRemove={onRemoveAiKey} />
       </section>
 

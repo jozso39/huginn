@@ -163,7 +163,7 @@ export class FeedbackService implements IFeedbackService {
         item,
         this.jev.available()
           ? 'Moved. Turning a reason into a rule needs an OpenRouter key; with TypeSafe, add the rule yourself.'
-          : 'Moved. To turn your reason into a rule, add an AI key in Settings → AI triage.'
+          : 'Moved. To turn your reason into a rule, add an AI key in Settings → Triage.'
       );
     }
 

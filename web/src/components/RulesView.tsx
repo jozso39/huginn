@@ -8,7 +8,7 @@ import { ConnectorIcon } from './ConnectorIcon';
 
 interface RulesViewProps {
   connection: Connection;
-  /** Sentence rules only run with an AI key (Settings → AI triage). */
+  /** Sentence rules only run with an AI key (Settings → Triage). */
   hasAiKey: boolean;
 }
 
