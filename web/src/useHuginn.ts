@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
 import type {
+  AiKeyInfo,
+  AiProvider,
   Connection,
   ConnectionGroup,
   ConnectorDescriptor,
@@ -18,6 +20,8 @@ export interface HuginnData {
   groups: ConnectionGroup[];
   /** Null until the first load. */
   settings: Settings | null;
+  /** Which AI key is set, if any (never the key). */
+  ai: AiKeyInfo | null;
   live: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -25,6 +29,8 @@ export interface HuginnData {
   saveSettings: (patch: Partial<Settings>) => Promise<void>;
   /** Makes a category (or finds the one with that name) and returns it. */
   createGroup: (name: string) => Promise<ConnectionGroup>;
+  saveAiKey: (provider: AiProvider, key: string) => Promise<void>;
+  removeAiKey: () => Promise<void>;
 }
 
 const byNewest = (a: Item, b: Item) => b.receivedAt.localeCompare(a.receivedAt);
@@ -43,6 +49,7 @@ export const useHuginn = (): HuginnData => {
   const [kinds, setKinds] = useState<ConnectorDescriptor[]>([]);
   const [groups, setGroups] = useState<ConnectionGroup[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [ai, setAi] = useState<AiKeyInfo | null>(null);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +76,8 @@ export const useHuginn = (): HuginnData => {
       setConnections(conns);
       setKinds(kindList);
       setGroups(groupList);
-      setSettings(preferences);
+      setSettings(preferences.settings);
+      setAi(preferences.ai);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -83,9 +91,18 @@ export const useHuginn = (): HuginnData => {
     try {
       setSettings(await api.saveSettings(patch));
     } catch (e) {
-      setSettings(await api.getSettings());
+      setSettings((await api.getSettings()).settings);
       throw e;
     }
+  }, []);
+
+  const saveAiKey = useCallback(async (provider: AiProvider, key: string) => {
+    setAi(await api.saveAiKey(provider, key));
+  }, []);
+
+  const removeAiKey = useCallback(async () => {
+    await api.removeAiKey();
+    setAi(null);
   }, []);
 
   const createGroup = useCallback(async (name: string) => {
@@ -149,11 +166,14 @@ export const useHuginn = (): HuginnData => {
     kinds,
     groups,
     settings,
+    ai,
     live,
     error,
     refresh,
     applyItem,
     saveSettings,
     createGroup,
+    saveAiKey,
+    removeAiKey,
   };
 };

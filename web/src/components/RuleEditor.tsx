@@ -15,6 +15,8 @@ import { CONDITION_OPS } from '../api.types';
 
 interface RuleEditorProps {
   connectionId: string;
+  /** Sentence rules only run with an AI key. */
+  hasAiKey: boolean;
   fields: FieldInfo[];
   initial?: Rule;
   onSaved: (rule: Rule) => void;
@@ -108,6 +110,7 @@ const toPredicate = (mode: Mode, rows: Row[]): Predicate => {
 export const RuleEditor = ({
   connectionId,
   fields,
+  hasAiKey,
   initial,
   onSaved,
   onCancel,
@@ -192,6 +195,12 @@ export const RuleEditor = ({
 
       {kind === 'Soft' && (
         <>
+          {!hasAiKey && (
+            <p className="warn small">
+              Sentence rules need an AI key. Until one is added in Settings → AI triage, this rule
+              never fires and its messages wait in Undecided.
+            </p>
+          )}
           <label>
             When this is true
             <textarea

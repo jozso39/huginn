@@ -23,4 +23,10 @@ export class SqliteSettingsStore implements ISettingsStore {
 
     return Promise.resolve();
   }
+
+  public remove(key: string): Promise<void> {
+    this.db.delete(settings).where(eq(settings.key, key)).run();
+
+    return Promise.resolve();
+  }
 }

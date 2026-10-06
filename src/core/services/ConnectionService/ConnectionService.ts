@@ -39,8 +39,20 @@ interface PendingSignIn {
   /** Null: create a connection for whoever signs in (or reuse theirs). */
   readonly connectionId: string | null;
   readonly redirectUri: string;
+  /** PKCE: proves the code is redeemed by whoever started the sign-in. */
+  readonly codeVerifier: string;
   readonly expiresAt: number;
 }
+
+const base64url = (bytes: Uint8Array): string => Buffer.from(bytes).toString('base64url');
+
+/** A PKCE pair (RFC 7636, S256): the verifier stays here, the challenge goes out. */
+const pkcePair = async (): Promise<{ verifier: string; challenge: string }> => {
+  const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+
+  return { verifier, challenge: base64url(new Uint8Array(digest)) };
+};
 
 /** A QR code the phone has not scanned by then is dead anyway. */
 const PAIRING_TTL_MS = 10 * 60 * 1000;
@@ -173,6 +185,7 @@ export class ConnectionService implements IConnectionService {
     const authorization = this.authorizationOf(kind);
     const app = await this.appFor(authorization);
     const state = this.newState();
+    const pkce = await pkcePair();
     const now = Date.now();
 
     // Drop expired attempts so the map cannot grow without bound.
@@ -183,10 +196,11 @@ export class ConnectionService implements IConnectionService {
       kind,
       connectionId: connection?.id ?? null,
       redirectUri: app.redirectUri,
+      codeVerifier: pkce.verifier,
       expiresAt: now + SIGN_IN_TTL_MS,
     });
 
-    return { url: authorization.authorizationUrl(app, state) };
+    return { url: authorization.authorizationUrl(app, state, pkce.challenge) };
   }
 
   public async completeSignIn(callbackUrl: string): Promise<Connection> {
@@ -218,7 +232,11 @@ export class ConnectionService implements IConnectionService {
     const authorization = this.authorizationOf(pending.kind);
     const app = await this.appFor(authorization);
     // The code is bound to the redirect it was issued for, even if the setting changed since.
-    const result = await authorization.complete({ ...app, redirectUri: pending.redirectUri }, code);
+    const result = await authorization.complete(
+      { ...app, redirectUri: pending.redirectUri },
+      code,
+      pending.codeVerifier
+    );
 
     return this.applySignIn(pending.kind, pending.connectionId, result);
   }
@@ -299,7 +317,7 @@ export class ConnectionService implements IConnectionService {
     if (!existing) {
       this.logger.info({ kind }, 'signed in, creating connection');
 
-      return this.create({ kind, name: result.account, config: {}, secrets });
+      return this.create({ kind, name: result.name ?? result.account, config: {}, secrets });
     }
 
     const current = await this.openSecrets(existing);
@@ -355,14 +373,22 @@ export class ConnectionService implements IConnectionService {
     return { ...app, redirectUri };
   }
 
-  /** Signing in again with the same account refreshes its connection instead of duplicating it. */
+  /**
+   * Signing in again with the same account refreshes its connection. A single connection
+   * made before its kind had sign-in (Slack with pasted tokens) is taken over by the
+   * first sign-in, so its items, rules and category stay.
+   */
   private async findByAccount(kind: Connection['kind'], account: string): Promise<string | null> {
     const sameKind = (await this.connectionStore.list()).filter((c) => c.kind === kind);
     const accounts = await Promise.all(
       sameKind.map(async (c) => ({ id: c.id, account: (await this.openSecrets(c.id)).account }))
     );
+    const unsigned = accounts.filter((entry) => entry.account === undefined);
 
-    return accounts.find((entry) => entry.account === account)?.id ?? null;
+    return (
+      accounts.find((entry) => entry.account === account)?.id ??
+      (unsigned.length === 1 ? (unsigned[0]?.id ?? null) : null)
+    );
   }
 
   private async existingGroup(groupId: string | null | undefined): Promise<string | null> {

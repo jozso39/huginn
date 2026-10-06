@@ -1,5 +1,7 @@
 import type {
   Action,
+  AiKeyInfo,
+  AiProvider,
   Connection,
   ConnectionGroup,
   ConnectorDescriptor,
@@ -118,7 +120,11 @@ export const api = {
     request<{ group: ConnectionGroup }>('PUT', `/groups/${id}`, { name }).then((r) => r.group),
   deleteGroup: (id: string) => request<{ ok: true }>('DELETE', `/groups/${id}`),
 
-  getSettings: () => request<{ settings: Settings }>('GET', '/settings').then((r) => r.settings),
+  getSettings: () => request<{ settings: Settings; ai: AiKeyInfo | null }>('GET', '/settings'),
+  /** Checked with the provider first; it is never sent back. */
+  saveAiKey: (provider: AiProvider, key: string) =>
+    request<{ ai: AiKeyInfo }>('PUT', '/settings/ai-key', { provider, key }).then((r) => r.ai),
+  removeAiKey: () => request<{ ok: true }>('DELETE', '/settings/ai-key'),
   saveSettings: (patch: Partial<Settings>) =>
     request<{ settings: Settings }>('PUT', '/settings', patch).then((r) => r.settings),
 

@@ -1,6 +1,11 @@
 /** A provider whose sign-in several connectors can share (Gmail, later Calendar, Drive…). */
 export enum OAuthProvider {
   Google = 'Google',
+  /**
+   * A company's own Slack app, signed in to with PKCE: no client secret, so its client
+   * ID can be handed to colleagues; each person's token reads only what they can see.
+   */
+  Slack = 'Slack',
 }
 
 /** How the provider gets the browser back to Huginn after sign-in. */
@@ -19,6 +24,7 @@ export enum RedirectMode {
 export interface OAuthAppCredentials {
   readonly provider: OAuthProvider;
   readonly clientId: string;
+  /** Empty for public clients (Slack with PKCE), which have none. */
   readonly clientSecret: string;
   /**
    * Where the provider sends the browser after a sign-in; null when this Huginn has no
@@ -38,6 +44,10 @@ export interface OAuthAppView {
   readonly redirectMode: RedirectMode;
   /** The URI to register with the provider for each mode; null when it cannot work. */
   readonly redirectUris: Readonly<Record<RedirectMode, string | null>>;
+  /** Whether the provider app has a secret to enter (Slack with PKCE has none). */
+  readonly needsSecret: boolean;
+  /** Every redirect URI to register with the provider (Slack: one per port Huginn may use). */
+  readonly registerUris: readonly string[];
 }
 
 export interface StoredOAuthApp {

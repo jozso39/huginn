@@ -96,6 +96,8 @@ export enum DecisionSource {
   User = 'User',
   /** Jev could not be reached; soft rules were skipped. */
   ClassifierUnavailable = 'ClassifierUnavailable',
+  /** No AI key is set, so sentence rules were not asked (Settings → AI triage). */
+  NoAiKey = 'NoAiKey',
 }
 
 /** Why an item is where it is. Stored on the item; the dashboard's "why?". */

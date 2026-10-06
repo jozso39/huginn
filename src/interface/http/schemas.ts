@@ -5,6 +5,7 @@ import { MoveDirection } from '@/core/services/RuleService/RuleService.types';
 import { predicateSchema } from '@/core/triage/predicate.utils';
 import { RuleKind, RuleStatus, RuleVerdict } from '@/core/triage/Rule.types';
 import { Category, ItemKind, ItemState } from '@/core/items/Item.types';
+import { AiProvider } from '@/core/settings/AiKey.types';
 import { Theme } from '@/core/settings/Settings.types';
 
 export const listItemsQuerySchema = z.object({
@@ -61,6 +62,12 @@ export const updateConnectionBodySchema = z.object({
 });
 
 export const groupBodySchema = z.object({ name: z.string().max(100) });
+
+// Write-only: the key goes in here and never comes back out of the API.
+export const aiKeyBodySchema = z.object({
+  provider: z.enum(AiProvider),
+  key: z.string().trim().min(1).max(500),
+});
 
 export const settingsBodySchema = z.strictObject({
   theme: z.enum(Theme).optional(),

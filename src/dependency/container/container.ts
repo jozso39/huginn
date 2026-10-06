@@ -5,6 +5,7 @@ import { createLogger } from '@/lib/logger';
 import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
 import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
 import type { IAttentionSink } from '@/core/attention/Attention.types';
+import type { IAiKeyChecker } from '@/core/settings/AiKey.types';
 import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { AttentionService } from '@/core/services/AttentionService/AttentionService';
@@ -40,6 +41,8 @@ import { SqliteOAuthAppStore } from '@/infrastructure/stores/SqliteOAuthAppStore
 import { SqlitePushDeviceStore } from '@/infrastructure/stores/SqlitePushDeviceStore/SqlitePushDeviceStore';
 import { SqliteRuleStore } from '@/infrastructure/stores/SqliteRuleStore/SqliteRuleStore';
 import { SqliteSettingsStore } from '@/infrastructure/stores/SqliteSettingsStore/SqliteSettingsStore';
+import { AiKeyChecker } from '@/infrastructure/clients/AiKeyChecker/AiKeyChecker';
+import { SlackOAuthClient } from '@/infrastructure/clients/SlackOAuthClient/SlackOAuthClient';
 import type { Container } from './container.types';
 
 export interface CreateContainerOptions {
@@ -49,6 +52,8 @@ export interface CreateContainerOptions {
   readonly connectorFactories?: readonly IConnectorFactory[];
   readonly jev?: IJevClient;
   readonly llm?: ILlmClient;
+  /** Checks an AI key with its provider before it is saved. */
+  readonly aiKeyChecker?: IAiKeyChecker;
   readonly push?: IPushClient;
   /** The Mac app's menu bar and notifications; nowhere when running without it. */
   readonly attentionSink?: IAttentionSink;
@@ -75,19 +80,24 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     logger,
     new SqliteOAuthAppStore(database.db),
     secretBox,
-    { publicUrl: config.publicUrl, relayUrl: config.oauthRelayUrl }
+    { publicUrl: config.publicUrl, relayUrl: config.oauthRelayUrl, ports: config.ports }
+  );
+  // Holds the AI key the model clients read on every call (Settings → AI triage).
+  const settingsService = new SettingsService(
+    logger,
+    new SqliteSettingsStore(database.db),
+    secretBox,
+    options.aiKeyChecker ?? new AiKeyChecker(15_000)
   );
   const jev =
     options.jev ??
-    new JevClient(logger, {
-      apiKey: config.ai.openRouterApiKey,
-      model: config.ai.jevModel,
+    new JevClient(logger, settingsService, {
+      models: config.ai.jevModels,
       timeoutMs: config.ai.jevTimeoutMs,
     });
   const llm =
     options.llm ??
-    new OpenRouterLlmClient(logger, {
-      apiKey: config.ai.openRouterApiKey,
+    new OpenRouterLlmClient(logger, settingsService, {
       model: config.ai.feedbackModel,
       timeoutMs: config.ai.feedbackTimeoutMs,
     });
@@ -95,7 +105,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
   const googleOAuth = new GoogleOAuthClient(15_000);
   const connectorFactories: readonly IConnectorFactory[] = options.connectorFactories ?? [
     new GitLabConnectorFactory(logger, config),
-    new SlackConnectorFactory(logger, config),
+    new SlackConnectorFactory(logger, config, new SlackOAuthClient(15_000)),
     new GmailConnectorFactory(logger, config, googleOAuth),
     new LinkedInConnectorFactory(logger, config, googleOAuth),
     new ClickUpConnectorFactory(logger, config),
@@ -170,7 +180,6 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
   );
 
   const connectionGroupService = new ConnectionGroupService(logger, connectionGroupStore);
-  const settingsService = new SettingsService(logger, new SqliteSettingsStore(database.db));
 
   const attentionService = new AttentionService(
     logger,

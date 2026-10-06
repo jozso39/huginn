@@ -1,10 +1,10 @@
 # Connecting Slack
 
-Huginn reads Slack **as you** (a user token) and listens over **Socket Mode**, so it needs
-no public URL and works from a laptop or a Raspberry Pi behind NAT. It posts replies and
-reactions as you, with no bot name or "sent via" footer.
+Each person **signs in with Slack** and Huginn reads and replies **as them**, with
+their own token — no bot, no "sent via" footer, and nothing shared between people.
+It needs the company's own Huginn Slack app, which a Slack admin creates once.
 
-## 1. Create the app from this manifest
+## 1. The Slack app (an admin, once per company)
 
 <https://api.slack.com/apps> → **Create New App** → **From a manifest** → pick the
 workspace → paste:
@@ -12,56 +12,59 @@ workspace → paste:
 ```yaml
 display_information:
   name: Huginn
-  description: Personal inbox — reads what is addressed to me, replies as me.
+  description: An inbox for what needs you. Each person signs in; it reads and replies as them.
   background_color: "#14161a"
-features:
-  bot_user:
-    # Socket Mode needs an app with a bot user, even though Huginn never uses it.
-    display_name: Huginn
-    always_online: false
 oauth_config:
+  # Huginn signs in on the Mac it runs on; it uses the first of these ports that is free.
+  redirect_urls:
+    - http://localhost:47823/api/oauth/callback
+    - http://localhost:47824/api/oauth/callback
+    - http://localhost:47825/api/oauth/callback
   scopes:
     user:
-      - channels:history   # messages in public channels you are in
-      - groups:history     # … private channels
-      - im:history         # … direct messages
-      - mpim:history       # … group DMs
-      - channels:read      # channel names for titles
+      - search:read        # what is new since the last check
+      - channels:history   # a message in full when search leaves something out
+      - groups:history
+      - im:history
+      - mpim:history
+      - channels:read      # channel names for titles, "read in Slack" markers
       - groups:read
       - im:read
       - mpim:read
       - users:read         # people's names instead of U-IDs
-      - usergroups:read    # detect @group mentions of groups you are in (optional)
+      - usergroups:read    # @group mentions of groups you are in
       - chat:write         # reply as you
       - reactions:write    # emoji as you
-    bot:
-      - chat:write         # required by Slack for the bot user; unused
+  # Sign-in from a desktop app without a client secret. Turning it on cannot be undone.
+  pkce_enabled: true
 settings:
-  event_subscriptions:
-    user_events:
-      - message.channels
-      - message.groups
-      - message.im
-      - message.mpim
-  interactivity:
-    is_enabled: false
   org_deploy_enabled: false
-  socket_mode_enabled: true
-  token_rotation_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: true
 ```
 
-## 2. Two tokens
+Install it to the workspace (approve it if your workspace requires approval). Keep the
+app **internal — never "distribute" it**: internal apps are exempt from Slack's 2025
+limits on reading history.
 
-1. **Basic Information → App-Level Tokens → Generate Token and Scopes**, name it
-   `socket`, add scope `connections:write`. Copy the `xapp-…` token.
-2. **OAuth & Permissions → Install to Workspace** (approve). Copy the
-   **User OAuth Token** `xoxp-…` — not the bot token.
+Then share its **Client ID** (Basic Information → App Credentials) with whoever uses
+Huginn. It is not a secret: with PKCE there is no client secret at all, and each person
+only ever gets their own token.
 
-## 3. Add the connection in Huginn
+**Upgrading an app made with the old manifest** (Socket Mode, two pasted tokens): open
+it → **App Manifest** → replace it with the one above → Save → reinstall when Slack asks.
+Its Socket Mode token can be revoked afterwards.
 
-**Settings → Add connection → Slack**, paste both tokens, pick what channel
-messages you want (below). The status turns **Running** once the socket is connected.
-Everything except the tokens can be changed later with **Edit**.
+## 2. Sign in (everyone)
+
+**Settings → Add connection → Slack**. The first time on a Mac, paste the Client ID;
+then **Sign in with Slack**, approve, and the connection appears (named after the
+workspace). Category, colour and which channel messages you want are under **Edit**.
+A connection made with pasted tokens before sign-in existed is taken over by the first
+sign-in, keeping its items and rules.
+
+Tokens rotate: Huginn refreshes them on its own. A Mac that stays off for a month
+needs one more sign-in (Slack's refresh tokens last 30 days).
 
 ## What comes in
 
@@ -105,11 +108,19 @@ Default: *Keep*, so reading on the phone does not make things vanish here.
 Thread replies are not covered: their read state is separate and Slack does not give
 it to apps. Answering in the thread still closes them.
 
-## Known limits
+## How Huginn checks
 
-- **No backfill yet.** Messages sent while Huginn was not running are not fetched
-  afterwards; Socket Mode only delivers live events.
+Every *Check every* interval (default a minute) Huginn runs **one search** for what
+is new since the last check, as you, and the rules above pick what is yours. The
+search sees what you can see in Slack, so a colleague's Huginn never sees your
+messages, and yours never sees theirs.
+
+- **Catching up is natural.** After sleep or a weekend the next check reads what came
+  in meanwhile — up to the newest 1,000 messages; past that the connection says some
+  were skipped.
+- **The first sign-in reads the last day**, so what is still waiting shows up; what you
+  already answered closes itself.
+- **One rate limit for everyone.** Slack allows the company's app about 20 searches a
+  minute in the workspace, shared by everyone who signed in: fine for a team at the
+  default minute. If Slack says *busy*, that check is skipped and the next one catches up.
 - **Threads you wrote in before connecting** are not known until you write in them again.
-- The `message.channels` subscription delivers every message in every public channel you
-  are in. Huginn filters them locally and stores only what is addressed to you, but the
-  traffic still reaches it.

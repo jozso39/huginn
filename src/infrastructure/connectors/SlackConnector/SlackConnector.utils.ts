@@ -4,6 +4,7 @@ import type {
   SlackBlockElement,
   SlackChannelInfo,
   SlackMessageEvent,
+  SlackSearchMatch,
 } from '@/core/clients/SlackClient/SlackClient.types';
 import type { SlackAttachmentView } from '@/core/items/Item.types';
 import { ItemKind } from '@/core/items/Item.types';
@@ -26,6 +27,8 @@ export interface RelevanceContext {
   readonly watchedChannels: ReadonlySet<string>;
   /** Channel IDs; only consulted in AllMyChannels scope. */
   readonly ignoredChannels: ReadonlySet<string>;
+  /** Channels the user is in: search also finds public channels they never joined. */
+  readonly myChannels: ReadonlySet<string>;
   /** `channel:thread_ts` of threads the user wrote in. */
   readonly myThreads: ReadonlySet<string>;
 }
@@ -91,11 +94,57 @@ export const classify = (event: SlackMessageEvent, ctx: RelevanceContext): Slack
   // channel silences its chatter, not someone asking me something directly.
   const channelWanted =
     ctx.channelScope === SlackChannelScope.AllMyChannels
-      ? !ctx.ignoredChannels.has(event.channel)
+      ? ctx.myChannels.has(event.channel) && !ctx.ignoredChannels.has(event.channel)
       : ctx.watchedChannels.has(event.channel);
 
   return channelWanted ? SlackRelevance.ChannelMessage : SlackRelevance.Ignore;
 };
+
+/** A thread reply's permalink names its thread: `…/p1700000000123456?thread_ts=1700000000.000100`. */
+export const threadTsOf = (permalink: string | undefined): string | null => {
+  try {
+    return permalink ? new URL(permalink).searchParams.get('thread_ts') : null;
+  } catch {
+    return null;
+  }
+};
+
+const channelTypeOf = (channel: SlackSearchMatch['channel']): SlackMessageEvent['channel_type'] => {
+  // DM channel IDs start with D; search does not always say is_im.
+  if (channel.is_im || channel.id.startsWith('D')) {
+    return 'im';
+  }
+
+  if (channel.is_mpim) {
+    return 'mpim';
+  }
+
+  return channel.is_private ? 'group' : 'channel';
+};
+
+/** A search result as the message event everything else reads (blocks and attachments too). */
+export const eventFromMatch = (match: SlackSearchMatch): SlackMessageEvent => {
+  const threadTs = threadTsOf(match.permalink);
+
+  return {
+    ...(match as object),
+    type: 'message',
+    channel: match.channel.id,
+    channel_type: channelTypeOf(match.channel),
+    user: match.user,
+    username: match.username,
+    text: match.text,
+    ts: match.ts,
+    ...(threadTs ? { thread_ts: threadTs } : {}),
+  };
+};
+
+/**
+ * What to search for to see everything since `sinceTs` (seconds). Slack's `after:` takes a
+ * day in the user's time zone, so it asks from two days earlier; the cursor does the rest.
+ */
+export const searchSince = (sinceTs: number): string =>
+  `after:${new Date((sinceTs - 2 * 86_400) * 1000).toISOString().slice(0, 10)}`;
 
 const CHANNEL_ID = /^[CG][A-Z0-9]{6,}$/;
 

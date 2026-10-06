@@ -48,14 +48,15 @@ export class TriageService implements ITriageService {
     const walk = async (
       index: number,
       probabilities: Readonly<Record<string, number>> | null,
-      unavailable: boolean
+      // Why sentence rules went unanswered, when they did: no key, or Jev not answering.
+      skipped: DecisionSource | null
     ): Promise<TriageDecision> => {
       const rule = active[index];
 
       if (!rule) {
         return this.decision(
           Category.Undecided,
-          unavailable ? DecisionSource.ClassifierUnavailable : DecisionSource.NoRule,
+          skipped ?? DecisionSource.NoRule,
           null,
           probabilities ?? {}
         );
@@ -69,13 +70,21 @@ export class TriageService implements ITriageService {
               rule,
               probabilities ?? {}
             )
-          : walk(index + 1, probabilities, unavailable);
+          : walk(index + 1, probabilities, skipped);
       }
 
-      if (probabilities === null && !unavailable) {
+      if (probabilities === null && skipped === null) {
+        if (!this.jev.available()) {
+          return walk(index, {}, DecisionSource.NoAiKey);
+        }
+
         const asked = await this.askSoftRules(state, active.slice(index));
 
-        return walk(index, asked ?? {}, asked === null);
+        return walk(
+          index,
+          asked ?? {},
+          asked === null ? DecisionSource.ClassifierUnavailable : null
+        );
       }
 
       const probability = probabilities?.[rule.id];
@@ -87,10 +96,10 @@ export class TriageService implements ITriageService {
             rule,
             probabilities ?? {}
           )
-        : walk(index + 1, probabilities, unavailable);
+        : walk(index + 1, probabilities, skipped);
     };
 
-    return walk(0, null, false);
+    return walk(0, null, null);
   }
 
   public async triage(item: Item): Promise<Item> {

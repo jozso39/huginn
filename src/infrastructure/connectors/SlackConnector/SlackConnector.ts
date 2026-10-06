@@ -3,8 +3,10 @@ import type {
   ISlackClient,
   SlackIdentity,
   SlackMessageEvent,
+  SlackSearchMatch,
 } from '@/core/clients/SlackClient/SlackClient.types';
-import type { Connection } from '@/core/connections/Connection.types';
+import type { SlackTokens } from '@/core/clients/SlackOAuthClient/SlackOAuthClient.types';
+import type { Connection, Secrets } from '@/core/connections/Connection.types';
 import { ConnectionStatus, ConnectorKind } from '@/core/connections/Connection.types';
 import type {
   ActionResult,
@@ -13,7 +15,7 @@ import type {
   IConnector,
 } from '@/core/connectors/Connector.types';
 import { isShortName, shortNameOf } from '@/core/emoji/emoji.utils';
-import { toError } from '@/core/errors/errors';
+import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import type { Item, NewItem } from '@/core/items/Item.types';
 import { RichFormat } from '@/core/items/Item.types';
 import type { SlackChannelSettings } from './SlackConnector.types';
@@ -27,6 +29,7 @@ import {
   blocksText,
   channelsToCheck,
   classify,
+  eventFromMatch,
   itemKindFor,
   mentionsMe,
   normalizeEvent,
@@ -36,6 +39,7 @@ import {
   referencedUserIds,
   resolveChannels,
   replyThreadTs,
+  searchSince,
   threadKeyOf,
   toPlainText,
 } from './SlackConnector.utils';
@@ -44,17 +48,42 @@ import {
 const MAX_REMEMBERED_THREADS = 500;
 /** conversations.info is Tier 3 (~50/min); one sweep a minute asks about at most this many. */
 const MAX_READ_CHECKS = 20;
+/** Search can lag a little behind Slack: each check looks this far back again. */
+const OVERLAP_S = 300;
+/**
+ * Pages of 100 a check reads at most. A normal minute is one page; after days away this
+ * reads the newest 1,000 messages and says so, rather than eating everyone's rate limit.
+ */
+const MAX_PAGES = 10;
+/** Who is in which channel changes rarely; re-read for "everything in my channels". */
+const CHANNELS_REFRESH_MS = 30 * 60 * 1000;
 
 interface SlackCursor {
   readonly myThreads?: readonly string[];
+  /** The newest message read (seconds.micros, as Slack writes it). */
+  readonly latestTs?: string;
+  /** Where Socket Mode left off, for connections from before polling: reading resumes there. */
   readonly lastEventTs?: string;
 }
 
+export interface SlackPolling {
+  readonly intervalMs: number;
+  /** How far back the very first check reads. */
+  readonly lookbackMs: number;
+}
+
+const clearTimers = (timers: readonly (ReturnType<typeof setInterval> | null)[]) =>
+  timers.forEach((timer) => {
+    if (timer) {
+      clearInterval(timer);
+    }
+  });
+
 /**
- * Listens to every message the user can see over Socket Mode and keeps the ones
- * addressed to them: DMs, mentions (personal and group), replies in threads they
- * wrote in, and channels they chose to watch. Their own messages close the
- * conversation, so answering in Slack clears it here too.
+ * Checks Slack every interval with the user's own token: one search for everything new,
+ * then the same rules as always decide what is theirs — DMs, mentions (personal and
+ * group), replies in threads they wrote in, channels they watch. Their own messages
+ * close the conversation, so answering in Slack clears it here too.
  */
 export class SlackConnector implements IConnector {
   public readonly kind = ConnectorKind.Slack;
@@ -66,14 +95,22 @@ export class SlackConnector implements IConnector {
   };
   public readonly capabilities = SlackConnector.capabilities;
   private ctx: ConnectorContext | null = null;
+  private secrets: Secrets = {};
   private identity: SlackIdentity | null = null;
   private relevance: RelevanceContext | null = null;
   private myThreads: readonly string[] = [];
   private groupHandles: ReadonlyMap<string, string> = new Map();
-  // Events are handled one at a time so "my reply" can never overtake the
-  // message it answers and leave it open.
+  private channelsReadAt = 0;
+  // Own messages already acted on, so the overlap does not close a thread twice.
+  private handledOwn = new Set<string>();
+  // Checks run one at a time, and the read sweep waits its turn too.
   private queue: Promise<void> = Promise.resolve();
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
   private readTimer: ReturnType<typeof setInterval> | null = null;
+  // The last problem reported, so a recovery clears it once rather than every minute.
+  private problem: string | null = null;
+  // Watch / ignore entries that are no channel of the user's: shown until fixed.
+  private channelWarning: string | null = null;
 
   constructor(
     private readonly logger: Logger,
@@ -81,25 +118,28 @@ export class SlackConnector implements IConnector {
     private readonly client: ISlackClient,
     private readonly channels: SlackChannelSettings,
     private readonly maxBodyChars: number,
-    private readonly readCheckMs: number
+    private readonly readCheckMs: number,
+    private readonly polling: SlackPolling
   ) {}
 
   public async start(ctx: ConnectorContext): Promise<void> {
     this.ctx = ctx;
-    this.identity = await this.client.identify();
+    this.secrets = ctx.secrets;
+    // Rotating tokens are refreshed inside the client; keep each new pair.
+    this.client.onTokens((tokens) => this.keepTokens(tokens));
+
+    try {
+      this.identity = await this.client.identify();
+    } catch (error) {
+      if (await this.needsSignIn(error)) {
+        return;
+      }
+
+      throw error;
+    }
 
     const cursor = ctx.getCursor() as SlackCursor;
-
-    const [groups, myChannels] = await Promise.all([
-      this.client.myUserGroups(this.identity.userId),
-      // Only needed to turn "#name" into an ID; skipped when nothing is listed.
-      this.channels.watch.length + this.channels.ignore.length > 0
-        ? this.client.myChannels()
-        : Promise.resolve([]),
-    ]);
-    const watched = resolveChannels(this.channels.watch, myChannels);
-    const ignored = resolveChannels(this.channels.ignore, myChannels);
-    const unknown = [...watched.unknown, ...ignored.unknown];
+    const groups = await this.client.myUserGroups(this.identity.userId);
 
     this.myThreads = cursor.myThreads ?? [];
     this.groupHandles = new Map(groups.map((group) => [group.id, group.handle]));
@@ -107,35 +147,33 @@ export class SlackConnector implements IConnector {
       me: this.identity.userId,
       myGroupIds: new Set(groups.map((group) => group.id)),
       channelScope: this.channels.scope,
-      watchedChannels: watched.ids,
-      ignoredChannels: ignored.ids,
+      watchedChannels: new Set(),
+      ignoredChannels: new Set(),
+      myChannels: new Set(),
       myThreads: new Set(this.myThreads),
     };
+    await this.check();
 
-    await this.client.listen((event) => {
-      this.queue = this.queue.then(() => this.handle(event));
-    });
-    await ctx.markSynced();
+    // A check that found the token wanting has asked to sign in; nothing to repeat.
+    if (!this.ctx) {
+      return;
+    }
+
+    this.pollTimer = setInterval(() => {
+      this.queue = this.queue.then(() => this.check());
+    }, this.polling.intervalMs);
 
     if (this.channels.whenRead === SlackReadMode.Clear) {
-      // Through the event queue, so a sweep never races a message being stored.
       this.readTimer = setInterval(() => {
         this.queue = this.queue.then(() => this.clearRead());
       }, this.readCheckMs);
     }
-
-    if (unknown.length > 0) {
-      await ctx.report(ConnectionStatus.Running, `Not a channel you are in: ${unknown.join(', ')}`);
-    }
   }
 
   public async stop(): Promise<void> {
-    if (this.readTimer) {
-      clearInterval(this.readTimer);
-      this.readTimer = null;
-    }
-
-    await this.client.close();
+    clearTimers([this.pollTimer, this.readTimer]);
+    this.pollTimer = null;
+    this.readTimer = null;
     await this.queue;
     this.ctx = null;
   }
@@ -180,6 +218,123 @@ export class SlackConnector implements IConnector {
     }
   }
 
+  /** One check: everything newer than last time, oldest first, through the usual rules. */
+  private async check(): Promise<void> {
+    const ctx = this.ctx;
+
+    if (!ctx || !this.relevance) {
+      return;
+    }
+
+    try {
+      if (Date.now() - this.channelsReadAt > CHANNELS_REFRESH_MS) {
+        await this.readChannels();
+      }
+
+      const cursor = ctx.getCursor() as SlackCursor;
+      const since = Number(
+        cursor.latestTs ?? cursor.lastEventTs ?? (Date.now() - this.polling.lookbackMs) / 1000
+      );
+      const floor = since - OVERLAP_S;
+      const { matches, complete } = await this.readSince(floor);
+      const newest = matches.reduce((max, match) => Math.max(max, Number(match.ts)), since);
+
+      await [...matches]
+        .sort((a, b) => Number(a.ts) - Number(b.ts))
+        .reduce((done, match) => done.then(() => this.handle(match)), Promise.resolve());
+      // Own messages older than the overlap can no longer come round again.
+      this.handledOwn = new Set(
+        [...this.handledOwn].filter((key) => Number(key.split(':')[1]) > floor)
+      );
+      await ctx.setCursor({ ...ctx.getCursor(), latestTs: newest.toFixed(6) });
+      await this.settle(
+        complete
+          ? this.channelWarning
+          : 'More new Slack messages than one check reads; the oldest were skipped'
+      );
+    } catch (error) {
+      if (await this.needsSignIn(error)) {
+        return;
+      }
+
+      this.logger.warn(
+        { connectionId: this.connection.id, err: toError(error) },
+        'slack check failed'
+      );
+      await this.settle(toError(error).message);
+    }
+  }
+
+  /** Search pages, newest first, until they reach `floor` (or the page limit). */
+  private async readSince(
+    floor: number
+  ): Promise<{ matches: readonly SlackSearchMatch[]; complete: boolean }> {
+    const read = async (
+      page: number,
+      acc: readonly SlackSearchMatch[]
+    ): Promise<{ matches: readonly SlackSearchMatch[]; complete: boolean }> => {
+      const result = await this.client.search(searchSince(floor), page);
+      const fresh = result.matches.filter((match) => Number(match.ts) > floor);
+      const matches = [...acc, ...fresh];
+
+      if (fresh.length < result.matches.length || page >= result.pages) {
+        return { matches, complete: true };
+      }
+
+      return page >= MAX_PAGES ? { matches, complete: false } : read(page + 1, matches);
+    };
+
+    return read(1, []);
+  }
+
+  private async handle(match: SlackSearchMatch): Promise<void> {
+    const ctx = this.ctx;
+    const relevance = this.relevance;
+    const identity = this.identity;
+    const found = normalizeEvent(eventFromMatch(match));
+
+    if (!ctx || !relevance || !identity || !found) {
+      return;
+    }
+
+    try {
+      const verdict = classify(found, relevance);
+
+      if (verdict === SlackRelevance.Own) {
+        const key = `${found.channel}:${found.ts}`;
+
+        if (!this.handledOwn.has(key)) {
+          this.handledOwn.add(key);
+          await ctx.closeThread(threadKeyOf(found));
+          await this.rememberThread(`${found.channel}:${found.thread_ts ?? found.ts}`);
+        }
+
+        return;
+      }
+
+      if (verdict === SlackRelevance.Ignore) {
+        return;
+      }
+
+      // Search carries the whole message; a bare result (only a file, say) is fetched.
+      const event =
+        found.text || found.blocks || found.attachments ? found : await this.fullMessage(found);
+
+      await ctx.upsert(await this.toItem(event, verdict, relevance, identity));
+    } catch (error) {
+      this.logger.warn(
+        { connectionId: this.connection.id, err: toError(error) },
+        'slack message dropped'
+      );
+    }
+  }
+
+  private async fullMessage(event: SlackMessageEvent): Promise<SlackMessageEvent> {
+    const full = await this.client.message(event.channel, event.ts, event.thread_ts ?? null);
+
+    return full ? { ...full, channel: event.channel, channel_type: event.channel_type } : event;
+  }
+
   /** Closes what the user has read in Slack since it came in (main timelines only). */
   private async clearRead(): Promise<void> {
     const ctx = this.ctx;
@@ -207,40 +362,66 @@ export class SlackConnector implements IConnector {
     }
   }
 
-  private async handle(raw: SlackMessageEvent): Promise<void> {
-    const ctx = this.ctx;
+  /** Channel names for the watch and ignore lists, and what "my channels" means. */
+  private async readChannels(): Promise<void> {
     const relevance = this.relevance;
-    const identity = this.identity;
-    const event = normalizeEvent(raw);
 
-    // Any event, kept or not, shows the connection is alive.
-    await ctx?.markSynced();
-
-    if (!ctx || !relevance || !identity || !event) {
+    if (!relevance) {
       return;
     }
 
-    try {
-      const verdict = classify(event, relevance);
+    const needed =
+      this.channels.scope === SlackChannelScope.AllMyChannels ||
+      this.channels.watch.length + this.channels.ignore.length > 0;
+    const mine = needed ? await this.client.myChannels() : [];
+    const watched = resolveChannels(this.channels.watch, mine);
+    const ignored = resolveChannels(this.channels.ignore, mine);
+    const unknown = [...watched.unknown, ...ignored.unknown];
 
-      if (verdict === SlackRelevance.Own) {
-        await ctx.closeThread(threadKeyOf(event));
-        await this.rememberThread(`${event.channel}:${event.thread_ts ?? event.ts}`);
+    this.channelsReadAt = Date.now();
+    this.channelWarning =
+      unknown.length > 0 ? `Not a channel you are in: ${unknown.join(', ')}` : null;
+    this.relevance = {
+      ...relevance,
+      watchedChannels: watched.ids,
+      ignoredChannels: ignored.ids,
+      myChannels: new Set(mine.map((channel) => channel.id)),
+    };
+  }
 
-        return;
-      }
+  private async keepTokens(tokens: SlackTokens): Promise<void> {
+    this.secrets = {
+      ...this.secrets,
+      userToken: tokens.accessToken,
+      ...(tokens.refreshToken ? { refreshToken: tokens.refreshToken } : {}),
+      ...(tokens.expiresAt ? { expiresAt: String(tokens.expiresAt) } : {}),
+    };
+    await this.ctx?.saveSecrets(this.secrets);
+  }
 
-      if (verdict === SlackRelevance.Ignore) {
-        return;
-      }
-
-      await ctx.upsert(await this.toItem(event, verdict, relevance, identity));
-    } catch (error) {
-      this.logger.warn(
-        { connectionId: this.connection.id, err: toError(error) },
-        'slack event dropped'
-      );
+  /** A token Slack no longer takes (or one missing a permission): ask to sign in again. */
+  private async needsSignIn(error: unknown): Promise<boolean> {
+    if (!(error instanceof HuginnError) || error.code !== ErrorCode.Unauthorized) {
+      return false;
     }
+
+    clearTimers([this.pollTimer, this.readTimer]);
+    this.pollTimer = null;
+    this.readTimer = null;
+    await this.ctx?.report(ConnectionStatus.NeedsAuth, error.message);
+    this.ctx = null;
+
+    return true;
+  }
+
+  /** Says what is wrong once, and clears it once it is fine again. */
+  private async settle(problem: string | null): Promise<void> {
+    if (problem === this.problem) {
+      return;
+    }
+
+    this.problem = problem;
+    await this.ctx?.report(ConnectionStatus.Running, problem);
   }
 
   private async toItem(

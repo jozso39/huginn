@@ -145,14 +145,28 @@ describe('TriageService', () => {
     expect(jev.calls - before).toBe(1);
   });
 
-  test('without Jev, soft rules are skipped and the item says why', async () => {
+  test('without an AI key, sentence rules are skipped and the item says why', async () => {
     jev.isAvailable = false;
 
     const item = await ingest('Weekly digest');
 
     expect(item.category).toBe(Category.Undecided);
-    expect(item.decision?.source).toBe(DecisionSource.ClassifierUnavailable);
+    expect(item.decision?.source).toBe(DecisionSource.NoAiKey);
     jev.isAvailable = true;
+  });
+
+  test('when Jev does not answer, the item says the classifier was unreachable', async () => {
+    const answer = jev.answer;
+
+    jev.answer = () => {
+      throw new Error('timeout');
+    };
+
+    const item = await ingest('Weekly digest again');
+
+    expect(item.category).toBe(Category.Undecided);
+    expect(item.decision?.source).toBe(DecisionSource.ClassifierUnavailable);
+    jev.answer = answer;
   });
 
   test('re-triage moves waiting items after a rule change but never touches a hand-sorted one', async () => {

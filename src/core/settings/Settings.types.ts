@@ -18,4 +18,5 @@ export interface ISettingsStore {
   /** The stored value, or undefined when it was never set. */
   get(key: string): Promise<unknown>;
   set(key: string, value: unknown): Promise<void>;
+  remove(key: string): Promise<void>;
 }

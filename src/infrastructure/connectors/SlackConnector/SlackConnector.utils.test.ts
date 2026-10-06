@@ -16,6 +16,7 @@ import {
   blocksText,
   SlackRelevance,
   classify,
+  eventFromMatch,
   itemKindFor,
   normalizeEvent,
   parseChannelList,
@@ -23,7 +24,9 @@ import {
   referencedUserIds,
   resolveChannels,
   replyThreadTs,
+  searchSince,
   threadKeyOf,
+  threadTsOf,
   toPlainText,
 } from './SlackConnector.utils';
 
@@ -33,6 +36,7 @@ const ctx: RelevanceContext = {
   channelScope: SlackChannelScope.AddressedToMe,
   watchedChannels: new Set(['CWATCH']),
   ignoredChannels: new Set(['CRANDOM']),
+  myChannels: new Set(['CGEN', 'CWATCH', 'CRANDOM']),
   myThreads: new Set(['CGEN:1700000000.000100']),
 };
 
@@ -80,6 +84,13 @@ describe('all-my-channels scope', () => {
   test('keeps every channel except the ignored ones', () => {
     expect(classify(message({ channel: 'CGEN' }), all)).toBe(SlackRelevance.ChannelMessage);
     expect(classify(message({ channel: 'CRANDOM' }), all)).toBe(SlackRelevance.Ignore);
+  });
+
+  test('a public channel the user never joined is not "theirs" (search finds those too)', () => {
+    expect(classify(message({ channel: 'COTHER' }), all)).toBe(SlackRelevance.Ignore);
+    expect(classify(message({ channel: 'COTHER', text: 'ping <@UME>' }), all)).toBe(
+      SlackRelevance.Mention
+    );
   });
 
   test('a mention still gets through an ignored channel, like a muted one in Slack', () => {
@@ -293,5 +304,32 @@ describe('opening in the Slack app', () => {
     expect(appLink('T9', { ...event, thread_ts: '1700000000.000100' })).toBe(
       'slack://channel?team=T9&id=C1&message=1700000500.000200&thread_ts=1700000000.000100'
     );
+  });
+});
+
+describe('search results', () => {
+  test('a thread reply gets its thread from the permalink; a DM is a DM by its ID', () => {
+    const reply = eventFromMatch({
+      ts: '1700000100.000200',
+      channel: { id: 'CGEN', name: 'general' },
+      user: 'UBOSS',
+      text: 'done?',
+      permalink:
+        'https://acme.slack.com/archives/CGEN/p1700000100000200?thread_ts=1700000000.000100&cid=CGEN',
+    });
+
+    expect(reply).toMatchObject({
+      channel: 'CGEN',
+      channel_type: 'channel',
+      thread_ts: '1700000000.000100',
+    });
+    expect(eventFromMatch({ ts: '1.2', channel: { id: 'D123', name: 'UBOSS' } }).channel_type).toBe(
+      'im'
+    );
+    expect(threadTsOf('not a url')).toBeNull();
+  });
+
+  test('the search reaches two days before the cursor, for any time zone', () => {
+    expect(searchSince(Date.UTC(2026, 9, 6, 12) / 1000)).toBe('after:2026-10-04');
   });
 });

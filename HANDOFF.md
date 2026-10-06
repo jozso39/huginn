@@ -36,7 +36,7 @@ a Mac and an iPhone. 8 commits, ~13k lines, **94 tests** (`bun run test`).
 | Settings page: connections by category + *Add connection*, categories, quick reactions (typed emoji, validated), theme System/Light/Dark | done |
 | Connection colours (palette or any colour, mixed into the background so text stays readable) | done |
 | Archive search (every word, case and accents ignored, over the whole archive) | done |
-| Connectors: **Slack** (Socket Mode, user token), **Gmail** (any number, Google sign-in), **GitLab** (todos), **ClickUp** (polling), **Ingest API** | done — see §5 for what is verified live |
+| Connectors: **Slack** (sign in with Slack — PKCE, the company's own app, no secret; one search per check with each person's own token), **Gmail** (any number, Google sign-in), **GitLab** (todos), **ClickUp** (polling), **Ingest API** | done — see §5 for what is verified live |
 | Google sign-in: one shared OAuth app, connections created by signing in, relay page | done, used live |
 | Triage: hard + soft (Jev) rules, default rules per connector, rules page, dry run, history | done, running live |
 | Learning from Spam / Important + reason (agent + Jev guardrails) | done, first live runs 2026-09-29 (§5) |

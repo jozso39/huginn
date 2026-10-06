@@ -159,7 +159,12 @@ export class FeedbackService implements IFeedbackService {
     explanation: string
   ): Promise<FeedbackResult> {
     if (!this.llm.available()) {
-      return this.itemOnly(item, 'Moved. Rule learning needs HUGINN_OPENROUTER_API_KEY.');
+      return this.itemOnly(
+        item,
+        this.jev.available()
+          ? 'Moved. Turning a reason into a rule needs an OpenRouter key; with TypeSafe, add the rule yourself.'
+          : 'Moved. To turn your reason into a rule, add an AI key in Settings → AI triage.'
+      );
     }
 
     const connection = await this.connectionStore.get(item.connectionId);

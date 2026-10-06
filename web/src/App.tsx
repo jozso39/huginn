@@ -47,12 +47,15 @@ export const App = () => {
     kinds,
     groups,
     settings,
+    ai,
     live,
     error,
     refresh,
     applyItem,
     saveSettings,
     createGroup,
+    saveAiKey,
+    removeAiKey,
   } = useHuginn();
   const [route, setRoute] = useState<Route>(routeFromHash);
   const { tab, rulesFor } = route;
@@ -135,17 +138,22 @@ export const App = () => {
         {tab === 'archive' && (
           <ArchiveView items={closed} connections={connections} onChanged={applyItem} />
         )}
-        {tab === 'settings' && rulesConnection && <RulesView connection={rulesConnection} />}
+        {tab === 'settings' && rulesConnection && (
+          <RulesView connection={rulesConnection} hasAiKey={ai !== null} />
+        )}
         {tab === 'settings' && !rulesConnection && (
           <SettingsView
             connections={connections}
             kinds={kinds}
             groups={groups}
             settings={settings}
+            ai={ai}
             categoriesRequest={route.categoriesAt}
             onChanged={refresh}
             onCreateGroup={createGroup}
             saveSettings={saveSettings}
+            onSaveAiKey={saveAiKey}
+            onRemoveAiKey={removeAiKey}
           />
         )}
       </main>

@@ -4,9 +4,8 @@ import type {
   IOAuthAppStore,
   OAuthAppCredentials,
   OAuthAppView,
-  OAuthProvider,
 } from '@/core/oauth/OAuthApp.types';
-import { RedirectMode } from '@/core/oauth/OAuthApp.types';
+import { OAuthProvider, RedirectMode } from '@/core/oauth/OAuthApp.types';
 import type { ISecretBox } from '@/core/secrets/SecretBox.types';
 import type { IOAuthAppService, OAuthAppUpdate } from './OAuthAppService.types';
 
@@ -17,7 +16,17 @@ export interface OAuthAppServiceConfig {
   readonly publicUrl: string | null;
   /** The relay page, if one is deployed. */
   readonly relayUrl: string | null;
+  /** Every port this Huginn may listen on, for providers that redirect to this machine. */
+  readonly ports: readonly number[];
 }
+
+/**
+ * Public clients sign in with PKCE and no secret, back to `http://localhost:<port>` (Slack
+ * accepts nothing else for desktop apps, and only exact ports).
+ */
+const PUBLIC_CLIENTS: ReadonlySet<OAuthProvider> = new Set([OAuthProvider.Slack]);
+
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost']);
 
 export class OAuthAppService implements IOAuthAppService {
   constructor(
@@ -30,20 +39,58 @@ export class OAuthAppService implements IOAuthAppService {
   public async view(provider: OAuthProvider): Promise<OAuthAppView> {
     const stored = await this.store.get(provider);
 
+    if (PUBLIC_CLIENTS.has(provider)) {
+      return {
+        provider,
+        configured: stored !== null,
+        clientId: stored?.clientId ?? null,
+        redirectMode: RedirectMode.Direct,
+        redirectUris: { [RedirectMode.Direct]: this.loopbackUri(), [RedirectMode.Relay]: null },
+        needsSecret: false,
+        registerUris: this.config.ports.map(
+          (port) => `http://localhost:${port}${OAUTH_CALLBACK_PATH}`
+        ),
+      };
+    }
+
+    const redirectMode = stored?.redirectMode ?? this.defaultMode();
+
     return {
       provider,
       configured: stored !== null,
       clientId: stored?.clientId ?? null,
-      redirectMode: stored?.redirectMode ?? this.defaultMode(),
+      redirectMode,
       redirectUris: {
         [RedirectMode.Direct]: this.redirectUri(RedirectMode.Direct),
         [RedirectMode.Relay]: this.redirectUri(RedirectMode.Relay),
       },
+      needsSecret: true,
+      registerUris: [this.redirectUri(redirectMode)].filter((uri) => uri !== null),
     };
   }
 
   public async save(provider: OAuthProvider, update: OAuthAppUpdate): Promise<OAuthAppView> {
     const stored = await this.store.get(provider);
+
+    if (PUBLIC_CLIENTS.has(provider)) {
+      if (!this.loopbackUri()) {
+        throw new HuginnError(
+          ErrorCode.Validation,
+          `${provider} sign-in works only in the Huginn app on this Mac`
+        );
+      }
+
+      // Nothing secret to keep: the client ID is all a PKCE sign-in needs.
+      await this.store.save({
+        provider,
+        clientId: update.clientId,
+        redirectMode: RedirectMode.Direct,
+        secretCiphertext: '',
+      });
+      this.logger.info({ provider }, 'oauth app saved');
+
+      return this.view(provider);
+    }
 
     if (!this.redirectUri(update.redirectMode)) {
       throw new HuginnError(
@@ -78,12 +125,34 @@ export class OAuthAppService implements IOAuthAppService {
       return null;
     }
 
+    if (PUBLIC_CLIENTS.has(provider)) {
+      return {
+        provider,
+        clientId: stored.clientId,
+        clientSecret: '',
+        redirectUri: this.loopbackUri(),
+      };
+    }
+
     return {
       provider,
       clientId: stored.clientId,
       clientSecret: await this.secretBox.open(stored.secretCiphertext),
       redirectUri: this.redirectUri(stored.redirectMode),
     };
+  }
+
+  /** This Huginn's own port on `localhost`; null when it is not on this machine. */
+  private loopbackUri(): string | null {
+    if (!this.config.publicUrl) {
+      return null;
+    }
+
+    const url = new URL(this.config.publicUrl);
+
+    return LOOPBACK_HOSTS.has(url.hostname)
+      ? `http://localhost:${url.port || '80'}${OAUTH_CALLBACK_PATH}`
+      : null;
   }
 
   private defaultMode(): RedirectMode {

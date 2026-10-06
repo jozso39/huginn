@@ -28,10 +28,10 @@ const envSchema = z.object({
   // A static page on a domain Google already trusts that forwards sign-ins back to
   // HUGINN_PUBLIC_URL (see docs/oauth-relay.html). Optional.
   HUGINN_OAUTH_RELAY_URL: z.url().optional(),
-  // Triage: Jev for soft rules and guardrails, a chat model for the rule agent.
-  // Without a key Huginn still triages with hard rules only.
-  HUGINN_OPENROUTER_API_KEY: z.string().min(10).optional(),
+  // Triage: Jev for sentence rules and guardrails, a chat model for the rule agent.
+  // The key itself is set in Settings → AI triage; these pin the models.
   HUGINN_JEV_MODEL: z.string().default('typesafe/jev-1.13'),
+  HUGINN_TYPESAFE_JEV_MODEL: z.string().default('jev-1.13.0'),
   HUGINN_FEEDBACK_MODEL: z.string().default('anthropic/claude-haiku-4.5'),
   // Web Push to phones (Important items only). Generate with `bun run vapid`; without
   // them notifications are simply off.

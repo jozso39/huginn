@@ -1,9 +1,10 @@
 import type { Logger } from '@/lib/logger';
 import type { ILlmClient, JsonCompletionRequest } from '@/core/clients/LlmClient/LlmClient.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
+import type { IAiKeySource } from '@/core/settings/AiKey.types';
+import { AiProvider } from '@/core/settings/AiKey.types';
 
 export interface OpenRouterLlmClientConfig {
-  readonly apiKey: string | null;
   readonly model: string;
   readonly timeoutMs: number;
 }
@@ -19,18 +20,22 @@ interface ChatResponse {
 export class OpenRouterLlmClient implements ILlmClient {
   constructor(
     private readonly logger: Logger,
+    private readonly keys: IAiKeySource,
     private readonly config: OpenRouterLlmClientConfig
   ) {}
 
+  /** Only an OpenRouter key brings a chat model; TypeSafe offers Jev alone. */
   public available(): boolean {
-    return this.config.apiKey !== null;
+    return this.keys.credentials()?.provider === AiProvider.OpenRouter;
   }
 
   public async completeJson(request: JsonCompletionRequest): Promise<unknown> {
-    if (!this.config.apiKey) {
+    const credentials = this.keys.credentials();
+
+    if (credentials?.provider !== AiProvider.OpenRouter) {
       throw new HuginnError(
         ErrorCode.Unsupported,
-        'the rule agent needs HUGINN_OPENROUTER_API_KEY'
+        'Learning rules from a reason needs an OpenRouter key (Settings → AI triage)'
       );
     }
 
@@ -38,7 +43,7 @@ export class OpenRouterLlmClient implements ILlmClient {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
+        Authorization: `Bearer ${credentials.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

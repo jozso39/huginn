@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type {
+  AiKeyInfo,
+  AiProvider,
   Connection,
   ConnectionGroup,
   ConnectorDescriptor,
@@ -7,6 +9,7 @@ import type {
   Theme,
 } from '../api.types';
 import { applyTheme } from '../theme';
+import { AiKeySection } from './AiKeySection';
 import { CategoriesManager } from './CategoriesManager';
 import { ConnectionsView } from './ConnectionsView';
 import { ReactionsPicker } from './ReactionsPicker';
@@ -16,11 +19,14 @@ interface SettingsViewProps {
   kinds: ConnectorDescriptor[];
   groups: ConnectionGroup[];
   settings: Settings | null;
+  ai: AiKeyInfo | null;
   /** Set (to when it was asked) by #settings/categories: open the list and show it. */
   categoriesRequest: number | null;
   onChanged: () => Promise<void>;
   onCreateGroup: (name: string) => Promise<ConnectionGroup>;
   saveSettings: (patch: Partial<Settings>) => Promise<void>;
+  onSaveAiKey: (provider: AiProvider, key: string) => Promise<void>;
+  onRemoveAiKey: () => Promise<void>;
 }
 
 const THEMES: { id: Theme; label: string; hint: string }[] = [
@@ -35,10 +41,13 @@ export const SettingsView = ({
   kinds,
   groups,
   settings,
+  ai,
   categoriesRequest,
   onChanged,
   onCreateGroup,
   saveSettings,
+  onSaveAiKey,
+  onRemoveAiKey,
 }: SettingsViewProps) => {
   const [themeError, setThemeError] = useState<string | null>(null);
   const categoriesRef = useRef<HTMLDetailsElement>(null);
@@ -84,6 +93,11 @@ export const SettingsView = ({
         </summary>
         <CategoriesManager groups={groups} connections={connections} onChanged={onChanged} />
       </details>
+
+      <section className="settings__section">
+        <h2>AI triage</h2>
+        <AiKeySection ai={ai} onSave={onSaveAiKey} onRemove={onRemoveAiKey} />
+      </section>
 
       <section className="settings__section">
         <h2>Quick reactions</h2>

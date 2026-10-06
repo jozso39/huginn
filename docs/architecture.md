@@ -13,7 +13,7 @@ browser (dashboard, installable)  ──HTTP + SSE──▶  Bun process  ──
                                                     ├─ Hono routes (interface/http)
 external writers (scripts, Hermes) ──POST /api/items┤─ services (core/services)
                                                     ├─ ConnectorHost → one connector per connection
-                                                    │     Slack (Socket Mode), Gmail (history poll),
+                                                    │     Slack (search poll), Gmail (history poll),
                                                     │     GitLab (todo poll), ClickUp (task poll)
                                                     └─ Jev (OpenRouter System One), chat model (OpenRouter)
 ```
@@ -129,7 +129,7 @@ unreadable secrets into an error on that connection only.
 
 | Connector | Receives | Acts |
 |---|---|---|
-| Slack | Socket Mode events (user token): DMs, mentions (incl. groups), replies in the user's threads, watched or all channels minus ignored; own messages close the thread | reply (thread or DM), react |
+| Slack | one `search.messages` per check with the person's own token (PKCE sign-in, rotating tokens refreshed and re-sealed): DMs, mentions (incl. groups), replies in the user's threads, watched or all of their channels minus ignored; own messages close the thread; first sign-in reads the last day | reply (thread or DM), react (emoji → Slack short name) |
 | Gmail | `history.list` every 60 s; first sync = unread inbox ≤ 50 from 7 days; read/archived/answered elsewhere closes | reply in thread, draft, done = mark read, content = HTML |
 | GitLab | `GET /todos` every 60 s; a todo gone at GitLab closes the item | comment on MR/issue, done = mark todo done |
 | ClickUp | tasks assigned to the user changed since cursor (≤ 25/min) + their comments; new assignments; own comment closes | reply in comment thread / task comment |

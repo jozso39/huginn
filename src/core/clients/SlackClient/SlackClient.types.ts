@@ -1,3 +1,5 @@
+import type { SlackTokens } from '@/core/clients/SlackOAuthClient/SlackOAuthClient.types';
+
 /** The fields of a Slack `message` event Huginn reads. Names follow the Events API. */
 /** A legacy message attachment: the coloured side-bar box apps (Google Calendar, Jira…) send. */
 export interface SlackAttachment {
@@ -80,11 +82,33 @@ export interface SlackPostedMessage {
   readonly ts: string;
 }
 
-export type SlackMessageHandler = (event: SlackMessageEvent) => void;
+/** A message as Slack's search returns it: enough to decide whether it matters. */
+export interface SlackSearchMatch {
+  readonly ts: string;
+  readonly channel: {
+    readonly id: string;
+    readonly name?: string;
+    readonly is_im?: boolean;
+    readonly is_mpim?: boolean;
+    readonly is_private?: boolean;
+  };
+  readonly user?: string;
+  readonly username?: string;
+  readonly text?: string;
+  /** For a thread reply it carries `thread_ts`, which the match itself does not. */
+  readonly permalink?: string;
+}
+
+export interface SlackSearchPage {
+  readonly matches: readonly SlackSearchMatch[];
+  /** How many pages the whole result has. */
+  readonly pages: number;
+}
 
 /**
- * Everything Huginn does with Slack, acting as the user (user token) and
- * listening over Socket Mode (app token). No public URL is involved.
+ * Everything Huginn does with Slack, as the signed-in person with their own token.
+ * Nothing is pushed: Huginn asks, so one company Slack app can serve everyone without
+ * anyone's messages reaching anyone else.
  */
 export interface ISlackClient {
   identify(): Promise<SlackIdentity>;
@@ -96,8 +120,12 @@ export interface ISlackClient {
   lastRead(channelId: string): Promise<string | null>;
   /** Public and private channels the user is a member of (not DMs). */
   myChannels(): Promise<readonly SlackChannelInfo[]>;
+  /** Messages the user can see that match `query`, newest first, 100 a page (page 1…). */
+  search(query: string, page: number): Promise<SlackSearchPage>;
+  /** One whole message (blocks, attachments, files) by where it is; null if it is gone. */
+  message(channel: string, ts: string, threadTs: string | null): Promise<SlackMessageEvent | null>;
   postMessage(channel: string, text: string, threadTs?: string): Promise<SlackPostedMessage>;
   addReaction(channel: string, ts: string, emoji: string): Promise<void>;
-  listen(onMessage: SlackMessageHandler): Promise<void>;
-  close(): Promise<void>;
+  /** Told whenever rotating tokens were refreshed, so the new ones can be kept. */
+  onTokens(handler: (tokens: SlackTokens) => Promise<void>): void;
 }

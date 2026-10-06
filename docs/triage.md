@@ -48,7 +48,15 @@ Every change is in the rule history with your explanation and the checks it pass
 
 ## Configuration
 
-`HUGINN_OPENROUTER_API_KEY` enables sentence rules, the guardrails and the agent.
-Without it, condition rules still work and Spam / Important still move items.
-`HUGINN_JEV_MODEL` (default `typesafe/jev-1.13`) and `HUGINN_FEEDBACK_MODEL` (default
-`anthropic/claude-haiku-4.5`) pick the models.
+**Settings → AI triage** takes one key, checked with its provider before it is kept
+(sealed; it is never shown again, only replaced or removed):
+
+- **OpenRouter** — sentence rules and guardrails (Jev) and the rule-learning agent.
+- **TypeSafe** — sentence rules and guardrails straight from TypeSafe. It has no chat
+  model, so a Spam / Important reason moves the item but is not turned into a rule.
+- **None** — condition rules still sort everything and Spam / Important still move items;
+  sentence rules are skipped and their messages wait in Undecided, saying why.
+
+`HUGINN_JEV_MODEL` (default `typesafe/jev-1.13`), `HUGINN_TYPESAFE_JEV_MODEL` (default
+`jev-1.13.0`) and `HUGINN_FEEDBACK_MODEL` (default `anthropic/claude-haiku-4.5`) pin the
+models.

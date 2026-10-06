@@ -3,9 +3,6 @@ import { createContainer } from '@/dependency/container/container';
 import { DesktopChannel } from '@/infrastructure/desktop/DesktopChannel';
 import { createApp } from '@/interface/http/app';
 
-// The Mac app's port first; the next two are registered as Slack sign-in fallbacks.
-const PORT_TRIES = 3;
-
 const main = async () => {
   const desktop = process.env.HUGINN_DESKTOP === '1' ? new DesktopChannel() : null;
   // In the Mac app secrets come over stdin, so they never show in the process list or
@@ -25,7 +22,8 @@ const main = async () => {
         idleTimeout: 0,
       });
     } catch (error) {
-      if (desktop && attempt + 1 < PORT_TRIES) {
+      // The Mac app's port first; the next ones are registered as Slack sign-in fallbacks.
+      if (attempt + 1 < settings.ports.length) {
         return serve(attempt + 1);
       }
 
@@ -42,6 +40,8 @@ const main = async () => {
   });
   const { logger } = container;
 
+  // The AI key first: connectors may triage their first items right away.
+  await container.settingsService.start();
   // Connections from before triage existed get their connector's default rules.
   await container.ruleService.installMissingDefaults();
   await container.inboxService.indexForSearch();

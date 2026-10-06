@@ -8,6 +8,8 @@ import { ConnectorIcon } from './ConnectorIcon';
 
 interface RulesViewProps {
   connection: Connection;
+  /** Sentence rules only run with an AI key (Settings → AI triage). */
+  hasAiKey: boolean;
 }
 
 const ORIGIN_LABEL: Record<Rule['origin'], string> = {
@@ -42,7 +44,7 @@ const checkSummary = (checks: Record<string, unknown> | null): string | null => 
  * Every rule of one connection, in the order they are tried: the first that fires
  * decides. Proposals from the feedback agent wait at the top for a yes or no.
  */
-export const RulesView = ({ connection }: RulesViewProps) => {
+export const RulesView = ({ connection, hasAiKey }: RulesViewProps) => {
   const [rules, setRules] = useState<Rule[]>([]);
   const [history, setHistory] = useState<RuleHistoryEntry[]>([]);
   const [fields, setFields] = useState<FieldInfo[]>([]);
@@ -93,6 +95,7 @@ export const RulesView = ({ connection }: RulesViewProps) => {
         <RuleEditor
           connectionId={connection.id}
           fields={fields}
+          hasAiKey={hasAiKey}
           initial={rule}
           onSaved={() => {
             setEditing(null);
@@ -224,6 +227,7 @@ export const RulesView = ({ connection }: RulesViewProps) => {
         <RuleEditor
           connectionId={connection.id}
           fields={fields}
+          hasAiKey={hasAiKey}
           onSaved={() => {
             setEditing(null);
             void act(() => Promise.resolve(), 'Rule added. Waiting items are being re-sorted.');

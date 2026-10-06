@@ -42,6 +42,8 @@ export interface ConnectorContext {
   markSynced(): Promise<void>;
   getCursor(): ConnectionCursor;
   setCursor(cursor: ConnectionCursor): Promise<void>;
+  /** Replaces the stored secrets, e.g. after a rotating token was refreshed. */
+  saveSecrets(secrets: Secrets): Promise<void>;
   report(status: ConnectionStatus, message?: string | null): Promise<void>;
 }
 
@@ -77,8 +79,10 @@ export interface SecretField {
 export interface SignInResult {
   /** Secrets to store on the connection, e.g. a refresh token. */
   readonly secrets: Secrets;
-  /** Who signed in (an email address): names a new connection, finds an existing one. */
+  /** Who signed in (an email address, a Slack user): finds an existing connection. */
   readonly account: string;
+  /** What a new connection is called; the account when left out. */
+  readonly name?: string;
 }
 
 /**
@@ -88,8 +92,10 @@ export interface SignInResult {
 export interface IConnectorAuthorization {
   readonly provider: OAuthProvider;
   isAuthorized(secrets: Secrets): boolean;
-  authorizationUrl(app: SignInApp, state: string): string;
-  complete(app: SignInApp, code: string): Promise<SignInResult>;
+  /** `codeChallenge`: PKCE (S256) for this sign-in; providers without PKCE ignore it. */
+  authorizationUrl(app: SignInApp, state: string, codeChallenge: string): string;
+  /** `codeVerifier`: the secret behind the challenge, proving it is the same sign-in. */
+  complete(app: SignInApp, code: string, codeVerifier: string): Promise<SignInResult>;
 }
 
 /**

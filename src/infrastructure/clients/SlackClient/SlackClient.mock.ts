@@ -3,10 +3,12 @@ import type {
   SlackChannelInfo,
   SlackIdentity,
   SlackMessageEvent,
-  SlackMessageHandler,
   SlackPostedMessage,
+  SlackSearchMatch,
+  SlackSearchPage,
   SlackUserGroup,
 } from '@/core/clients/SlackClient/SlackClient.types';
+import type { SlackTokens } from '@/core/clients/SlackOAuthClient/SlackOAuthClient.types';
 
 export const MOCK_SLACK_ME = 'UME';
 
@@ -123,13 +125,29 @@ export const MOCK_SLACK_APP_PREVIEW: SlackMessageEvent = {
   ],
 };
 
+/** A message as Slack's search finds it; the thread is only in the permalink, as at Slack. */
+const asMatch = (event: SlackMessageEvent): SlackSearchMatch => ({
+  ...(event as object),
+  ts: event.ts,
+  channel: {
+    id: event.channel,
+    is_im: event.channel_type === 'im',
+    is_mpim: event.channel_type === 'mpim',
+    is_private: event.channel_type === 'group',
+  },
+  user: event.user,
+  username: event.username,
+  text: event.text,
+  permalink: `https://acme.slack.com/archives/${event.channel}/p${event.ts.replace('.', '')}${
+    event.thread_ts && event.thread_ts !== event.ts ? `?thread_ts=${event.thread_ts}` : ''
+  }`,
+});
+
 /**
- * Replays MOCK_SLACK_DM as soon as someone listens. Tests that need more events
- * keep the handler through `listen` and call it themselves via `deliver`.
+ * A workspace in memory: what `deliver` posts, search finds (newest first, 100 a page).
+ * It starts with MOCK_SLACK_DM, the message the whole project started from.
  */
 export class MockSlackClient implements ISlackClient {
-  private handler: SlackMessageHandler | null = null;
-
   public identify(): Promise<SlackIdentity> {
     return Promise.resolve({
       userId: MOCK_SLACK_ME,
@@ -194,20 +212,50 @@ export class MockSlackClient implements ISlackClient {
     return Promise.resolve();
   }
 
-  public listen(onMessage: SlackMessageHandler): Promise<void> {
-    this.handler = onMessage;
-    onMessage(MOCK_SLACK_DM);
+  /** Everything posted to the workspace, as events; search finds them. */
+  public messages: readonly SlackMessageEvent[] = [MOCK_SLACK_DM];
+  public searches = 0;
+  private tokensHandler: ((tokens: SlackTokens) => Promise<void>) | null = null;
 
-    return Promise.resolve();
+  /** Set to play Slack refusing the search (a token without search:read, say). */
+  public searchFails: Error | null = null;
+
+  public search(_query: string, page: number): Promise<SlackSearchPage> {
+    const newestFirst = [...this.messages].sort((a, b) => Number(b.ts) - Number(a.ts));
+
+    this.searches += 1;
+
+    if (this.searchFails) {
+      return Promise.reject(this.searchFails);
+    }
+
+    return Promise.resolve({
+      matches: newestFirst.slice((page - 1) * 100, page * 100).map(asMatch),
+      pages: Math.max(1, Math.ceil(newestFirst.length / 100)),
+    });
   }
 
+  public message(
+    channel: string,
+    ts: string,
+    _threadTs: string | null
+  ): Promise<SlackMessageEvent | null> {
+    return Promise.resolve(
+      this.messages.find((event) => event.channel === channel && event.ts === ts) ?? null
+    );
+  }
+
+  /** A new message in the workspace; the next check finds it. */
   public deliver(event: SlackMessageEvent): void {
-    this.handler?.(event);
+    this.messages = [...this.messages, event];
   }
 
-  public close(): Promise<void> {
-    this.handler = null;
+  public onTokens(handler: (tokens: SlackTokens) => Promise<void>): void {
+    this.tokensHandler = handler;
+  }
 
-    return Promise.resolve();
+  /** Plays the client refreshing rotating tokens. */
+  public rotate(tokens: SlackTokens): Promise<void> {
+    return this.tokensHandler?.(tokens) ?? Promise.resolve();
   }
 }

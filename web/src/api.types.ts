@@ -77,6 +77,16 @@ export interface ConnectionGroup {
 
 export type Theme = 'System' | 'Light' | 'Dark';
 
+export type AiProvider = 'OpenRouter' | 'TypeSafe';
+
+/** Which AI key is set: never the key itself. */
+export interface AiKeyInfo {
+  provider: AiProvider;
+  /** Its last four characters. */
+  hint: string;
+  savedAt: string;
+}
+
 export interface Settings {
   theme: Theme;
   /** The emoji offered as one-click reactions, in order ("👍", "🫥"). */
@@ -122,7 +132,7 @@ export interface ConnectorDescriptor {
   secretFields: SecretField[];
 }
 
-export type OAuthProvider = 'Google';
+export type OAuthProvider = 'Google' | 'Slack';
 export type RedirectMode = 'Direct' | 'Relay';
 
 export interface OAuthAppView {
@@ -132,6 +142,10 @@ export interface OAuthAppView {
   redirectMode: RedirectMode;
   /** What to register with the provider for each mode; null when that mode cannot work. */
   redirectUris: Record<RedirectMode, string | null>;
+  /** False for Slack: signing in with PKCE needs only the client ID. */
+  needsSecret: boolean;
+  /** Every redirect URI the provider app must list (Slack: one per port the app may use). */
+  registerUris: string[];
 }
 
 export type HuginnEvent =
@@ -143,7 +157,7 @@ export type Verdict = 'Important' | 'Spam';
 export type RuleKind = 'Hard' | 'Soft';
 export type RuleStatus = 'Active' | 'Proposed' | 'Disabled';
 export type RuleOrigin = 'Default' | 'User' | 'Feedback';
-export type DecisionSource = 'Rule' | 'NoRule' | 'User' | 'ClassifierUnavailable';
+export type DecisionSource = 'Rule' | 'NoRule' | 'User' | 'ClassifierUnavailable' | 'NoAiKey';
 
 export const CONDITION_OPS = [
   'Equals',

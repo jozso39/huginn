@@ -248,6 +248,12 @@ export class ConnectorHost implements IConnectorHost {
       },
       report: (status, message): Promise<void> =>
         this.setStatus(connection.id, status, message ?? null),
+      saveSecrets: async (next): Promise<void> => {
+        await this.connectionStore.updateSecrets(
+          connection.id,
+          await this.secretBox.seal(JSON.stringify(next))
+        );
+      },
     };
   }
 

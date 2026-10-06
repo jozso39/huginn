@@ -9,6 +9,8 @@ import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
 import type { IAttentionSink } from '@/core/attention/Attention.types';
 import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
 import type { ISignalClient } from '@/core/clients/SignalClient/SignalClient.types';
+import type { IAiKeyChecker } from '@/core/settings/AiKey.types';
+import type { ISlackOAuthClient } from '@/core/clients/SlackOAuthClient/SlackOAuthClient.types';
 import type { ISlackClient } from '@/core/clients/SlackClient/SlackClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { MockClickUpClient } from '@/infrastructure/clients/ClickUpClient/ClickUpClient.mock';
@@ -19,6 +21,8 @@ import { MockJevClient } from '@/core/clients/JevClient/JevClient.mock';
 import { MockLlmClient } from '@/core/clients/LlmClient/LlmClient.mock';
 import { MockPushClient } from '@/core/clients/PushClient/PushClient.mock';
 import { MockSignalClient } from '@/infrastructure/clients/SignalClient/SignalClient.mock';
+import { MockAiKeyChecker } from '@/infrastructure/clients/AiKeyChecker/AiKeyChecker.mock';
+import { MockSlackOAuthClient } from '@/infrastructure/clients/SlackOAuthClient/SlackOAuthClient.mock';
 import { MockSlackClient } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
 import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
@@ -42,6 +46,10 @@ export interface CreateTestContainerOptions {
   readonly clickUpClient?: IClickUpClient;
   /** Same for Signal. */
   readonly signalClient?: ISignalClient;
+  /** Hand in your own MockSlackOAuthClient to see sign-ins and token refreshes. */
+  readonly slackOAuthClient?: ISlackOAuthClient;
+  /** Where the browser reaches Huginn; the Mac app's own address for Slack sign-ins. */
+  readonly publicUrl?: string;
   /** Hand in a MockJevClient to decide what soft rules and guardrails answer. */
   readonly jev?: IJevClient;
   readonly llm?: ILlmClient;
@@ -49,19 +57,23 @@ export interface CreateTestContainerOptions {
   readonly push?: IPushClient;
   /** Hand in a MockAttentionSink to see what the Mac app would show. */
   readonly attentionSink?: IAttentionSink;
+  /** Hand in a MockAiKeyChecker to see which keys were checked. */
+  readonly aiKeyChecker?: IAiKeyChecker;
 }
 
-const createTestConfig = (): IConfig => ({
+const createTestConfig = (publicUrl = 'https://huginn.test.ts.net'): IConfig => ({
   ...createConfig(),
   env: 'test',
   dbPath: ':memory:',
-  publicUrl: 'https://huginn.test.ts.net',
+  publicUrl,
   oauthRelayUrl: 'https://relay.example.com/oauth/huginn/',
   logLevel: 'silent',
   connectors: {
     // Long enough that no interval fires during a test.
     pollOverrideMs: 60 * 60 * 1000,
     slackReadCheckMs: 60 * 60 * 1000,
+    // Far enough back for the fixtures' fixed timestamps.
+    slackLookbackMs: 20 * 365 * 24 * 60 * 60 * 1000,
     restartBackoffMs: [60 * 60 * 1000],
   },
 });
@@ -71,7 +83,7 @@ const createTestConfig = (): IConfig => ({
  * Stores, services and the host are the real ones: that is what the tests are for.
  */
 export const createTestContainer = (options: CreateTestContainerOptions = {}): Container => {
-  const config = createTestConfig();
+  const config = createTestConfig(options.publicUrl);
   const logger = createTestLogger();
 
   return createContainer({
@@ -80,10 +92,16 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
     jev: options.jev ?? new MockJevClient(),
     llm: options.llm ?? new MockLlmClient(),
     push: options.push ?? new MockPushClient(),
+    aiKeyChecker: options.aiKeyChecker ?? new MockAiKeyChecker(),
     ...(options.attentionSink ? { attentionSink: options.attentionSink } : {}),
     connectorFactories: options.connectorFactories ?? [
       new GitLabConnectorFactory(logger, config, () => new MockGitLabClient()),
-      new SlackConnectorFactory(logger, config, () => options.slackClient ?? new MockSlackClient()),
+      new SlackConnectorFactory(
+        logger,
+        config,
+        options.slackOAuthClient ?? new MockSlackOAuthClient(),
+        () => options.slackClient ?? new MockSlackClient()
+      ),
       new GmailConnectorFactory(
         logger,
         config,

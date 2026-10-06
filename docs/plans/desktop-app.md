@@ -140,18 +140,20 @@ Each milestone ends with something Jozef uses daily.
 1. Google: Desktop OAuth client + loopback redirect + PKCE; drop Relay/Direct modes
    and `HUGINN_PUBLIC_URL`. Company project inside medevio.cz (Internal) — Jozef creates
    it; family: his personal project (External).
-2. Slack: "Sign in with Slack" (PKCE, `localhost:<fixed port>`); token refresh
-   (30-day refresh tokens); the Huginn Slack app manifest updated (user scopes only,
-   PKCE on, never distributed). Jozef approves it in Medevio (he is admin).
-3. Slack polling connector replacing Socket Mode (§6), keeping everything that exists:
-   mrkdwn/attachments rendering, reply in thread, reactions, read-marker clearing,
-   app links, closing when answered.
-4. Short spike first (½ day, real token): does `to:me` work via the API, do group
-   mentions search reliably, real request counts per minute.
+2. ✅ (2026-10-06) Slack: "Sign in with Slack" (PKCE, `localhost:<fixed port>`); token
+   refresh (30-day refresh tokens); the Huginn Slack app manifest updated (user scopes
+   only, PKCE on, never distributed) — docs/slack-app.md. Jozef approves it in Medevio.
+3. ✅ (2026-10-06) Slack polling connector replacing Socket Mode. Simpler than §6: one
+   `search.messages` per check for *everything* new since the cursor (no `to:me`), the
+   existing rules pick what is the user's; search results carry blocks/attachments, a
+   bare one is fetched with history/replies. First check reads the last day.
+4. Live check with the first real sign-in (instead of a separate spike): search
+   latency, match fields (thread_ts from the permalink), requests per minute.
 
 ### M3 — First run, guides, triage keys, backup (≈ 1 week) — §5, §7
 1. First-run wizard: welcome → triage key (OpenRouter / TypeSafe / skip) → add
-   connections (each with its guide) → launch at login.
+   connections (each with its guide) → launch at login. The key itself is done
+   (2026-10-06): Settings → AI triage, write-only, checked with the provider.
 2. Setup guides for Gmail (Google Cloud project + Desktop client), Slack (signing in;
    creating the company app is an admin guide), GitLab, ClickUp, LinkedIn.
 3. Full backup export / restore.

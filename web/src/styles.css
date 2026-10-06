@@ -1786,3 +1786,64 @@ a.slack-attachment__title:hover {
 .archive-search__status {
   margin: -4px 0 0;
 }
+
+/* AI triage key */
+.ai-key {
+  display: grid;
+  gap: 10px;
+  max-width: 640px;
+}
+
+.ai-key p {
+  margin: 0;
+}
+
+.ai-key__status {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.ai-key__status li::before {
+  display: inline-block;
+  width: 1.4em;
+}
+
+.ai-key__on::before {
+  content: '●';
+  color: var(--ok);
+}
+
+.ai-key__off::before {
+  content: '○';
+  color: var(--muted);
+}
+
+.ai-key__off {
+  color: var(--muted);
+}
+
+.ai-key__current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ai-key__buttons {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.ai-key__form {
+  display: grid;
+  gap: 10px;
+}

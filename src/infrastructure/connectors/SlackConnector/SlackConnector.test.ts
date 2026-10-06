@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { ActionType } from '@/core/actions/Action.types';
-import { ConnectorKind } from '@/core/connections/Connection.types';
+import { ConnectionStatus, ConnectorKind } from '@/core/connections/Connection.types';
+import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import { ItemKind, ItemState } from '@/core/items/Item.types';
+import { OAuthProvider, RedirectMode } from '@/core/oauth/OAuthApp.types';
 import { createTestContainer } from '@/dependency/container/testContainer';
 import type { Container } from '@/dependency/container/container.types';
 import {
@@ -9,27 +11,55 @@ import {
   MOCK_SLACK_ME,
   MockSlackClient,
 } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
+import {
+  MOCK_SLACK_CODE,
+  MockSlackOAuthClient,
+} from '@/infrastructure/clients/SlackOAuthClient/SlackOAuthClient.mock';
 
-/** Lets the connector's serial event queue drain. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
+const SLACK_APP = {
+  clientId: '1234567890.0987654321',
+  clientSecret: '',
+  redirectMode: RedirectMode.Direct,
+};
+
+const challengeOf = async (verifier: string) =>
+  Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))).toString(
+    'base64url'
+  );
 
 describe('Slack connector end to end', () => {
   const slack = new MockSlackClient();
+  const oauth = new MockSlackOAuthClient();
   let container: Container;
   let connectionId: string;
+  let authorizeUrl: URL;
+
+  const poll = () => container.connectorHost.restart(connectionId);
+  const open = () => container.inboxService.list({ state: ItemState.Open, connectionId });
 
   beforeAll(async () => {
-    container = createTestContainer({ slackClient: slack });
-
-    const connection = await container.connectionService.create({
-      kind: ConnectorKind.Slack,
-      name: 'Work Slack',
-      config: { watchChannels: '#releases' },
-      secrets: { userToken: 'xoxp-test', appToken: 'xapp-test' },
+    container = createTestContainer({
+      slackClient: slack,
+      slackOAuthClient: oauth,
+      publicUrl: 'http://127.0.0.1:47823',
     });
+    await container.oauthAppService.save(OAuthProvider.Slack, SLACK_APP);
+
+    const { url } = await container.connectionService.beginSignIn({ kind: ConnectorKind.Slack });
+
+    authorizeUrl = new URL(url);
+
+    const state = authorizeUrl.searchParams.get('state') ?? '';
+    const connection = await container.connectionService.completeSignIn(
+      `http://localhost:47823/api/oauth/callback?state=${state}&code=${MOCK_SLACK_CODE}`
+    );
 
     connectionId = connection.id;
-    await settle();
+    // Watching #releases restarts it, which is a check.
+    await container.connectionService.update(connectionId, {
+      name: connection.name,
+      config: { watchChannels: '#releases' },
+    });
   });
 
   afterAll(async () => {
@@ -37,8 +67,39 @@ describe('Slack connector end to end', () => {
     container.close();
   });
 
+  test('signing in asks Slack with PKCE and user scopes only, back to localhost', async () => {
+    const params = authorizeUrl.searchParams;
+    const [exchange] = oauth.exchanged;
+
+    expect(authorizeUrl.origin + authorizeUrl.pathname).toBe(
+      'https://slack.com/oauth/v2/authorize'
+    );
+    expect(params.get('code_challenge_method')).toBe('S256');
+    expect(params.get('user_scope')).toContain('search:read');
+    expect(params.has('scope')).toBe(false);
+    expect(params.get('redirect_uri')).toBe('http://localhost:47823/api/oauth/callback');
+    // The verifier redeemed is the one behind the challenge sent out.
+    expect(params.get('code_challenge')).toBe(await challengeOf(exchange?.codeVerifier ?? ''));
+
+    const connection = await container.connectionService.get(connectionId);
+
+    expect(connection?.name).toBe('Acme Slack');
+    expect(connection?.status).toBe(ConnectionStatus.Running);
+  });
+
+  test('the slack app needs no secret: its client ID is all a colleague is given', async () => {
+    const view = await container.oauthAppService.view(OAuthProvider.Slack);
+
+    expect(view.needsSecret).toBe(false);
+    // Signing in comes back to this Huginn's own port; every port it may use is registered.
+    expect(view.redirectUris.Direct).toBe('http://localhost:47823/api/oauth/callback');
+    expect(view.registerUris).toEqual(
+      container.config.ports.map((port) => `http://localhost:${port}/api/oauth/callback`)
+    );
+  });
+
   test("the boss's DM arrives as a readable direct message with a deep link", async () => {
-    const [item] = await container.inboxService.list({ state: ItemState.Open, connectionId });
+    const [item] = await open();
 
     expect(item?.kind).toBe(ItemKind.DirectMessage);
     expect(item?.author).toBe('The Boss');
@@ -48,7 +109,7 @@ describe('Slack connector end to end', () => {
   });
 
   test('replying from Huginn answers in a thread and archives the item', async () => {
-    const [item] = await container.inboxService.list({ state: ItemState.Open, connectionId });
+    const [item] = await open();
     const replied = await container.inboxService.reply(item?.id ?? '', 'Sure, today.');
     const detail = await container.inboxService.get(replied.id);
 
@@ -61,19 +122,16 @@ describe('Slack connector end to end', () => {
       threadTs: MOCK_SLACK_DM.ts,
     });
 
-    // The boss answers in that thread: a new open item.
+    // The boss answers in that thread: the next check brings a new open item.
     slack.deliver({
       ...MOCK_SLACK_DM,
       text: 'Thanks!',
       ts: '1759046600.000300',
       thread_ts: MOCK_SLACK_DM.ts,
     });
-    await settle();
+    await poll();
 
-    const open = await container.inboxService.list({ state: ItemState.Open, connectionId });
-
-    expect(open).toHaveLength(1);
-    expect(open[0]?.body).toBe('Thanks!');
+    expect((await open()).map((i) => i.body)).toEqual(['Thanks!']);
   });
 
   test('answering in Slack itself clears the thread here', async () => {
@@ -84,11 +142,9 @@ describe('Slack connector end to end', () => {
       ts: '1759046700.000400',
       thread_ts: MOCK_SLACK_DM.ts,
     });
-    await settle();
+    await poll();
 
-    expect(await container.inboxService.list({ state: ItemState.Open, connectionId })).toHaveLength(
-      0
-    );
+    expect(await open()).toHaveLength(0);
   });
 
   test('channel chatter is ignored; mentions, my threads and watched channels are kept', async () => {
@@ -106,18 +162,24 @@ describe('Slack connector end to end', () => {
       text: 'release notes',
       ts: '1759047002.000001',
     });
-    await settle();
+    await poll();
 
-    const open = await container.inboxService.list({ state: ItemState.Open, connectionId });
-
-    expect(open.map((item) => item.body).sort()).toEqual([
+    expect((await open()).map((item) => item.body).sort()).toEqual([
       '@backend deploy is red',
       'release notes',
     ]);
   });
 
+  test('checking again finds nothing twice', async () => {
+    const before = (await open()).length;
+
+    await poll();
+
+    expect(await open()).toHaveLength(before);
+  });
+
   test('react goes to Slack and is archived without closing the item', async () => {
-    const [item] = await container.inboxService.list({ state: ItemState.Open, connectionId });
+    const [item] = await open();
     const reacted = await container.inboxService.react(item?.id ?? '', 'eyes');
     const detail = await container.inboxService.get(reacted.id);
 
@@ -126,7 +188,7 @@ describe('Slack connector end to end', () => {
   });
 
   test('an emoji is sent to Slack by its short name; one Slack does not know is refused', async () => {
-    const [item] = await container.inboxService.list({ state: ItemState.Open, connectionId });
+    const [item] = await open();
 
     await container.inboxService.react(item?.id ?? '', '🫥');
     await container.inboxService.react(item?.id ?? '', '👍🏽');
@@ -138,5 +200,82 @@ describe('Slack connector end to end', () => {
     await expect(container.inboxService.react(item?.id ?? '', 'Hi!')).rejects.toThrow(
       'Slack has no name for Hi!'
     );
+  });
+
+  test('refreshed tokens are kept, sealed, for the next start', async () => {
+    await slack.rotate({
+      accessToken: 'xoxe.xoxp-rotated',
+      refreshToken: 'xoxe-1-rotated',
+      expiresAt: 1_900_000_000_000,
+    });
+
+    const sealed = await container.connectionStore.getSecretsCiphertext(connectionId);
+
+    expect(sealed).not.toContain('rotated');
+    expect(JSON.parse(await container.secretBox.open(sealed ?? ''))).toMatchObject({
+      userToken: 'xoxe.xoxp-rotated',
+      refreshToken: 'xoxe-1-rotated',
+      expiresAt: '1900000000000',
+    });
+  });
+
+  test('signing in again with the same person refreshes this connection', async () => {
+    const { url } = await container.connectionService.beginSignIn({ kind: ConnectorKind.Slack });
+    const state = new URL(url).searchParams.get('state') ?? '';
+    const again = await container.connectionService.completeSignIn(
+      `http://localhost:47823/api/oauth/callback?state=${state}&code=${MOCK_SLACK_CODE}`
+    );
+
+    expect(again.id).toBe(connectionId);
+    expect(
+      (await container.connectionService.list()).filter((c) => c.kind === ConnectorKind.Slack)
+    ).toHaveLength(1);
+  });
+
+  test('a token Slack refuses (no search permission yet) asks to sign in again', async () => {
+    slack.searchFails = new HuginnError(
+      ErrorCode.Unauthorized,
+      'Sign in with Slack again: Huginn needs a permission it does not have yet'
+    );
+    await poll();
+
+    const connection = await container.connectionService.get(connectionId);
+
+    expect(connection?.status).toBe(ConnectionStatus.NeedsAuth);
+    expect(connection?.statusMessage).toContain('Sign in with Slack again');
+    slack.searchFails = null;
+  });
+});
+
+describe('A Slack connection from before sign-in (pasted tokens)', () => {
+  test('is taken over by the first sign-in, keeping its items, rules and category', async () => {
+    const container = createTestContainer({
+      slackClient: new MockSlackClient(),
+      slackOAuthClient: new MockSlackOAuthClient(),
+      publicUrl: 'http://127.0.0.1:47823',
+    });
+    const legacy = await container.connectionStore.create({
+      kind: ConnectorKind.Slack,
+      name: 'Medevio Slack',
+      config: {},
+      secretsCiphertext: await container.secretBox.seal(
+        JSON.stringify({ userToken: 'xoxp-old', appToken: 'xapp-old' })
+      ),
+      groupId: null,
+      color: '#3b82f6',
+    });
+
+    await container.oauthAppService.save(OAuthProvider.Slack, SLACK_APP);
+
+    const { url } = await container.connectionService.beginSignIn({ kind: ConnectorKind.Slack });
+    const state = new URL(url).searchParams.get('state') ?? '';
+    const signedIn = await container.connectionService.completeSignIn(
+      `http://localhost:47823/api/oauth/callback?state=${state}&code=${MOCK_SLACK_CODE}`
+    );
+
+    expect(signedIn.id).toBe(legacy.id);
+    expect(signedIn.name).toBe('Medevio Slack');
+    await container.connectorHost.stopAll();
+    container.close();
   });
 });

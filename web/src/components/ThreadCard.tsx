@@ -49,6 +49,8 @@ const whyText = (decision: TriageDecision | null): string => {
       return 'You put it here';
     case 'ClassifierUnavailable':
       return 'No rule matched (the classifier was unreachable)';
+    case 'NoAiKey':
+      return 'No rule matched; sentence rules are off without an AI key (Settings → AI triage)';
     default:
       return 'No rule matched';
   }

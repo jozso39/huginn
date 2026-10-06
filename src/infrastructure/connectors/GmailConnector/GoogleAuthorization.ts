@@ -23,7 +23,8 @@ export class GoogleAuthorization implements IConnectorAuthorization {
     return Boolean(secrets.refreshToken);
   }
 
-  public authorizationUrl(app: SignInApp, state: string): string {
+  // Google's Web client signs in with its secret; PKCE comes with the Desktop client (M2).
+  public authorizationUrl(app: SignInApp, state: string, _codeChallenge: string): string {
     return this.oauth.authorizationUrl({
       clientId: app.clientId,
       redirectUri: app.redirectUri,
@@ -32,7 +33,11 @@ export class GoogleAuthorization implements IConnectorAuthorization {
     });
   }
 
-  public async complete(app: SignInApp, code: string): Promise<SignInResult> {
+  public async complete(
+    app: SignInApp,
+    code: string,
+    _codeVerifier: string
+  ): Promise<SignInResult> {
     const grant = await this.oauth.exchangeCode(app, code, app.redirectUri);
 
     return { secrets: { refreshToken: grant.refreshToken }, account: grant.email };

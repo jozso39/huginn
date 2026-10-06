@@ -2,11 +2,18 @@ import { z } from 'zod';
 import type { Logger } from '@/lib/logger';
 import type { IConfig } from '@/lib/config';
 import type { ISlackClient } from '@/core/clients/SlackClient/SlackClient.types';
+import type {
+  ISlackOAuthClient,
+  SlackTokens,
+} from '@/core/clients/SlackOAuthClient/SlackOAuthClient.types';
 import type { Connection, Secrets } from '@/core/connections/Connection.types';
 import { ConnectorKind } from '@/core/connections/Connection.types';
 import type { IConnector, IConnectorFactory, SecretField } from '@/core/connectors/Connector.types';
+import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
 import { SlackClient } from '@/infrastructure/clients/SlackClient/SlackClient';
 import { SLACK_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules';
+import { pollIntervalField, pollMs } from '@/infrastructure/connectors/pollInterval';
+import { SlackAuthorization } from './SlackAuthorization';
 import { SlackConnector } from './SlackConnector';
 import { SlackChannelScope, SlackReadMode } from './SlackConnector.types';
 import { parseChannelList } from './SlackConnector.utils';
@@ -46,43 +53,56 @@ export const slackConfigSchema = z.object({
         [SlackReadMode.Clear]: 'Clear it from Huginn',
       },
     }),
+  checkEvery: pollIntervalField,
 });
 
-export type SlackClientFactory = (userToken: string, appToken: string) => ISlackClient;
+export type SlackClientFactory = (
+  tokens: SlackTokens,
+  refresh: ((refreshToken: string) => Promise<SlackTokens>) | null
+) => ISlackClient;
 
+/**
+ * Created by signing in with Slack (the company's own app, set up once per Mac with its
+ * client ID). Each person's Huginn checks Slack with that person's own token.
+ */
 export class SlackConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.Slack;
   public readonly label = 'Slack';
   public readonly defaultRules = SLACK_DEFAULT_RULES;
   public readonly capabilities = SlackConnector.capabilities;
   public readonly configSchema = slackConfigSchema;
-  public readonly secretFields: readonly SecretField[] = [
-    {
-      key: 'userToken',
-      label: 'User OAuth token (xoxp-…)',
-      hint: 'OAuth & Permissions → User OAuth Token. Reads and replies as you.',
-    },
-    {
-      key: 'appToken',
-      label: 'App-level token (xapp-…)',
-      hint: 'Basic Information → App-Level Tokens, scope connections:write. Opens Socket Mode.',
-    },
-  ];
+  public readonly secretFields: readonly SecretField[] = [];
+  public readonly authorization: SlackAuthorization;
 
   constructor(
     private readonly logger: Logger,
     private readonly config: IConfig,
-    private readonly createClient: SlackClientFactory = (userToken, appToken) =>
-      new SlackClient(logger, { userToken, appToken })
-  ) {}
+    private readonly oauth: ISlackOAuthClient,
+    private readonly createClient: SlackClientFactory = (tokens, refresh) =>
+      new SlackClient(logger, { tokens, refresh })
+  ) {
+    this.authorization = new SlackAuthorization(oauth);
+  }
 
-  public create(connection: Connection, secrets: Secrets): IConnector {
+  public create(
+    connection: Connection,
+    secrets: Secrets,
+    app: OAuthAppCredentials | null
+  ): IConnector {
     const parsed = slackConfigSchema.parse(connection.config);
+    const tokens: SlackTokens = {
+      accessToken: secrets.userToken ?? '',
+      refreshToken: secrets.refreshToken ?? null,
+      expiresAt: secrets.expiresAt ? Number(secrets.expiresAt) : null,
+    };
+    const refresh = app
+      ? (refreshToken: string) => this.oauth.refresh({ clientId: app.clientId, refreshToken })
+      : null;
 
     return new SlackConnector(
       this.logger,
       connection,
-      this.createClient(secrets.userToken ?? '', secrets.appToken ?? ''),
+      this.createClient(tokens, refresh),
       {
         scope: parsed.channelScope,
         watch: parseChannelList(parsed.watchChannels),
@@ -90,7 +110,11 @@ export class SlackConnectorFactory implements IConnectorFactory {
         whenRead: parsed.whenRead,
       },
       this.config.maxBodyChars,
-      this.config.connectors.slackReadCheckMs
+      this.config.connectors.slackReadCheckMs,
+      {
+        intervalMs: pollMs(parsed.checkEvery, this.config.connectors.pollOverrideMs),
+        lookbackMs: this.config.connectors.slackLookbackMs,
+      }
     );
   }
 }

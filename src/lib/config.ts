@@ -20,9 +20,14 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
 
   const dbPath = env.HUGINN_DATA_DIR ? join(env.HUGINN_DATA_DIR, 'huginn.db') : env.HUGINN_DB_PATH;
 
+  const desktop = env.HUGINN_DESKTOP === '1';
+
   return {
     env: env.NODE_ENV,
     port: env.PORT,
+    // The Mac app falls back to the next ports when its own is taken; a provider that
+    // redirects to this Mac (Slack) needs every one of them registered.
+    ports: desktop ? [env.PORT, env.PORT + 1, env.PORT + 2] : [env.PORT],
     logLevel: env.LOG_LEVEL,
     host: env.HUGINN_HOST,
     dbPath,
@@ -37,7 +42,7 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
         : join(REPO_ROOT, 'drizzle'),
     },
     desktop: {
-      enabled: env.HUGINN_DESKTOP === '1',
+      enabled: desktop,
       launchToken: secrets.launchToken ?? env.HUGINN_LAUNCH_TOKEN ?? null,
     },
     publicUrl: env.HUGINN_PUBLIC_URL?.replace(/\/$/, '') ?? null,
@@ -57,8 +62,8 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
       dataDir: join(dirname(dbPath), 'signal'),
     },
     ai: {
-      openRouterApiKey: env.HUGINN_OPENROUTER_API_KEY ?? null,
-      jevModel: env.HUGINN_JEV_MODEL,
+      // Jev's name at each provider; the key decides which is used (Settings → AI triage).
+      jevModels: { OpenRouter: env.HUGINN_JEV_MODEL, TypeSafe: env.HUGINN_TYPESAFE_JEV_MODEL },
       feedbackModel: env.HUGINN_FEEDBACK_MODEL,
       // Jev answers in ~0.5 s; past this, triage falls back to Undecided.
       jevTimeoutMs: 5_000,
@@ -70,6 +75,9 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
       pollOverrideMs: null as number | null,
       // Slack read markers, when a connection clears what was read there.
       slackReadCheckMs: 60_000,
+      // How far back a new Slack connection reads: the last day's DMs and mentions come
+      // in, and those already answered close themselves.
+      slackLookbackMs: 24 * 60 * 60 * 1000,
       // A connector that crashes is restarted with this backoff so a dead
       // token does not hammer the provider.
       restartBackoffMs: [5_000, 30_000, 120_000, 600_000],
