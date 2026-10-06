@@ -49,7 +49,9 @@ settings:
   token_rotation_enabled: true
 ```
 
-Install it to the workspace (approve it if your workspace requires approval). Keep the
+There is no separate install step, and the app's settings may offer no Install button:
+each person's first **Sign in with Slack** (below) installs it for them. If the
+workspace requires approval for apps, that first sign-in asks an admin instead. Keep the
 app **internal — never "distribute" it**: internal apps are exempt from Slack's 2025
 limits on reading history.
 
@@ -58,8 +60,8 @@ Huginn. It is not a secret: with PKCE there is no client secret at all, and each
 only ever gets their own token.
 
 **Upgrading an app made with the old manifest** (Socket Mode, two pasted tokens): open
-it → **App Manifest** → replace it with the one above → Save → reinstall when Slack asks.
-Its Socket Mode token can be revoked afterwards.
+it → **App Manifest** → replace it with the one above → Save. Then sign in from Huginn;
+its Socket Mode token can be revoked afterwards.
 
 ## 2. Sign in (everyone)
 
