@@ -1,4 +1,8 @@
-# Huginn
+<p align="center">
+  <img src="desktop/icon/huginn-macos.png" width="160" alt="Huginn: a raven with a yellow eye and a yellow halo">
+</p>
+
+<h1 align="center">Huginn</h1>
 
 > Huginn — Odin's raven of *thought*, who flies over the world every morning and comes
 > back to tell him what happened.
