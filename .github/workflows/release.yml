@@ -1,0 +1,58 @@
+# Builds Huginn for macOS and publishes it when a version tag (v1.2.3) is pushed.
+# `bun run release 1.2.3` makes such a tag. The app checks the latest release every
+# hour and installs it on restart (desktop/src-tauri, tauri-plugin-updater).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-15 # Apple Silicon
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      - run: bun install --frozen-lockfile
+
+      - name: Checks and tests
+        run: bun run code:check && bun run test
+
+      - name: The tag matches package.json
+        run: test "v$(jq -r .version package.json)" = "$GITHUB_REF_NAME"
+
+      # Builds the web app and the server sidecar (beforeBuildCommand), the .app, the
+      # .dmg and the signed update; publishes them with latest.json for the updater.
+      - uses: tauri-apps/tauri-action@action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: desktop
+          tauriScript: bunx tauri
+          tagName: ${{ github.ref_name }}
+          releaseName: Huginn ${{ github.ref_name }}
+          releaseBody: |
+            Download **Huginn_*_aarch64.dmg** (Apple Silicon Macs), open it and drag Huginn to Applications.
+
+            First start: Huginn is not signed by Apple yet, so macOS stops it once. Open it, click **Done**, then go to **System Settings → Privacy & Security** and click **Open Anyway**. After that it starts normally and updates itself.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+
+      - name: The app is signed (ad hoc) correctly
+        run: codesign -v --deep --strict desktop/src-tauri/target/release/bundle/macos/Huginn.app

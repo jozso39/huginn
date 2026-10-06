@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Huginn",
+  "version": "../../package.json",
+  "identifier": "cz.cambora.huginn",
+  "build": {
+    "frontendDist": "../loading",
+    "beforeBuildCommand": {
+      "script": "bun run desktop:prepare",
+      "cwd": "../.."
+    }
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Huginn",
+        "url": "index.html",
+        "width": 1200,
+        "height": 820,
+        "minWidth": 380,
+        "minHeight": 480
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "category": "Productivity",
+    "shortDescription": "One inbox for Slack, Gmail, GitLab, ClickUp and LinkedIn",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.png"
+    ],
+    "externalBin": [
+      "binaries/huginn-server"
+    ],
+    "resources": {
+      "../../web/dist/": "web/",
+      "../../drizzle/": "drizzle/"
+    },
+    "createUpdaterArtifacts": true,
+    "macOS": {
+      "signingIdentity": "-",
+      "hardenedRuntime": false,
+      "minimumSystemVersion": "13.0"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1OTI3MThBQzdFNTgwMjMKUldRamdPWEhpbkdTRlV6WHNTb0ZqdlpMU2FwaUtHQ2k2dGFRWHRXMWowTkQ4M2lwZ0NnOE4rTmoK",
+      "endpoints": [
+        "https://github.com/jozso39/huginn/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

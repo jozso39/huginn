@@ -17,3 +17,8 @@ data/
 
 # signal-cli's socket lives here on the host
 signal/
+
+# Mac app build output
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/src-tauri/binaries/
