@@ -40,6 +40,11 @@ export const createOAuthRoutes = (container: Container) => {
     return c.json(await container.connectionService.beginSignIn(target));
   });
 
+  // The Mac app's window asks how the sign-in it started in the browser ended.
+  app.get('/sign-in/:id', (c) =>
+    c.json(container.connectionService.signInStatus(c.req.param('id')))
+  );
+
   app.get('/callback', async (c) => {
     try {
       const connection = await container.connectionService.completeSignIn(c.req.url);

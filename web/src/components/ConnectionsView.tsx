@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { api } from '../api';
 import type { Connection, ConnectionGroup, ConnectorDescriptor } from '../api.types';
 import { nextConnectionColor, tint } from '../colors';
@@ -69,6 +69,18 @@ export const ConnectionsView = ({
   // The connection whose card asks "really delete?" instead of showing itself.
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A connection that was just signed in or linked: its card says so.
+  const [welcome, setWelcome] = useState<{ connectionId: string; text: string } | null>(null);
+  const welcomeId = welcome?.connectionId ?? null;
+  // Brings that card into view as soon as it is in the list (once per welcome).
+  const showWelcome = useCallback(
+    (card: HTMLLIElement | null) => {
+      if (card && welcomeId) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    [welcomeId]
+  );
 
   const descriptorOf = (kind: string) => kinds.find((k) => k.kind === kind);
   // Kinds this Mac cannot run (Signal without signal-cli) are not offered at all.
@@ -92,6 +104,24 @@ export const ConnectionsView = ({
     await onChanged();
   };
 
+  // Signed in (in the browser) or linked (on the phone): a new connection's settings open
+  // at once, since its category and colour are what is left to choose.
+  const connected = useCallback(
+    async (connection: Connection, created: boolean) => {
+      setAdding(false);
+      setChosenKind('');
+      setEditing(created ? connection.id : null);
+      setWelcome({
+        connectionId: connection.id,
+        text: created
+          ? `${connection.name} is connected. Choose its category and colour below, then Save.`
+          : `${connection.name} was already connected; its sign-in is renewed.`,
+      });
+      await onChanged();
+    },
+    [onChanged]
+  );
+
   const update = async (connection: Connection, values: ConnectionFormValues) => {
     const name = values.name.trim();
 
@@ -109,6 +139,7 @@ export const ConnectionsView = ({
     }
 
     setEditing(null);
+    setWelcome(null);
     await onChanged();
   };
 
@@ -153,7 +184,12 @@ export const ConnectionsView = ({
     }
 
     return (
-      <li key={connection.id} className="connection" style={tint(connection.color)}>
+      <li
+        key={connection.id}
+        ref={welcomeId === connection.id ? showWelcome : undefined}
+        className="connection"
+        style={tint(connection.color)}
+      >
         <div className="connection__row">
           <ConnectorIcon kind={connection.kind} />
           <div className="connection__info">
@@ -204,7 +240,10 @@ export const ConnectionsView = ({
           </div>
         )}
         {descriptor?.pairing && connection.status === 'NeedsAuth' && (
-          <PairConnect target={{ connectionId: connection.id }} onLinked={onChanged} />
+          <PairConnect target={{ connectionId: connection.id }} onLinked={() => onChanged()} />
+        )}
+        {welcome?.connectionId === connection.id && (
+          <p className="notice notice--success small">{welcome.text}</p>
         )}
         {descriptor && editing === connection.id && (
           <ConnectionForm
@@ -216,7 +255,10 @@ export const ConnectionsView = ({
             submitLabel="Save"
             busyLabel="Saving…"
             onSubmit={(values) => update(connection, values)}
-            onCancel={() => setEditing(null)}
+            onCancel={() => {
+              setEditing(null);
+              setWelcome(null);
+            }}
           />
         )}
       </li>
@@ -238,7 +280,14 @@ export const ConnectionsView = ({
       {error && <p className="error">{error}</p>}
 
       {!adding ? (
-        <button type="button" className="add-button" onClick={() => setAdding(true)}>
+        <button
+          type="button"
+          className="add-button"
+          onClick={() => {
+            setAdding(true);
+            setWelcome(null);
+          }}
+        >
           <span aria-hidden>＋</span> Add connection
         </button>
       ) : (
@@ -269,21 +318,19 @@ export const ConnectionsView = ({
             <SignInConnect
               key={newDescriptor.kind}
               descriptor={{ ...newDescriptor, signInProvider: newDescriptor.signInProvider }}
+              onConnected={connected}
             />
           )}
           {newDescriptor?.pairing && (
             <PairConnect
               key={newDescriptor.kind}
               target={{ kind: newDescriptor.kind }}
-              onLinked={async () => {
-                setAdding(false);
-                await onChanged();
-              }}
+              onLinked={connected}
             />
           )}
           {(newDescriptor?.signInProvider ?? newDescriptor?.pairing) && (
             <p className="muted small">
-              Its category and colour can be set with Edit once it is connected.
+              Once it is connected, its settings open here for the category and colour.
             </p>
           )}
           {newDescriptor && !newDescriptor.signInProvider && !newDescriptor.pairing && (

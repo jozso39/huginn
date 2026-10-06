@@ -789,6 +789,11 @@ kbd {
   background: var(--surface-2);
 }
 
+.notice--success {
+  background: var(--pill-success-bg);
+  color: var(--pill-success-text);
+}
+
 /* Groups in the inbox: collapsed by default, counts on the header. */
 .groups {
   display: grid;

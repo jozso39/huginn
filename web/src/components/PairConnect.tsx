@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { renderSVG } from 'uqr';
 import { api } from '../api';
-import type { ConnectorKind } from '../api.types';
+import type { Connection, ConnectorKind } from '../api.types';
 
 interface PairConnectProps {
   target: { kind: ConnectorKind } | { connectionId: string };
-  onLinked: () => Promise<void>;
+  /** The phone confirmed: a new connection, or one linked again. */
+  onLinked: (connection: Connection, created: boolean) => Promise<void>;
 }
 
 const POLL_MS = 2_000;
@@ -32,9 +33,9 @@ export const PairConnect = ({ target, onLinked }: PairConnectProps) => {
       void api
         .pairingStatus(pairingId)
         .then(async (status) => {
-          if (status.state === 'Linked') {
+          if (status.state === 'Linked' && status.connection) {
             setStage({ step: 'idle' });
-            await onLinked();
+            await onLinked(status.connection, status.created);
           } else if (status.state === 'Failed') {
             setStage({ step: 'failed', error: status.error ?? 'Linking failed' });
           }

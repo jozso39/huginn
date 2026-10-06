@@ -4,6 +4,7 @@ import { ConnectionStatus, ConnectorKind } from '@/core/connections/Connection.t
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import { ItemKind, ItemState } from '@/core/items/Item.types';
 import { OAuthProvider, RedirectMode } from '@/core/oauth/OAuthApp.types';
+import { SignInState } from '@/core/services/ConnectionService/ConnectionService.types';
 import { createTestContainer } from '@/dependency/container/testContainer';
 import type { Container } from '@/dependency/container/container.types';
 import {
@@ -75,8 +76,13 @@ describe('Google sign-in and the Gmail connector', () => {
   });
 
   test('signing in creates the connection, named after the account, and syncs', async () => {
-    const { url } = await container.connectionService.beginSignIn({ kind: ConnectorKind.Gmail });
+    const { url, signInId } = await container.connectionService.beginSignIn({
+      kind: ConnectorKind.Gmail,
+    });
     const state = new URL(url).searchParams.get('state') ?? '';
+
+    // The window that started it waits on this while the browser signs in.
+    expect(container.connectionService.signInStatus(signInId).state).toBe(SignInState.Waiting);
 
     // Google is told to return to the relay; the state carries where Huginn lives.
     expect(url).toContain(encodeURIComponent('https://relay.example.com/oauth/huginn/'));
@@ -92,6 +98,11 @@ describe('Google sign-in and the Gmail connector', () => {
     );
 
     connectionId = connection.id;
+    expect(container.connectionService.signInStatus(signInId)).toMatchObject({
+      state: SignInState.Done,
+      connection: { id: connection.id },
+      created: true,
+    });
     expect(connection.name).toBe(MOCK_GOOGLE_ACCOUNT);
     expect(connection.status).toBe(ConnectionStatus.Running);
     expect(secrets).toEqual({ refreshToken: MOCK_REFRESH_TOKEN, account: MOCK_GOOGLE_ACCOUNT });
@@ -103,10 +114,16 @@ describe('Google sign-in and the Gmail connector', () => {
   });
 
   test('signing in again with the same account reuses its connection', async () => {
-    const { url } = await container.connectionService.beginSignIn({ kind: ConnectorKind.Gmail });
+    const { url, signInId } = await container.connectionService.beginSignIn({
+      kind: ConnectorKind.Gmail,
+    });
     const again = await container.connectionService.completeSignIn(callbackFor(url));
 
     expect(again.id).toBe(connectionId);
+    expect(container.connectionService.signInStatus(signInId)).toMatchObject({
+      state: SignInState.Done,
+      created: false,
+    });
     expect(
       (await container.connectionService.list()).filter((c) => c.kind === ConnectorKind.Gmail)
     ).toHaveLength(1);
@@ -128,6 +145,12 @@ describe('Google sign-in and the Gmail connector', () => {
         `https://huginn.test.ts.net/api/oauth/callback?state=${state}&error=access_denied`
       )
     ).rejects.toMatchObject({ code: ErrorCode.Unauthorized });
+    // The window hears why, too, instead of waiting forever.
+    expect(container.connectionService.signInStatus(refused.signInId)).toMatchObject({
+      state: SignInState.Failed,
+      error: 'Sign-in was refused: access_denied',
+    });
+    expect(() => container.connectionService.signInStatus('unknown')).toThrow(HuginnError);
   });
 
   test('draft keeps the item open; reply sends in-thread and closes it', async () => {

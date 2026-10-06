@@ -27,9 +27,10 @@ import type {
   PairingStart,
   PairingStatus,
   SignInStart,
+  SignInStatus,
   SignInTarget,
 } from './ConnectionService.types';
-import { PairingState } from './ConnectionService.types';
+import { PairingState, SignInState } from './ConnectionService.types';
 
 /** Long enough to find the password manager; short enough that a stray link dies. */
 const SIGN_IN_TTL_MS = 15 * 60 * 1000;
@@ -61,10 +62,16 @@ interface Pairing extends PairingStatus {
   readonly expiresAt: number;
 }
 
+interface SignInOutcome extends SignInStatus {
+  readonly expiresAt: number;
+}
+
 export class ConnectionService implements IConnectionService {
   // The OAuth `state` is the only thing tying a redirect back to a connection, and
   // it is single-use; losing these on restart just means clicking Sign in again.
   private readonly pendingSignIns = new Map<string, PendingSignIn>();
+  // Keyed like pendingSignIns, by state; kept until the window has had time to ask.
+  private readonly signIns = new Map<string, SignInOutcome>();
   private readonly pairings = new Map<string, Pairing>();
 
   constructor(
@@ -188,10 +195,13 @@ export class ConnectionService implements IConnectionService {
     const pkce = await pkcePair();
     const now = Date.now();
 
-    // Drop expired attempts so the map cannot grow without bound.
+    // Drop expired attempts so the maps cannot grow without bound.
     [...this.pendingSignIns.entries()]
       .filter(([, pending]) => pending.expiresAt < now)
       .forEach(([key]) => this.pendingSignIns.delete(key));
+    [...this.signIns.entries()]
+      .filter(([, outcome]) => outcome.expiresAt < now)
+      .forEach(([key]) => this.signIns.delete(key));
     this.pendingSignIns.set(state, {
       kind,
       connectionId: connection?.id ?? null,
@@ -199,8 +209,24 @@ export class ConnectionService implements IConnectionService {
       codeVerifier: pkce.verifier,
       expiresAt: now + SIGN_IN_TTL_MS,
     });
+    this.settleSignIn(state, { state: SignInState.Waiting });
 
-    return { url: authorization.authorizationUrl(app, state, pkce.challenge) };
+    return { url: authorization.authorizationUrl(app, state, pkce.challenge), signInId: state };
+  }
+
+  public signInStatus(signInId: string): SignInStatus {
+    const outcome = this.signIns.get(signInId);
+
+    if (!outcome) {
+      throw new HuginnError(ErrorCode.NotFound, 'This sign-in expired — start it again');
+    }
+
+    return {
+      state: outcome.state,
+      connection: outcome.connection,
+      created: outcome.created,
+      error: outcome.error,
+    };
   }
 
   public async completeSignIn(callbackUrl: string): Promise<Connection> {
@@ -217,6 +243,22 @@ export class ConnectionService implements IConnectionService {
 
     this.pendingSignIns.delete(state);
 
+    try {
+      const signedIn = await this.redeem(pending, params);
+
+      this.settleSignIn(state, { state: SignInState.Done, ...signedIn });
+
+      return signedIn.connection;
+    } catch (error) {
+      this.settleSignIn(state, { state: SignInState.Failed, error: toError(error).message });
+      throw error;
+    }
+  }
+
+  private async redeem(
+    pending: PendingSignIn,
+    params: URLSearchParams
+  ): Promise<{ connection: Connection; created: boolean }> {
     const providerError = params.get('error');
 
     if (providerError) {
@@ -241,6 +283,19 @@ export class ConnectionService implements IConnectionService {
     return this.applySignIn(pending.kind, pending.connectionId, result);
   }
 
+  private settleSignIn(
+    state: string,
+    outcome: Partial<SignInStatus> & Pick<SignInStatus, 'state'>
+  ): void {
+    this.signIns.set(state, {
+      connection: null,
+      created: false,
+      error: null,
+      ...outcome,
+      expiresAt: Date.now() + SIGN_IN_TTL_MS,
+    });
+  }
+
   public async beginPairing(target: SignInTarget): Promise<PairingStart> {
     const connection = 'connectionId' in target ? await this.require(target.connectionId) : null;
     const kind = connection?.kind ?? ('kind' in target ? target.kind : null);
@@ -260,6 +315,7 @@ export class ConnectionService implements IConnectionService {
     this.pairings.set(pairingId, {
       state: PairingState.Waiting,
       connection: null,
+      created: false,
       error: null,
       expiresAt: now + PAIRING_TTL_MS,
     });
@@ -268,7 +324,7 @@ export class ConnectionService implements IConnectionService {
     void pairing
       .finish(code)
       .then((result) => this.applySignIn(kind, connection?.id ?? null, result))
-      .then((linked) => this.settlePairing(pairingId, { connection: linked }))
+      .then((linked) => this.settlePairing(pairingId, linked))
       .catch((error: unknown) => {
         this.logger.warn({ kind, err: toError(error) }, 'pairing failed');
         this.settlePairing(pairingId, { error: toError(error).message });
@@ -284,12 +340,17 @@ export class ConnectionService implements IConnectionService {
       throw new HuginnError(ErrorCode.NotFound, 'This link attempt expired — start it again');
     }
 
-    return { state: entry.state, connection: entry.connection, error: entry.error };
+    return {
+      state: entry.state,
+      connection: entry.connection,
+      created: entry.created,
+      error: entry.error,
+    };
   }
 
   private settlePairing(
     pairingId: string,
-    outcome: { connection: Connection } | { error: string }
+    outcome: { connection: Connection; created: boolean } | { error: string }
   ): void {
     const entry = this.pairings.get(pairingId);
 
@@ -300,7 +361,7 @@ export class ConnectionService implements IConnectionService {
     this.pairings.set(
       pairingId,
       'connection' in outcome
-        ? { ...entry, state: PairingState.Linked, connection: outcome.connection }
+        ? { ...entry, state: PairingState.Linked, ...outcome }
         : { ...entry, state: PairingState.Failed, error: outcome.error }
     );
   }
@@ -310,14 +371,22 @@ export class ConnectionService implements IConnectionService {
     kind: Connection['kind'],
     connectionId: string | null,
     result: SignInResult
-  ): Promise<Connection> {
+  ): Promise<{ connection: Connection; created: boolean }> {
     const existing = connectionId ?? (await this.findByAccount(kind, result.account));
     const secrets = { ...result.secrets, account: result.account };
 
     if (!existing) {
       this.logger.info({ kind }, 'signed in, creating connection');
 
-      return this.create({ kind, name: result.name ?? result.account, config: {}, secrets });
+      return {
+        connection: await this.create({
+          kind,
+          name: result.name ?? result.account,
+          config: {},
+          secrets,
+        }),
+        created: true,
+      };
     }
 
     const current = await this.openSecrets(existing);
@@ -328,7 +397,7 @@ export class ConnectionService implements IConnectionService {
     );
     this.logger.info({ connectionId: existing }, 'connection signed in again');
 
-    return this.restartAndReload(existing);
+    return { connection: await this.restartAndReload(existing), created: false };
   }
 
   private pairingOf(kind: Connection['kind']): IConnectorPairing {

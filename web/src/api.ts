@@ -14,6 +14,8 @@ import type {
   OAuthAppView,
   OAuthProvider,
   PairingStatus,
+  SignInStart,
+  SignInStatus,
   RedirectMode,
   RichContent,
   Rule,
@@ -121,13 +123,15 @@ export const api = {
     provider: OAuthProvider,
     body: { clientId: string; clientSecret: string; redirectMode: RedirectMode }
   ) => request<{ app: OAuthAppView }>('PUT', `/oauth/apps/${provider}`, body).then((r) => r.app),
-  /** Returns the provider page to send the browser to. */
   startPairing: (target: { kind: ConnectorKind } | { connectionId: string }) =>
     request<{ pairingId: string; code: string }>('POST', '/connections/pairings', target),
   pairingStatus: (pairingId: string) =>
     request<PairingStatus>('GET', `/connections/pairings/${pairingId}`),
+  /** The provider page to send the browser to, and the id to ask how it ended. */
   signIn: (target: { kind: ConnectorKind } | { connectionId: string }) =>
-    request<{ url: string }>('POST', '/oauth/sign-in', target).then((r) => r.url),
+    request<SignInStart>('POST', '/oauth/sign-in', target),
+  signInStatus: (signInId: string) =>
+    request<SignInStatus>('GET', `/oauth/sign-in/${encodeURIComponent(signInId)}`),
 
   listRules: (connectionId: string) =>
     request<{ rules: Rule[]; history: RuleHistoryEntry[] }>(

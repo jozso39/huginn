@@ -301,5 +301,23 @@ export type PairingState = 'Waiting' | 'Linked' | 'Failed';
 export interface PairingStatus {
   state: PairingState;
   connection: Connection | null;
+  /** Linked: whether the connection is new, or one linked again. */
+  created: boolean;
+  error: string | null;
+}
+
+export type SignInState = 'Waiting' | 'Done' | 'Failed';
+
+export interface SignInStart {
+  /** The provider's page; in the Mac app it opens in the browser. */
+  url: string;
+  signInId: string;
+}
+
+export interface SignInStatus {
+  state: SignInState;
+  /** Done: a new connection, or the one that account already had. */
+  connection: Connection | null;
+  created: boolean;
   error: string | null;
 }

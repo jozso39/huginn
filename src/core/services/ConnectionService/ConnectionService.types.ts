@@ -38,12 +38,30 @@ export interface PairingStart {
 export interface PairingStatus {
   readonly state: PairingState;
   readonly connection: Connection | null;
+  /** Linked: whether the connection is new, or one linked again. */
+  readonly created: boolean;
   readonly error: string | null;
 }
 
 export interface SignInStart {
   /** The provider page to send the browser to. */
   readonly url: string;
+  /** For `signInStatus`: in the Mac app the sign-in finishes in the browser, not here. */
+  readonly signInId: string;
+}
+
+export enum SignInState {
+  Waiting = 'Waiting',
+  Done = 'Done',
+  Failed = 'Failed',
+}
+
+export interface SignInStatus {
+  readonly state: SignInState;
+  /** Done: the connection signed in — a new one, or the one that account already had. */
+  readonly connection: Connection | null;
+  readonly created: boolean;
+  readonly error: string | null;
 }
 
 /** Sign in a new account of a kind, or an existing connection again. */
@@ -66,6 +84,8 @@ export interface IConnectionService {
    * refreshes the one that account already has. Returns it.
    */
   completeSignIn(callbackUrl: string): Promise<Connection>;
+  /** How a sign-in started here ended, for the window waiting on the browser. */
+  signInStatus(signInId: string): SignInStatus;
   /** Starts linking a phone; the result finishes in the background. */
   beginPairing(target: SignInTarget): Promise<PairingStart>;
   pairingStatus(pairingId: string): PairingStatus;
