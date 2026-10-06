@@ -109,6 +109,8 @@ export interface JsonSchemaProperty {
   enum?: string[];
   /** Huginn extension: human labels for `enum` values. */
   optionLabels?: Record<string, string>;
+  /** Huginn extension: shown only while these other fields have these values. */
+  shownWhen?: Record<string, string>;
 }
 
 export interface ConnectorCapabilities {

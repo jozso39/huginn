@@ -27,20 +27,29 @@ export const slackConfigSchema = z.object({
     .meta({
       title: 'Channel messages',
       description:
-        'Besides DMs, mentions and your threads: nothing else, or every channel you are in.',
+        'DMs, mentions and replies in your threads always come in. Besides them: only the channels you list, or every channel you are in.',
       optionLabels: {
         [SlackChannelScope.AddressedToMe]: 'Only what is addressed to me',
         [SlackChannelScope.AllMyChannels]: 'Everything in channels I am in',
       },
     }),
-  watchChannels: z.string().default('').meta({
-    title: 'Also watch',
-    description: '#general, #releases — used with "Only what is addressed to me"',
-  }),
-  ignoreChannels: z.string().default('').meta({
-    title: 'Ignore',
-    description: '#random, #lunch — used with "Everything"; mentions still come through',
-  }),
+  // Each list only means something with one choice above, so the form shows just that one.
+  watchChannels: z
+    .string()
+    .default('')
+    .meta({
+      title: 'Also watch',
+      description: '#general, #releases — every message in these comes in too',
+      shownWhen: { channelScope: SlackChannelScope.AddressedToMe },
+    }),
+  ignoreChannels: z
+    .string()
+    .default('')
+    .meta({
+      title: 'Ignore',
+      description: '#random, #lunch — left out; mentions there still come through',
+      shownWhen: { channelScope: SlackChannelScope.AllMyChannels },
+    }),
   whenRead: z
     .enum(SlackReadMode)
     .default(SlackReadMode.Keep)

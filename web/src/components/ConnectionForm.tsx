@@ -41,6 +41,10 @@ const initialConfig = (descriptor: ConnectorDescriptor, existing?: Connection) =
     ])
   );
 
+/** A field tied to another field's choice is shown only with that choice; it keeps its value. */
+const applies = (prop: JsonSchemaProperty, config: Record<string, string>): boolean =>
+  Object.entries(prop.shownWhen ?? {}).every(([key, value]) => config[key] === value);
+
 const ConfigField = ({
   prop,
   value,
@@ -148,18 +152,20 @@ export const ConnectionForm = ({
         <span className="field__label">Colour</span>
         <ColorPicker value={color} onChange={setColor} />
       </div>
-      {Object.entries(descriptor.configSchema.properties ?? {}).map(([key, prop]) => (
-        <label key={key}>
-          {prop.title ?? key}
-          <ConfigField
-            prop={prop}
-            value={config[key] ?? ''}
-            required={required.has(key)}
-            onChange={(value) => setConfig((c) => ({ ...c, [key]: value }))}
-          />
-          {prop.description && <small className="muted">{prop.description}</small>}
-        </label>
-      ))}
+      {Object.entries(descriptor.configSchema.properties ?? {})
+        .filter(([, prop]) => applies(prop, config))
+        .map(([key, prop]) => (
+          <label key={key}>
+            {prop.title ?? key}
+            <ConfigField
+              prop={prop}
+              value={config[key] ?? ''}
+              required={required.has(key)}
+              onChange={(value) => setConfig((c) => ({ ...c, [key]: value }))}
+            />
+            {prop.description && <small className="muted">{prop.description}</small>}
+          </label>
+        ))}
       {descriptor.secretFields.map((field) => (
         <label key={field.key}>
           {field.label}
