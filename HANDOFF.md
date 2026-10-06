@@ -81,9 +81,16 @@ These were argued out with the owner; keep them unless there is a reason.
 
 ## 4. Next steps (the owner's priority order, as far as known)
 
-> **Direction change 2026-10-06:** Huginn becomes a Mac app for anyone (Tauri, unsigned,
-> hourly auto-update, sharing of setups, Slack sign-in + polling, local triage model).
-> The plan is [docs/plans/desktop-app.md](docs/plans/desktop-app.md); it supersedes the list below.
+> **2026-10-06: Huginn is a Mac app now.** M1 of [docs/plans/desktop-app.md](docs/plans/desktop-app.md)
+> is done: `desktop/` (Tauri shell) + the server as a sidecar, released from GitHub
+> (`bun run release <version>` → tag → Actions builds the `.dmg`, the signed update and
+> `latest.json`; installed apps check hourly). The Pi deployment is retired (stopped,
+> data kept there as a fallback). Jozef's data lives in
+> `~/Library/Application Support/cz.cambora.huginn/` (`huginn.db`, `master.key`,
+> `server.log`). The update-signing key is in Jozef's Bitwarden and in the repo's
+> Actions secrets (`TAURI_SIGNING_PRIVATE_KEY[_PASSWORD]`); losing it means installed
+> copies can no longer update. Next: M2 (desktop sign-in for Google, Slack sign-in +
+> polling). Sections below describe the server era; the plan supersedes §4.
 
 1. **Owner actions**: link Signal (Connections → Signal → scan); add LinkedIn (sign in
    with Google) and set the personal Gmail's *Leave out mail from* to `linkedin.com`;
@@ -137,6 +144,9 @@ These were argued out with the owner; keep them unless there is a reason.
 ## 7. Working on it
 
 ```bash
+bun run desktop:dev             # the Mac app around a dev build (data in Application Support)
+bun run desktop:build           # Huginn.app + .dmg locally (needs the updater key in env)
+bun run release 0.3.0           # bump, tag, push → GitHub builds and publishes the release
 bun install
 cp .env.example .env            # fill HUGINN_SECRET_KEY and HUGINN_INGEST_KEY
 bun run dev                     # server with reload (PORT from .env)
