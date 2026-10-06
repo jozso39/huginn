@@ -6,6 +6,7 @@ import type { IClickUpClient } from '@/core/clients/ClickUpClient/ClickUpClient.
 import type { IGmailClient } from '@/core/clients/GmailClient/GmailClient.types';
 import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
 import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
+import type { IAttentionSink } from '@/core/attention/Attention.types';
 import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
 import type { ISignalClient } from '@/core/clients/SignalClient/SignalClient.types';
 import type { ISlackClient } from '@/core/clients/SlackClient/SlackClient.types';
@@ -46,6 +47,8 @@ export interface CreateTestContainerOptions {
   readonly llm?: ILlmClient;
   /** Hand in a MockPushClient to see what would reach the phone. */
   readonly push?: IPushClient;
+  /** Hand in a MockAttentionSink to see what the Mac app would show. */
+  readonly attentionSink?: IAttentionSink;
 }
 
 const createTestConfig = (): IConfig => ({
@@ -77,6 +80,7 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
     jev: options.jev ?? new MockJevClient(),
     llm: options.llm ?? new MockLlmClient(),
     push: options.push ?? new MockPushClient(),
+    ...(options.attentionSink ? { attentionSink: options.attentionSink } : {}),
     connectorFactories: options.connectorFactories ?? [
       new GitLabConnectorFactory(logger, config, () => new MockGitLabClient()),
       new SlackConnectorFactory(logger, config, () => options.slackClient ?? new MockSlackClient()),

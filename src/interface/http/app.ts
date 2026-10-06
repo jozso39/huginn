@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
 import type { Container } from '@/dependency/container/container.types';
 import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
+import { localAccess } from './localAccess';
 import { createConnectionRoutes } from './routes/connectionRoutes';
 import { createEventRoutes } from './routes/eventRoutes';
 import { createItemRoutes } from './routes/itemRoutes';
@@ -17,8 +18,14 @@ const STATUS_BY_CODE: Record<ErrorCode, 400 | 401 | 404 | 422 | 502> = {
   [ErrorCode.Upstream]: 502,
 };
 
-export const createApp = (container: Container, webRoot: string) => {
+export const createApp = (container: Container, webRoot: string, port: () => number) => {
   const app = new Hono();
+  const { launchToken } = container.config.desktop;
+
+  // The Mac app's window is the only client; see localAccess for why.
+  if (launchToken) {
+    app.use('*', localAccess(launchToken, port));
+  }
 
   app.route('/api/items', createItemRoutes(container));
   app.route('/api/connections', createConnectionRoutes(container));

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Container } from '@/dependency/container/container.types';
 import { ConnectorKind } from '@/core/connections/Connection.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
+import { sameSecret } from '@/interface/http/localAccess';
 import { parseBody, parseQuery } from '@/interface/http/validation.utils';
 import {
   feedbackBodySchema,
@@ -72,7 +73,9 @@ export const createItemRoutes = (container: Container) => {
   // External writers. Authenticated by the ingest key, not by being on the tailnet,
   // so a Hermes skill running as another user can still post.
   app.post('/', async (c) => {
-    if (c.req.header('x-huginn-key') !== container.config.ingestKey) {
+    const ingestKey = container.config.ingestKey;
+
+    if (!ingestKey || !sameSecret(c.req.header('x-huginn-key') ?? '', ingestKey)) {
       throw new HuginnError(ErrorCode.Unauthorized, 'bad ingest key');
     }
 

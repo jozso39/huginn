@@ -1,12 +1,13 @@
-import { resolve } from 'node:path';
 import type { IConfig } from '@/lib/config';
 import { createConfig } from '@/lib/config';
 import type { Logger } from '@/lib/logger';
 import { createLogger } from '@/lib/logger';
 import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
 import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
+import type { IAttentionSink } from '@/core/attention/Attention.types';
 import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
+import { AttentionService } from '@/core/services/AttentionService/AttentionService';
 import { ConnectionService } from '@/core/services/ConnectionService/ConnectionService';
 import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
 import { FeedbackService } from '@/core/services/FeedbackService/FeedbackService';
@@ -45,9 +46,11 @@ export interface CreateContainerOptions {
   readonly jev?: IJevClient;
   readonly llm?: ILlmClient;
   readonly push?: IPushClient;
+  /** The Mac app's menu bar and notifications; nowhere when running without it. */
+  readonly attentionSink?: IAttentionSink;
 }
 
-const MIGRATIONS_FOLDER = resolve(import.meta.dir, '../../../drizzle');
+const NO_ATTENTION: IAttentionSink = { badge: () => undefined, notify: () => undefined };
 
 export const createContainer = (options: CreateContainerOptions = {}): Container => {
   const config = options.config ?? createConfig();
@@ -55,7 +58,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
 
   const database = new SqliteDatabase(logger, config.dbPath);
 
-  database.migrate(MIGRATIONS_FOLDER);
+  database.migrate(config.paths.migrations);
 
   const eventBus = new InMemoryEventBus(logger);
   const secretBox = new AesSecretBox(config.secretKey);
@@ -160,6 +163,14 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     eventBus
   );
 
+  const attentionService = new AttentionService(
+    logger,
+    options.attentionSink ?? NO_ATTENTION,
+    itemStore,
+    connectionStore,
+    eventBus
+  );
+
   return {
     logger,
     config,
@@ -177,6 +188,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     ruleService,
     feedbackService,
     pushService,
+    attentionService,
     close: () => database.close(),
   };
 };

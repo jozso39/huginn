@@ -5,6 +5,9 @@
   "type": "module",
   "private": true,
   "license": "MIT",
+  "engines": {
+    "bun": ">=1.4.1"
+  },
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "dev:web": "vite",

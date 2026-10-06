@@ -1,15 +1,43 @@
+import { join, resolve } from 'node:path';
 import { getCleanEnv } from './env';
 
-export const createConfig = () => {
+// From src/lib to the repository, for development runs; the Mac app passes its own paths.
+const REPO_ROOT = resolve(import.meta.dir, '../..');
+
+/** What the Mac app hands over on stdin rather than through the environment. */
+export interface ConfigSecrets {
+  readonly secretKey?: string;
+  readonly launchToken?: string;
+}
+
+export const createConfig = (secrets: ConfigSecrets = {}) => {
   const env = getCleanEnv();
+  const secretKey = secrets.secretKey ?? env.HUGINN_SECRET_KEY;
+
+  if (!secretKey || secretKey.length < 32) {
+    throw new Error('HUGINN_SECRET_KEY is missing: 32 random bytes, base64');
+  }
 
   return {
     env: env.NODE_ENV,
     port: env.PORT,
     logLevel: env.LOG_LEVEL,
-    dbPath: env.HUGINN_DB_PATH,
-    secretKey: env.HUGINN_SECRET_KEY,
-    ingestKey: env.HUGINN_INGEST_KEY,
+    host: env.HUGINN_HOST,
+    dbPath: env.HUGINN_DATA_DIR ? join(env.HUGINN_DATA_DIR, 'huginn.db') : env.HUGINN_DB_PATH,
+    secretKey,
+    ingestKey: env.HUGINN_INGEST_KEY ?? null,
+    paths: {
+      web: env.HUGINN_RESOURCES_DIR
+        ? join(env.HUGINN_RESOURCES_DIR, 'web')
+        : join(REPO_ROOT, 'web/dist'),
+      migrations: env.HUGINN_RESOURCES_DIR
+        ? join(env.HUGINN_RESOURCES_DIR, 'drizzle')
+        : join(REPO_ROOT, 'drizzle'),
+    },
+    desktop: {
+      enabled: env.HUGINN_DESKTOP === '1',
+      launchToken: secrets.launchToken ?? env.HUGINN_LAUNCH_TOKEN ?? null,
+    },
     publicUrl: env.HUGINN_PUBLIC_URL?.replace(/\/$/, '') ?? null,
     oauthRelayUrl: env.HUGINN_OAUTH_RELAY_URL ?? null,
     vapid:

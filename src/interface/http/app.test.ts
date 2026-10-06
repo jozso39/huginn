@@ -10,7 +10,7 @@ describe('HTTP API', () => {
 
   beforeAll(() => {
     container = createTestContainer();
-    app = createApp(container, '/nonexistent');
+    app = createApp(container, '/nonexistent', () => 3000);
   });
 
   afterAll(async () => {
@@ -32,7 +32,7 @@ describe('HTTP API', () => {
     expect(denied.status).toBe(401);
 
     const created = await json('/api/items', payload, {
-      'x-huginn-key': container.config.ingestKey,
+      'x-huginn-key': container.config.ingestKey ?? '',
     });
     const body = (await created.json()) as { item: { state: string; threadKey: string } };
 
