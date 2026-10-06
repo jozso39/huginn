@@ -81,6 +81,10 @@ These were argued out with the owner; keep them unless there is a reason.
 
 ## 4. Next steps (the owner's priority order, as far as known)
 
+> **Direction change 2026-10-06:** Huginn becomes a Mac app for anyone (Tauri, unsigned,
+> hourly auto-update, sharing of setups, Slack sign-in + polling, local triage model).
+> The plan is [docs/plans/desktop-app.md](docs/plans/desktop-app.md); it supersedes the list below.
+
 1. **Owner actions**: link Signal (Connections → Signal → scan); add LinkedIn (sign in
    with Google) and set the personal Gmail's *Leave out mail from* to `linkedin.com`;
    turn on LinkedIn's message e-mails (it currently mails only jobs/digests); install
