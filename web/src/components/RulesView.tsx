@@ -3,6 +3,7 @@ import { api } from '../api';
 import type { Connection, FieldInfo, Rule, RuleHistoryEntry } from '../api.types';
 import { relativeTime } from '../connectorMeta';
 import { RuleEditor } from './RuleEditor';
+import { ConfirmButton } from './ConfirmButton';
 import { ConnectorIcon } from './ConnectorIcon';
 
 interface RulesViewProps {
@@ -165,17 +166,11 @@ export const RulesView = ({ connection }: RulesViewProps) => {
               Edit
             </button>
             {rule.status !== 'Proposed' && (
-              <button
-                type="button"
-                className="danger"
-                onClick={() => {
-                  if (window.confirm(`Delete rule “${rule.name}”?`)) {
-                    void act(() => api.deleteRule(rule.id));
-                  }
-                }}
-              >
-                Delete
-              </button>
+              <ConfirmButton
+                label="Delete"
+                question={`Delete rule “${rule.name}”?`}
+                onConfirm={() => void act(() => api.deleteRule(rule.id))}
+              />
             )}
           </div>
         </>

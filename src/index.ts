@@ -8,31 +8,19 @@ const PORT_TRIES = 3;
 
 const main = async () => {
   const desktop = process.env.HUGINN_DESKTOP === '1' ? new DesktopChannel() : null;
-
   // In the Mac app secrets come over stdin, so they never show in the process list or
   // environment; otherwise from the environment (.env).
   const secrets = desktop ? await desktop.readSecrets() : {};
-  const container = createContainer({
-    config: createConfig(secrets),
-    ...(desktop ? { attentionSink: desktop } : {}),
-  });
-  const { logger, config } = container;
+  const settings = createConfig(secrets);
 
-  // Connections from before triage existed get their connector's default rules.
-  await container.ruleService.installMissingDefaults();
-  // Before the connectors, so nothing Important slips past the phone or the menu bar.
-  container.pushService.start();
-  await container.attentionService.start();
-  await container.connectorHost.startAll();
-
-  let port = config.port;
-  const app = createApp(container, config.paths.web, () => port);
+  // The port comes first: in the Mac app it is also the address sign-ins return to
+  // (http://127.0.0.1:<port>), which the services need from the start.
   const serve = (attempt: number): ReturnType<typeof Bun.serve> => {
     try {
       return Bun.serve({
-        port: config.port + attempt,
-        hostname: config.host,
-        fetch: app.fetch,
+        port: settings.port + attempt,
+        hostname: settings.host,
+        fetch: () => new Response('Huginn is starting', { status: 503 }),
         // SSE streams are long-lived; Bun's default would cut them at 10 s.
         idleTimeout: 0,
       });
@@ -46,8 +34,22 @@ const main = async () => {
   };
 
   const server = serve(0);
+  const port = server.port ?? settings.port;
+  const config = desktop ? { ...settings, publicUrl: `http://127.0.0.1:${port}` } : settings;
+  const container = createContainer({
+    config,
+    ...(desktop ? { attentionSink: desktop } : {}),
+  });
+  const { logger } = container;
 
-  port = server.port ?? config.port;
+  // Connections from before triage existed get their connector's default rules.
+  await container.ruleService.installMissingDefaults();
+  // Before the connectors, so nothing Important slips past the menu bar.
+  container.pushService.start();
+  await container.attentionService.start();
+  await container.connectorHost.startAll();
+
+  server.reload({ fetch: createApp(container, config.paths.web, () => port).fetch });
   logger.info({ host: config.host, port }, 'huginn listening');
   desktop?.ready(port);
 

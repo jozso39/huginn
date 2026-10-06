@@ -42,7 +42,18 @@ export const createOAuthRoutes = (container: Container) => {
 
   app.get('/callback', async (c) => {
     try {
-      await container.connectionService.completeSignIn(c.req.url);
+      const connection = await container.connectionService.completeSignIn(c.req.url);
+
+      // In the Mac app the sign-in ran in the user's browser, not in Huginn's window.
+      if (container.config.desktop.enabled) {
+        return c.html(
+          '<!doctype html><meta name="viewport" content="width=device-width">' +
+            '<title>Signed in</title>' +
+            '<body style="font:16px -apple-system,sans-serif;padding:48px;text-align:center">' +
+            `<p><strong>${escapeHtml(connection.name)}</strong> is connected to Huginn.</p>` +
+            '<p>You can close this tab and go back to Huginn.</p>'
+        );
+      }
 
       return c.redirect('/#connections');
     } catch (error) {

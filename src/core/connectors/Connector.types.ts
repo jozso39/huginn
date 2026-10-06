@@ -7,7 +7,7 @@ import type {
   Secrets,
 } from '@/core/connections/Connection.types';
 import type { Item, NewItem, RichContent } from '@/core/items/Item.types';
-import type { OAuthAppCredentials, OAuthProvider } from '@/core/oauth/OAuthApp.types';
+import type { OAuthAppCredentials, OAuthProvider, SignInApp } from '@/core/oauth/OAuthApp.types';
 import type { RuleDraft } from '@/core/triage/Rule.types';
 import type { UpsertResult } from '@/core/items/ItemStore.types';
 
@@ -88,8 +88,8 @@ export interface SignInResult {
 export interface IConnectorAuthorization {
   readonly provider: OAuthProvider;
   isAuthorized(secrets: Secrets): boolean;
-  authorizationUrl(app: OAuthAppCredentials, state: string): string;
-  complete(app: OAuthAppCredentials, code: string): Promise<SignInResult>;
+  authorizationUrl(app: SignInApp, state: string): string;
+  complete(app: SignInApp, code: string): Promise<SignInResult>;
 }
 
 /**

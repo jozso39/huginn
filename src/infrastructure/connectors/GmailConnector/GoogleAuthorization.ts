@@ -1,7 +1,7 @@
 import type { IGoogleOAuthClient } from '@/core/clients/GoogleOAuthClient/GoogleOAuthClient.types';
 import type { Secrets } from '@/core/connections/Connection.types';
 import type { IConnectorAuthorization, SignInResult } from '@/core/connectors/Connector.types';
-import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
+import type { SignInApp } from '@/core/oauth/OAuthApp.types';
 import { OAuthProvider } from '@/core/oauth/OAuthApp.types';
 
 /**
@@ -23,7 +23,7 @@ export class GoogleAuthorization implements IConnectorAuthorization {
     return Boolean(secrets.refreshToken);
   }
 
-  public authorizationUrl(app: OAuthAppCredentials, state: string): string {
+  public authorizationUrl(app: SignInApp, state: string): string {
     return this.oauth.authorizationUrl({
       clientId: app.clientId,
       redirectUri: app.redirectUri,
@@ -32,7 +32,7 @@ export class GoogleAuthorization implements IConnectorAuthorization {
     });
   }
 
-  public async complete(app: OAuthAppCredentials, code: string): Promise<SignInResult> {
+  public async complete(app: SignInApp, code: string): Promise<SignInResult> {
     const grant = await this.oauth.exchangeCode(app, code, app.redirectUri);
 
     return { secrets: { refreshToken: grant.refreshToken }, account: grant.email };

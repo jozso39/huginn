@@ -8,7 +8,7 @@ import type {
   IConnectorPairing,
   SignInResult,
 } from '@/core/connectors/Connector.types';
-import type { OAuthAppCredentials } from '@/core/oauth/OAuthApp.types';
+import type { SignInApp } from '@/core/oauth/OAuthApp.types';
 import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import type { ISecretBox } from '@/core/secrets/SecretBox.types';
 import type { IConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost.types';
@@ -317,7 +317,7 @@ export class ConnectionService implements IConnectionService {
     return `${crypto.randomUUID()}.${home}`;
   }
 
-  private async appFor(authorization: IConnectorAuthorization): Promise<OAuthAppCredentials> {
+  private async appFor(authorization: IConnectorAuthorization): Promise<SignInApp> {
     const app = await this.oauthApps.credentials(authorization.provider);
 
     if (!app) {
@@ -327,7 +327,16 @@ export class ConnectionService implements IConnectionService {
       );
     }
 
-    return app;
+    const { redirectUri } = app;
+
+    if (!redirectUri) {
+      throw new HuginnError(
+        ErrorCode.Validation,
+        `${authorization.provider} sign-in has nowhere to return to: choose "Direct" in its sign-in settings`
+      );
+    }
+
+    return { ...app, redirectUri };
   }
 
   /** Signing in again with the same account refreshes its connection instead of duplicating it. */

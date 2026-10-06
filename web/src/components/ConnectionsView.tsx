@@ -5,6 +5,7 @@ import { relativeTime } from '../connectorMeta';
 import type { ConnectionFormValues } from './ConnectionForm';
 import { ConnectionForm } from './ConnectionForm';
 import { SignInConnect, startSignIn } from './SignInConnect';
+import { ConfirmButton } from './ConfirmButton';
 import { ConnectorIcon } from './ConnectorIcon';
 import { NotificationsPanel } from './NotificationsPanel';
 import { PairConnect } from './PairConnect';
@@ -129,17 +130,11 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
                   >
                     {connection.enabled ? 'Pause' : 'Resume'}
                   </button>
-                  <button
-                    type="button"
-                    className="danger"
-                    onClick={() => {
-                      if (window.confirm(`Remove “${connection.name}” and all its items?`)) {
-                        void act(() => api.removeConnection(connection.id));
-                      }
-                    }}
-                  >
-                    Remove
-                  </button>
+                  <ConfirmButton
+                    label="Remove"
+                    question={`Remove “${connection.name}” and all its items?`}
+                    onConfirm={() => void act(() => api.removeConnection(connection.id))}
+                  />
                 </div>
               </div>
               {descriptor?.signInProvider && connection.status === 'NeedsAuth' && (

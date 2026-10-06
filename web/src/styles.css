@@ -1272,3 +1272,15 @@ a.slack-attachment__title:hover {
 .thread__title-link:hover {
   text-decoration: underline;
 }
+
+.confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.confirm__question {
+  font-size: 13px;
+  color: var(--danger);
+}

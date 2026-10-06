@@ -74,9 +74,7 @@ export class OAuthAppService implements IOAuthAppService {
 
   public async credentials(provider: OAuthProvider): Promise<OAuthAppCredentials | null> {
     const stored = await this.store.get(provider);
-    const redirectUri = stored ? this.redirectUri(stored.redirectMode) : null;
-
-    if (!stored || !redirectUri) {
+    if (!stored) {
       return null;
     }
 
@@ -84,7 +82,7 @@ export class OAuthAppService implements IOAuthAppService {
       provider,
       clientId: stored.clientId,
       clientSecret: await this.secretBox.open(stored.secretCiphertext),
-      redirectUri,
+      redirectUri: this.redirectUri(stored.redirectMode),
     };
   }
 

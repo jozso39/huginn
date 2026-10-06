@@ -16,6 +16,7 @@
     "desktop:sidecar": "bun build --compile --target=bun-darwin-arm64 src/index.ts --outfile desktop/src-tauri/binaries/huginn-server-aarch64-apple-darwin",
     "desktop:prepare": "bun run build && bun run desktop:sidecar",
     "desktop:dev": "cd desktop && tauri dev",
+    "desktop:dev-data": "bun scripts/dev-data.ts",
     "desktop:build": "cd desktop && tauri build",
     "release": "bun scripts/release.ts",
     "vapid": "bun -e \"const k = require('web-push').generateVAPIDKeys(); console.log('HUGINN_VAPID_PUBLIC_KEY=' + k.publicKey + '\\nHUGINN_VAPID_PRIVATE_KEY=' + k.privateKey)\"",

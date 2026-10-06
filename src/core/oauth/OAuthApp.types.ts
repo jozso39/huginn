@@ -15,13 +15,20 @@ export enum RedirectMode {
   Relay = 'Relay',
 }
 
-/** Everything a sign-in needs, secret included. Never leaves the server. */
+/** The provider app, secret included. Never leaves the server. */
 export interface OAuthAppCredentials {
   readonly provider: OAuthProvider;
   readonly clientId: string;
   readonly clientSecret: string;
-  readonly redirectUri: string;
+  /**
+   * Where the provider sends the browser after a sign-in; null when this Huginn has no
+   * address for the chosen mode. Refreshing tokens does not need it — only signing in.
+   */
+  readonly redirectUri: string | null;
 }
+
+/** The app as a sign-in needs it: with somewhere to come back to. */
+export type SignInApp = OAuthAppCredentials & { readonly redirectUri: string };
 
 /** What the settings page may show: no secret. */
 export interface OAuthAppView {

@@ -83,7 +83,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .setup(|app| {
             let handle = app.handle().clone();
-            let data_dir = app.path().app_data_dir()?;
+            let data_dir = data_dir(app.handle())?;
 
             fs::create_dir_all(&data_dir)?;
             app.manage(Shell {
@@ -97,6 +97,7 @@ pub fn run() {
                 restart_item: Mutex::new(None),
                 login_item: Mutex::new(None),
             });
+            build_window(&handle)?;
             build_tray(&handle)?;
             open_at_login_once(&handle, &data_dir);
             start_server(&handle)?;
@@ -123,6 +124,64 @@ pub fn run() {
             RunEvent::Exit => stop_server(app),
             _ => {}
         });
+}
+
+/// Where Huginn keeps its database and key. A development build gets its own folder so
+/// it can never touch the real data (or poll the same accounts with it).
+fn data_dir(app: &AppHandle) -> AnyResult<PathBuf> {
+    let dir = app.path().app_data_dir()?;
+
+    if !cfg!(debug_assertions) {
+        return Ok(dir);
+    }
+
+    let name = dir
+        .file_name()
+        .map(|name| format!("{}.dev", name.to_string_lossy()))
+        .ok_or("no data folder name")?;
+
+    Ok(dir.with_file_name(name))
+}
+
+/// The window shows Huginn's own pages; every other link leaves for the browser (or the
+/// app it belongs to, like Slack), instead of replacing Huginn or going nowhere.
+fn build_window(app: &AppHandle) -> AnyResult<()> {
+    tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
+        .title("Huginn")
+        .inner_size(1200.0, 820.0)
+        .min_inner_size(380.0, 480.0)
+        .on_navigation(|url| {
+            if stays_inside(url) {
+                return true;
+            }
+
+            open_outside(url);
+            false
+        })
+        .on_new_window(|url, _| {
+            open_outside(&url);
+            tauri::webview::NewWindowResponse::Deny
+        })
+        .build()?;
+
+    Ok(())
+}
+
+/// Huginn's loading page, its local server, and what e-mail frames are made of.
+fn stays_inside(url: &url::Url) -> bool {
+    match url.scheme() {
+        "tauri" | "about" | "data" | "blob" => true,
+        "http" => matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "tauri.localhost")),
+        _ => false,
+    }
+}
+
+/// Only kinds of links a message may reasonably carry; anything else (file:, other
+/// apps' schemes) is ignored rather than handed to macOS.
+fn open_outside(url: &url::Url) {
+    if matches!(url.scheme(), "http" | "https" | "mailto" | "slack") {
+        let _ = std::process::Command::new("/usr/bin/open").arg(url.as_str()).spawn();
+    }
 }
 
 /// The key that seals every stored token. Created once; copying a server's

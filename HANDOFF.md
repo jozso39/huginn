@@ -144,7 +144,8 @@ These were argued out with the owner; keep them unless there is a reason.
 ## 7. Working on it
 
 ```bash
-bun run desktop:dev             # the Mac app around a dev build (data in Application Support)
+bun run desktop:dev-data        # copy the installed app's data for debugging (Slack paused)
+bun run desktop:dev             # the Mac app around a dev build (own folder: …huginn.dev)
 bun run desktop:build           # Huginn.app + .dmg locally (needs the updater key in env)
 bun run release 0.3.0           # bump, tag, push → GitHub builds and publishes the release
 bun install
