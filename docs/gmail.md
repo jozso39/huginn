@@ -26,34 +26,48 @@ about a week of history). The first sync picks up unread inbox mail from the las
 
 ## One-time setup: the Google sign-in app
 
-Choosing Gmail the first time opens **Set up Google sign-in once**, with the exact
-redirect URI to register. In short:
+Once per Mac, not per mailbox: choosing Gmail (or LinkedIn) the first time opens **Set up
+Google sign-in once**. After that, every mailbox is one **Sign in with Google** away;
+**Google sign-in settings** next to it changes the client.
+
+Whoever manages the Google Cloud project creates the client once and can hand it to
+colleagues:
 
 1. [Google Cloud → Credentials](https://console.cloud.google.com/apis/credentials), in a
    project with the **Gmail API** enabled.
 2. **Create credentials → OAuth client ID → Web application.**
-3. **Authorised redirect URIs**: add the address Huginn shows (copy button).
-4. Paste the client ID and secret into Huginn, **Save**.
+3. **Authorised redirect URIs**: the addresses Huginn shows (copy buttons). On a Mac
+   these are `http://127.0.0.1:47823/api/oauth/callback` and the same with `47824` and
+   `47825` — Huginn takes the first free port, so register all three.
+4. Paste the client ID and secret into Huginn, **Save**. Colleagues paste the same ID
+   and secret; send them privately (a password manager), it is a secret.
 
-The consent screen must be **In production** (or list your accounts as test users —
-but a *Testing* app loses its sign-ins after 7 days). Google shows an "unverified app"
-warning to you as the owner; *Advanced → Go to …* continues.
+### One client, many mailboxes
 
-### Where Google sends you back
+The client stands for Huginn, not for a mailbox: each mailbox signs in for itself and
+gets its own token, so one client serves any number of them. Which accounts may sign in
+is set by the project's consent screen:
 
-Huginn usually lives on a private address (a tailnet), and Google only redirects to
-addresses it accepts for your project. Two ways, chosen in the setup form:
+- **Internal** (a project inside your company's Google organisation): only company
+  accounts; no verification, no warning, no user limit. If the Workspace admin restricts
+  Gmail under *Security → API controls*, they mark the app trusted.
+- **External, In production**: any Google account, work or personal, after a one-time
+  "Google hasn't verified this app" screen (*Advanced → Go to …*); at most 100 users. A
+  company Workspace may forbid such apps for its accounts.
+- **External, Testing**: only the test users you list, and their sign-ins expire after
+  7 days. Avoid.
 
-- **Through the relay page** (`HUGINN_OAUTH_RELAY_URL`): Google returns to a small static
-  page on a domain your Google project already trusts, which forwards the one-time code
-  to your Huginn. The page is [`docs/oauth-relay.html`](oauth-relay.html); host it
-  anywhere static and point the variable at it. It forwards only to `https://*.ts.net`
-  or localhost, and the code is useless without the client secret, which stays in
-  Huginn.
-- **Straight back** (`HUGINN_PUBLIC_URL` + `/api/oauth/callback`): simplest, if Google
-  accepts your Huginn's address as a redirect URI.
+Someone with a personal and a work mailbox in one Huginn needs an External client.
 
-Both need `HUGINN_PUBLIC_URL` — where your browser reaches Huginn.
+### A Huginn server elsewhere
+
+The Mac app always signs in straight back to itself. A Huginn server on a private
+address (`HUGINN_PUBLIC_URL`, e.g. a tailnet) may need the relay page instead: Google
+returns to a small static page on a domain your Google project trusts, which forwards the
+one-time code to Huginn. The page is [`docs/oauth-relay.html`](oauth-relay.html); host it
+anywhere static and set `HUGINN_OAUTH_RELAY_URL` to it. It forwards only to
+`https://*.ts.net` or localhost, and the code is useless without the client secret,
+which stays in Huginn.
 
 ## If access is revoked
 

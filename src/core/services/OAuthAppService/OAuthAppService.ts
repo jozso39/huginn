@@ -53,7 +53,7 @@ export class OAuthAppService implements IOAuthAppService {
       };
     }
 
-    const redirectMode = stored?.redirectMode ?? this.defaultMode();
+    const redirectMode = this.usableMode(stored?.redirectMode);
 
     return {
       provider,
@@ -65,7 +65,7 @@ export class OAuthAppService implements IOAuthAppService {
         [RedirectMode.Relay]: this.redirectUri(RedirectMode.Relay),
       },
       needsSecret: true,
-      registerUris: [this.redirectUri(redirectMode)].filter((uri) => uri !== null),
+      registerUris: this.urisToRegister(redirectMode),
     };
   }
 
@@ -138,7 +138,7 @@ export class OAuthAppService implements IOAuthAppService {
       provider,
       clientId: stored.clientId,
       clientSecret: await this.secretBox.open(stored.secretCiphertext),
-      redirectUri: this.redirectUri(stored.redirectMode),
+      redirectUri: this.redirectUri(this.usableMode(stored.redirectMode)),
     };
   }
 
@@ -157,6 +157,34 @@ export class OAuthAppService implements IOAuthAppService {
 
   private defaultMode(): RedirectMode {
     return this.config.relayUrl ? RedirectMode.Relay : RedirectMode.Direct;
+  }
+
+  /**
+   * The saved way back when this Huginn can use it, else the one it can: a setup saved for
+   * the relay page signs in straight back in the Mac app, which has no relay.
+   */
+  private usableMode(saved: RedirectMode | undefined): RedirectMode {
+    return saved && this.redirectUri(saved) ? saved : this.defaultMode();
+  }
+
+  /**
+   * What the provider must list as redirect URIs. On this Mac that is one per port Huginn
+   * may take (it falls back to the next when its own is busy).
+   */
+  private urisToRegister(mode: RedirectMode): string[] {
+    const uri = this.redirectUri(mode);
+
+    if (!uri || mode !== RedirectMode.Direct || !this.loopbackUri() || !this.config.publicUrl) {
+      return uri ? [uri] : [];
+    }
+
+    const url = new URL(this.config.publicUrl);
+
+    return this.config.ports.map((port) => {
+      url.port = String(port);
+
+      return `${url.origin}${OAUTH_CALLBACK_PATH}`;
+    });
   }
 
   private redirectUri(mode: RedirectMode): string | null {

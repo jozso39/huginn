@@ -52,7 +52,7 @@ jobs:
             First start: Huginn is not signed by Apple yet, so macOS stops it once. Open it, click **Done**, then go to **System Settings → Privacy & Security** and click **Open Anyway**. After that it starts normally and updates itself.
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: true
+          uploadUpdaterJson: true
 
       - name: The app is signed (ad hoc) correctly
         run: codesign -v --deep --strict desktop/target/release/bundle/macos/Huginn.app

@@ -47,6 +47,8 @@ export interface CreateTestContainerOptions {
   readonly slackOAuthClient?: ISlackOAuthClient;
   /** Where the browser reaches Huginn; the Mac app's own address for Slack sign-ins. */
   readonly publicUrl?: string;
+  /** The OAuth relay page; null for a Huginn without one, like the Mac app. */
+  readonly relayUrl?: string | null;
   /** Hand in a MockJevClient to decide what soft rules and guardrails answer. */
   readonly jev?: IJevClient;
   readonly llm?: ILlmClient;
@@ -56,12 +58,15 @@ export interface CreateTestContainerOptions {
   readonly aiKeyChecker?: IAiKeyChecker;
 }
 
-const createTestConfig = (publicUrl = 'https://huginn.test.ts.net'): IConfig => ({
+const createTestConfig = (
+  publicUrl = 'https://huginn.test.ts.net',
+  relayUrl: string | null = 'https://relay.example.com/oauth/huginn/'
+): IConfig => ({
   ...createConfig(),
   env: 'test',
   dbPath: ':memory:',
   publicUrl,
-  oauthRelayUrl: 'https://relay.example.com/oauth/huginn/',
+  oauthRelayUrl: relayUrl,
   logLevel: 'silent',
   connectors: {
     // Long enough that no interval fires during a test.
@@ -78,7 +83,7 @@ const createTestConfig = (publicUrl = 'https://huginn.test.ts.net'): IConfig => 
  * Stores, services and the host are the real ones: that is what the tests are for.
  */
 export const createTestContainer = (options: CreateTestContainerOptions = {}): Container => {
-  const config = createTestConfig(options.publicUrl);
+  const config = createTestConfig(options.publicUrl, options.relayUrl);
   const logger = createTestLogger();
 
   return createContainer({

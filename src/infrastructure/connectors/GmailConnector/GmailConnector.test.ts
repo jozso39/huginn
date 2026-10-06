@@ -213,3 +213,36 @@ describe('Google sign-in and the Gmail connector', () => {
     revoked.close();
   });
 });
+
+describe('Google sign-in in the Mac app (no relay page)', () => {
+  test('signs in straight back to this Mac and lists the address of every port', async () => {
+    const mac = createTestContainer({
+      gmailClient: new MockGmailClient(),
+      publicUrl: 'http://127.0.0.1:47823',
+      relayUrl: null,
+    });
+    const view = await mac.oauthAppService.view(OAuthProvider.Google);
+
+    expect(view.redirectMode).toBe(RedirectMode.Direct);
+    expect(view.redirectUris).toEqual({
+      Direct: 'http://127.0.0.1:47823/api/oauth/callback',
+      Relay: null,
+    });
+    expect(view.registerUris).toEqual(
+      mac.config.ports.map((port) => `http://127.0.0.1:${port}/api/oauth/callback`)
+    );
+    await expect(mac.oauthAppService.save(OAuthProvider.Google, GOOGLE_APP)).rejects.toMatchObject({
+      code: ErrorCode.Validation,
+    });
+
+    await mac.oauthAppService.save(OAuthProvider.Google, {
+      ...GOOGLE_APP,
+      redirectMode: RedirectMode.Direct,
+    });
+
+    expect((await mac.oauthAppService.credentials(OAuthProvider.Google))?.redirectUri).toBe(
+      'http://127.0.0.1:47823/api/oauth/callback'
+    );
+    mac.close();
+  });
+});

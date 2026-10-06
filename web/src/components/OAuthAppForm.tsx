@@ -137,6 +137,9 @@ const GoogleAppForm = ({ app, onSaved, onCancel }: OAuthAppFormProps) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const redirectUri = app.redirectUris[mode];
+  // The server lists every address for the mode it reports (one per port on a Mac).
+  const toRegister =
+    mode === app.redirectMode ? app.registerUris : redirectUri ? [redirectUri] : [];
 
   if (available.length === 0) {
     return (
@@ -189,8 +192,11 @@ const GoogleAppForm = ({ app, onSaved, onCancel }: OAuthAppFormProps) => {
           <strong>Create credentials → OAuth client ID → Web application.</strong>
         </li>
         <li>
-          Under <em>Authorised redirect URIs</em> add:
-          {redirectUri && <CopyField value={redirectUri} />}
+          Under <em>Authorised redirect URIs</em> add
+          {toRegister.length > 1 ? ' all of these (Huginn takes the first free port)' : ''}:
+          {toRegister.map((uri) => (
+            <CopyField key={uri} value={uri} />
+          ))}
         </li>
         <li>Create, then paste the client ID and secret below.</li>
       </ol>
