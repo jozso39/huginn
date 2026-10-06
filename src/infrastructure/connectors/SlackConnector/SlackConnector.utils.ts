@@ -5,6 +5,7 @@ import type {
   SlackChannelInfo,
   SlackMessageEvent,
   SlackSearchMatch,
+  SlackTextStyle,
 } from '@/core/clients/SlackClient/SlackClient.types';
 import type { SlackAttachmentView } from '@/core/items/Item.types';
 import { ItemKind } from '@/core/items/Item.types';
@@ -300,9 +301,116 @@ interface BlockLine {
   readonly text: string;
 }
 
+// Innermost first, as Slack nests them: *_~`x`~_*.
+const STYLE_MARKS: readonly (readonly [keyof SlackTextStyle, string])[] = [
+  ['code', '`'],
+  ['strike', '~'],
+  ['italic', '_'],
+  ['bold', '*'],
+];
+
+/** Marks around the words only: mrkdwn ignores `*bold *`, so spaces stay outside. */
+const styled = (text: string, style: SlackBlockElement['style']): string => {
+  const [, lead = '', core = '', trail = ''] = /^(\s*)([\s\S]*?)(\s*)$/.exec(text) ?? [];
+
+  if (core === '' || typeof style !== 'object') {
+    return text;
+  }
+
+  const marked = STYLE_MARKS.reduce(
+    (inner, [key, mark]) => (style[key] ? `${mark}${inner}${mark}` : inner),
+    core
+  );
+
+  return `${lead}${marked}${trail}`;
+};
+
+/** One inline piece of `rich_text` as mrkdwn, the way Slack writes the message's text. */
+const inlineMrkdwn = (element: SlackBlockElement): string => {
+  const text = typeof element.text === 'string' ? element.text : '';
+
+  switch (element.type) {
+    case 'text':
+      return styled(text, element.style);
+    case 'link':
+      return styled(text ? `<${element.url}|${text}>` : `<${element.url}>`, element.style);
+    case 'user':
+      return `<@${element.user_id}>`;
+    case 'usergroup':
+      return `<!subteam^${element.usergroup_id}>`;
+    case 'channel':
+      return `<#${element.channel_id}>`;
+    case 'emoji':
+      return `:${element.name}:`;
+    case 'broadcast':
+      return `<!${element.range}>`;
+    default:
+      return element.fallback ?? text;
+  }
+};
+
+/** A `rich_text` container (section, list, quote, code block) as mrkdwn lines. */
+const containerMrkdwn = (container: SlackBlockElement): string => {
+  const inline = (container.elements ?? []).map(inlineMrkdwn).join('');
+
+  switch (container.type) {
+    case 'rich_text_list': {
+      const indent = '    '.repeat(container.indent ?? 0);
+
+      return (container.elements ?? [])
+        .map(
+          (item, index) =>
+            `${indent}${container.style === 'ordered' ? `${index + 1}.` : '•'} ${containerMrkdwn(item)}`
+        )
+        .join('\n');
+    }
+
+    case 'rich_text_quote':
+      return inline
+        .split('\n')
+        .map((line) => `> ${line}`)
+        .join('\n');
+    case 'rich_text_preformatted':
+      return `\`\`\`\n${inline}\n\`\`\``;
+    default:
+      return inline;
+  }
+};
+
+/** A `rich_text` block (or table cell) as mrkdwn: what Slack would put in `text`. */
+export const richTextMrkdwn = (block: {
+  readonly elements?: readonly SlackBlockElement[];
+}): string =>
+  (block.elements ?? [])
+    .map((container) => containerMrkdwn(container).replace(/\n+$/, ''))
+    .filter((part) => part !== '')
+    .join('\n');
+
+const cellMrkdwn = (cell: SlackBlockElement): string =>
+  (cell.type === 'rich_text'
+    ? richTextMrkdwn(cell)
+    : typeof cell.text === 'string'
+      ? cell.text
+      : ''
+  )
+    .replace(/\s*\n\s*/g, ' ')
+    .trim();
+
+/** A table as one line per row, cells set apart by bars; the first row is the header. */
+const tableMrkdwn = (block: SlackBlock): string =>
+  (block.rows ?? [])
+    .map((row, index) =>
+      row
+        .map(cellMrkdwn)
+        .map((cell) => (index === 0 && (block.rows ?? []).length > 1 && cell ? `*${cell}*` : cell))
+        .join(' | ')
+    )
+    .filter((line) => line.replace(/[\s|]/g, '') !== '')
+    .join('\n');
+
 /**
  * One block as a line of mrkdwn, or null for what is not text (images, buttons, and
- * `rich_text`, which only repeats the message's own text).
+ * `rich_text`, which is the message's own text: see `blocksText`).
  */
 const blockLine = (block: SlackBlock): BlockLine | null => {
   const text =
@@ -319,7 +427,9 @@ const blockLine = (block: SlackBlock): BlockLine | null => {
           ? [block.text?.text ?? '', ...(block.fields ?? []).map((field) => field.text)]
               .filter((part) => part !== '')
               .join('\n')
-          : '';
+          : block.type === 'table'
+            ? tableMrkdwn(block)
+            : '';
 
   return text === '' ? null : { context: block.type === 'context', text };
 };
@@ -410,14 +520,30 @@ export const attachmentViews = (event: SlackMessageEvent): SlackAttachmentView[]
     );
 
 /**
- * What an app's Block Kit message says, as mrkdwn. Slack shows blocks instead of
- * `text` (then only the notification fallback); `rich_text` blocks just repeat the
- * text, so a message with only those keeps its text (null).
+ * What a Block Kit message says, as mrkdwn, in Slack's order. Slack shows blocks instead
+ * of `text` (then only the notification fallback). A `rich_text` block is the message's
+ * own words, so the first one is `text` and keeps its place among the other blocks (a
+ * table, "Sent using …"); a message with nothing but `rich_text` keeps its text (null).
  */
-export const blocksText = (blocks: SlackMessageEvent['blocks']): string | null => {
-  const lines = (blocks ?? []).map(blockLine).filter((line): line is BlockLine => line !== null);
+export const blocksText = (blocks: SlackMessageEvent['blocks'], text?: string): string | null => {
+  const all = blocks ?? [];
 
-  return lines.length > 0 ? lines.map((line) => line.text).join('\n') : null;
+  if (!all.some((block) => blockLine(block) !== null)) {
+    return null;
+  }
+
+  const textAt = all.findIndex((block) => block.type === 'rich_text');
+
+  return all
+    .map((block, index) =>
+      block.type === 'rich_text'
+        ? index === textAt && text
+          ? text.replace(/\s+$/, '')
+          : richTextMrkdwn(block)
+        : (blockLine(block)?.text ?? '')
+    )
+    .filter((part) => part !== '')
+    .join('\n');
 };
 
 /** Every piece of mrkdwn an attachment shows, in reading order. */

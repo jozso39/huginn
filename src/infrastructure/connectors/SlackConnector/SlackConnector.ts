@@ -430,8 +430,10 @@ export class SlackConnector implements IConnector {
     relevance: RelevanceContext,
     identity: SlackIdentity
   ): Promise<NewItem> {
-    // What Slack shows: app blocks over the fallback text, then the attachments.
-    const text = blocksText(event.blocks) ?? event.text ?? '';
+    // What Slack shows: the blocks (the message's own text among them), then the attachments.
+    const text = blocksText(event.blocks, event.text) ?? event.text ?? '';
+    // Mentions as `classify` saw them: Slack's own text counts even when blocks are shown.
+    const said = `${text}\n${event.text ?? ''}`;
     const attachments = attachmentViews(event);
     const allText = [text, ...attachments.flatMap(attachmentTexts)].join('\n');
     const [author, channel, names, channelRefs] = await Promise.all([
@@ -486,13 +488,13 @@ export class SlackConnector implements IConnector {
         authorId: event.user ?? null,
         isBot: Boolean(event.bot_id),
         isDm,
-        isMention: mentionsMe(text, relevance),
-        isPersonalMention: text.includes(`<@${relevance.me}>`),
+        isMention: mentionsMe(said, relevance),
+        isPersonalMention: said.includes(`<@${relevance.me}>`),
         isThreadReply: Boolean(event.thread_ts && event.thread_ts !== event.ts),
         isWatchedChannel: relevance.watchedChannels.has(event.channel),
         inMyThread: verdict === SlackRelevance.ThreadReply,
         allChannelsScope: relevance.channelScope === SlackChannelScope.AllMyChannels,
-        mentionsEveryone: /<!(here|channel|everyone)/.test(text),
+        mentionsEveryone: /<!(here|channel|everyone)/.test(said),
         hasFiles: files !== '',
       },
       raw: event,

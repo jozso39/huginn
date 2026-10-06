@@ -3,7 +3,10 @@ import {
   MOCK_SLACK_AGENDA,
   MOCK_SLACK_APP_PREVIEW,
 } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
-import type { SlackMessageEvent } from '@/core/clients/SlackClient/SlackClient.types';
+import type {
+  SlackBlockElement,
+  SlackMessageEvent,
+} from '@/core/clients/SlackClient/SlackClient.types';
 import { ItemKind } from '@/core/items/Item.types';
 import { SlackChannelScope } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
@@ -14,6 +17,7 @@ import {
   attachmentTexts,
   attachmentViews,
   blocksText,
+  richTextMrkdwn,
   SlackRelevance,
   classify,
   eventFromMatch,
@@ -265,6 +269,108 @@ describe('attachments and blocks', () => {
         { type: 'actions', elements: [{ type: 'button', text: 'Retry' }] },
       ])
     ).toBe('*Deploy*\napi *green*\n*Env* prod\nby CI · 2 min');
+  });
+
+  test('a message sent with an app keeps its words where they stand, then its table and signature', () => {
+    const cell = (...elements: SlackBlockElement[]) => ({
+      type: 'rich_text',
+      elements: [{ type: 'rich_text_section', elements }],
+    });
+
+    expect(
+      blocksText(
+        [
+          {
+            type: 'rich_text',
+            elements: [
+              {
+                type: 'rich_text_section',
+                elements: [
+                  { type: 'user', user_id: 'UME' },
+                  { type: 'text', text: ' these need you:\n\n' },
+                ],
+              },
+            ],
+          },
+          {
+            type: 'table',
+            rows: [
+              [cell({ type: 'text', text: 'ID' }), { type: 'raw_text', text: 'Status' }],
+              [
+                cell({ type: 'link', url: 'https://app.clickup.com/t/1', text: 'CU-1' }),
+                { type: 'raw_text', text: 'in review' },
+              ],
+            ],
+          },
+          { type: 'context', elements: [{ type: 'mrkdwn', text: '*Sent using* <@UAPP>' }] },
+        ],
+        '<@UME> these need you:\n\n'
+      )
+    ).toBe(
+      '<@UME> these need you:\n*ID* | *Status*\n<https://app.clickup.com/t/1|CU-1> | in review\n*Sent using* <@UAPP>'
+    );
+  });
+
+  test('rich_text reads as the mrkdwn Slack would write: styles, links, people, lists, quotes, code', () => {
+    expect(
+      richTextMrkdwn({
+        elements: [
+          {
+            type: 'rich_text_section',
+            elements: [
+              { type: 'emoji', name: 'wave' },
+              { type: 'text', text: ' Hi ' },
+              { type: 'user', user_id: 'UME' },
+              { type: 'text', text: ', the ' },
+              { type: 'text', text: 'deploy ', style: { bold: true } },
+              { type: 'text', text: 'failed', style: { italic: true, code: true } },
+              { type: 'text', text: ' in ' },
+              { type: 'channel', channel_id: 'CREL' },
+              { type: 'text', text: ' ' },
+              { type: 'broadcast', range: 'here' },
+              { type: 'text', text: ', see ' },
+              { type: 'link', url: 'https://ci.example.com/1', text: 'the log' },
+              { type: 'text', text: ' and ' },
+              { type: 'usergroup', usergroup_id: 'SBACK' },
+              { type: 'text', text: '\n' },
+            ],
+          },
+          {
+            type: 'rich_text_list',
+            style: 'ordered',
+            elements: [
+              { type: 'rich_text_section', elements: [{ type: 'text', text: 'retry' }] },
+              { type: 'rich_text_section', elements: [{ type: 'text', text: 'tell QA' }] },
+            ],
+          },
+          {
+            type: 'rich_text_list',
+            style: 'bullet',
+            indent: 1,
+            elements: [
+              { type: 'rich_text_section', elements: [{ type: 'text', text: 'staging' }] },
+            ],
+          },
+          { type: 'rich_text_quote', elements: [{ type: 'text', text: 'red since 9\nstill red' }] },
+          { type: 'rich_text_preformatted', elements: [{ type: 'text', text: 'exit 1' }] },
+          {
+            type: 'rich_text_section',
+            elements: [{ type: 'date', fallback: 'Sep 28' }],
+          },
+        ],
+      })
+    ).toBe(
+      [
+        ':wave: Hi <@UME>, the *deploy* _`failed`_ in <#CREL> <!here>, see <https://ci.example.com/1|the log> and <!subteam^SBACK>',
+        '1. retry',
+        '2. tell QA',
+        '    • staging',
+        '> red since 9',
+        '> still red',
+        '```\nexit 1\n```',
+        'Sep 28',
+      ].join('\n')
+    );
   });
 });
 

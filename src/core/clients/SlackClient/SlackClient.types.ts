@@ -22,13 +22,41 @@ export interface SlackAttachment {
 }
 
 /** A Block Kit element: a context line's text, an image, or a button (whose label is an object). */
+export interface SlackTextStyle {
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly strike?: boolean;
+  readonly code?: boolean;
+}
+
+/**
+ * A block's element: a context line's text, a button, or a piece of `rich_text`, whose
+ * containers (section, list, quote, preformatted) hold the inline pieces (text, link,
+ * user, channel, emoji, …).
+ */
 export interface SlackBlockElement {
   readonly type: string;
   readonly text?: string | { readonly type: string; readonly text: string };
   readonly url?: string;
+  readonly elements?: readonly SlackBlockElement[];
+  /** A text piece's styling, or a list's kind ("bullet", "ordered"). */
+  readonly style?: SlackTextStyle | string;
+  readonly indent?: number;
+  readonly user_id?: string;
+  readonly channel_id?: string;
+  readonly usergroup_id?: string;
+  /** An emoji's short name. */
+  readonly name?: string;
+  /** A broadcast's reach: here, channel, everyone. */
+  readonly range?: string;
+  /** What to show for a piece Huginn does not know, such as a date. */
+  readonly fallback?: string;
 }
 
-/** The subset of Block Kit Huginn reads: text in sections, headers and context lines, link buttons. */
+/**
+ * The subset of Block Kit Huginn reads: text in sections, headers, context lines and
+ * tables (cells are `rich_text` or `raw_text`), link buttons.
+ */
 export interface SlackBlock {
   readonly type: string;
   readonly text?: { readonly type: string; readonly text: string };
@@ -36,6 +64,7 @@ export interface SlackBlock {
   readonly elements?: readonly SlackBlockElement[];
   /** A section's element on the side, e.g. a link button. */
   readonly accessory?: SlackBlockElement;
+  readonly rows?: readonly (readonly SlackBlockElement[])[];
 }
 
 export interface SlackMessageEvent {

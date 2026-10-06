@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { ActionType } from '@/core/actions/Action.types';
+import type { SlackBlockElement } from '@/core/clients/SlackClient/SlackClient.types';
 import { ConnectionStatus, ConnectorKind } from '@/core/connections/Connection.types';
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import { ItemKind, ItemState } from '@/core/items/Item.types';
@@ -168,6 +169,51 @@ describe('Slack connector end to end', () => {
       '@backend deploy is red',
       'release notes',
     ]);
+  });
+
+  test('a message sent with an app keeps its words, table and signature; its mention counts', async () => {
+    const section = (...elements: SlackBlockElement[]) => ({
+      type: 'rich_text',
+      elements: [{ type: 'rich_text_section', elements }],
+    });
+
+    slack.deliver({
+      ...MOCK_SLACK_DM,
+      channel: 'CGEN',
+      channel_type: 'channel',
+      ts: '1759047003.000001',
+      thread_ts: '1759046900.000001',
+      text: `<@${MOCK_SLACK_ME}> these need you:`,
+      blocks: [
+        section(
+          { type: 'user', user_id: MOCK_SLACK_ME },
+          { type: 'text', text: ' these need you:' }
+        ),
+        {
+          type: 'table',
+          rows: [
+            [section({ type: 'text', text: 'ID' }), { type: 'raw_text', text: 'Status' }],
+            [
+              section({ type: 'link', url: 'https://app.clickup.com/t/1', text: 'CU-1' }),
+              { type: 'raw_text', text: 'in review' },
+            ],
+          ],
+        },
+        { type: 'context', elements: [{ type: 'mrkdwn', text: '*Sent using* <@UAPP>' }] },
+      ],
+    });
+    await poll();
+
+    const item = (await open()).find((found) => found.externalId === 'CGEN:1759047003.000001');
+
+    expect(item?.body.split('\n').slice(1)).toEqual([
+      'ID | Status',
+      'CU-1 | in review',
+      'Sent using @UAPP',
+    ]);
+    expect(item?.body).toContain('these need you:');
+    expect(item?.features).toMatchObject({ isMention: true, isPersonalMention: true });
+    expect(item?.decision?.ruleName).toBe('Mentions me');
   });
 
   test('checking again finds nothing twice', async () => {
