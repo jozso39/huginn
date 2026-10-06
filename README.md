@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="desktop/icon/huginn-macos.png" width="160" alt="Huginn: a raven with a yellow eye and a yellow halo">
+  <img src="icons/source/huginn-macos.png" width="160" alt="Huginn: a raven with a yellow eye and a yellow halo">
 </p>
 
 <h1 align="center">Huginn</h1>
@@ -7,87 +7,73 @@
 > Huginn — Odin's raven of *thought*, who flies over the world every morning and comes
 > back to tell him what happened.
 
-One inbox for every channel you have to answer. Huginn pulls what is waiting for you
-from Slack, e-mail, GitLab, ClickUp and friends into one self-hosted dashboard, where you
-reply, react or mark it done without opening each tool. Every action is archived.
+One inbox for every channel you have to answer. Huginn is a Mac app that brings what is
+waiting for you from Slack, Gmail, GitLab, ClickUp, LinkedIn and Signal into one place,
+sorts it into **Important**, **Undecided** and **Spam**, and lets you reply, react or
+mark it done without opening each tool. It runs on your Mac and keeps everything there.
 
-**Status: early, personal.** It runs on one Raspberry Pi for one person. It is being
-built in the open and will become configurable for anyone once the shape settles.
+**Status: early.** Used daily by its author and a few people around him. Apple Silicon
+Macs, macOS 13 or newer.
 
-## What works today
+## Install
 
-- **Inbox** grouped by conversation, updated live over Server-Sent Events.
-- **Reply** from the dashboard; the message leaves the inbox and lands in the **archive**
-  with what you wrote. A follow-up from the other side arrives as a new item in the same
-  thread.
-- **Done** closes the item here and, where the tool supports it, at the source
-  (GitLab todos are marked done).
-- The source badge is a deep link to the original message.
-- Keyboard: `j`/`k` move, `r` reply, `e` done, `o` open in source.
-- **Connectors**:
-  - **Slack** — DMs, mentions (yours and your groups'), replies in your threads, watched
-    channels; reply and react as you; answering in Slack clears it here.
-    Setup: [docs/slack-app.md](docs/slack-app.md).
-  - **Gmail** (any number of mailboxes, added with *Sign in with Google*) — unread
-    inbox mail; reply in-thread, save as draft, done marks read; reading or answering
-    in Gmail clears it here. Setup: [docs/gmail.md](docs/gmail.md).
-  - **ClickUp** — tasks newly assigned to you and new comments on your tasks (mentions
-    flagged); reply in the comment's thread. Setup: [docs/clickup.md](docs/clickup.md).
-  - **LinkedIn** — its notification mails (messages, mentions, invitations) read from
-    Gmail, linked to the conversation. Setup: [docs/linkedin.md](docs/linkedin.md).
-  - **Signal** — your own account as a linked device (scan a QR code); direct messages
-    and mentions, replies and reactions as you. Setup: [docs/signal.md](docs/signal.md).
-  - **GitLab** — todos (review requests, mentions, assignments); done marks the todo done.
-  - **Ingest API** anything can post to (`POST /api/items` with `X-Huginn-Key`).
-- Messages look like they do at the source: Slack's formatting (bold, code, quotes,
-  mentions, dates, emoji) rendered like Slack; e-mail as a clean preview that opens into
-  the real HTML — in a sandboxed frame with no scripts and no remote images until you
-  ask for them.
-- Works in laptop and phone browsers, and installs as an app: Chrome → *Install*
-  (address bar icon, or ⋮ → *Cast, save and share* → *Install page as app*); on a
-  phone, *Add to Home Screen*. Installed, its icon shows how many items are important.
-- Connections are added in the UI; tokens are encrypted at rest (AES-256-GCM).
+1. Download `Huginn_…_aarch64.dmg` from the
+   [latest release](https://github.com/jozso39/huginn/releases/latest), open it and drag
+   Huginn to Applications.
+2. First start: Huginn is not signed by Apple yet, so macOS stops it once. Open it, click
+   **Done**, then **System Settings → Privacy & Security → Open Anyway**.
 
-## Triage
+After that it starts at login, lives in the menu bar (with the number of Important
+items), and updates itself: it checks every hour and installs on restart.
 
-Every item is sorted into **Important**, **Undecided** or **Spam** by per-connection
-rules; each decision names the rule that made it. Rules are either exact conditions on
-the item's fields or one-sentence criteria judged by a small calibrated classifier
-([Jev](https://typesafe.ai)). Marking something Spam or Important — and saying why —
-lets an agent adjust the rules, fenced by guardrails because messages are untrusted
-input. Details: [docs/triage.md](docs/triage.md).
+## What it does
 
-The inbox shows connections by category (e.g. *Work*, *Personal*); sections start
-collapsed and show how much is waiting and how much of it is important. Each connection
-has a colour its messages are tinted with. The archive is searchable, the quick
-reactions are any emoji you type, and the app follows macOS or stays light or dark.
+- **Inbox** grouped by conversation and by category (*Work*, *Personal*, …), each
+  connection tinted with its own colour, updated live.
+- **Reply, react, done** from Huginn; what you do lands in the **archive**, which is
+  searchable. Answering at the source (in Slack, Gmail, Signal) clears it here too.
+- **Triage** into Important, Undecided and Spam by per-connection rules, each decision
+  naming the rule that made it. Condition rules work on their own; rules written as a
+  sentence, and learning new rules from your reasons when you mark something Spam or
+  Important, use an AI key of your own (Settings → AI Triage). Details:
+  [docs/triage.md](docs/triage.md).
+- **Notifications** for Important items, and the count in the menu bar and on the Dock.
+- Messages look like they do at the source: Slack's formatting rendered like Slack;
+  e-mail as a clean preview that opens into the real HTML in a sandbox, with no scripts
+  and no remote images until you ask.
+- Keyboard: `j`/`k` move, `r` reply, `e` done, `i` important, `s` spam, `o` open in source.
+- Tokens are encrypted on disk (AES-256-GCM) with a key that never leaves the Mac.
 
-## Roadmap
+## Connections
 
-1. **More connectors** — LinkedIn (from its notification e-mails in Gmail),
-   Signal (linked device).
-2. Push only *Important* items to the phone.
-3. Backfill for Slack (messages sent while Huginn was offline).
+| Source | What comes in | Setup |
+|---|---|---|
+| **Slack** | DMs, mentions (yours and your groups'), replies in your threads, the channels you choose; reply and react as you | [docs/slack-app.md](docs/slack-app.md) |
+| **Gmail** (any number) | unread inbox mail; reply in the thread, save a draft, done marks it read | [docs/gmail.md](docs/gmail.md) |
+| **ClickUp** | tasks newly assigned to you, new comments on your tasks; reply in the thread | [docs/clickup.md](docs/clickup.md) |
+| **GitLab** | todos: review requests, mentions, assignments; done marks the todo done | in the app |
+| **LinkedIn** | messages, mentions and invitations, read from LinkedIn's e-mails in Gmail | [docs/linkedin.md](docs/linkedin.md) |
+| **Signal** | your own account as a linked device: DMs and mentions; reply and react as you. Needs `brew install signal-cli` | [docs/signal.md](docs/signal.md) |
 
-## Running it
+## Development
 
-Requires [Bun](https://bun.sh) 1.3+.
+Needs [Bun](https://bun.sh) 1.4+, and Rust with the Xcode command line tools for the
+Mac app.
 
 ```bash
 bun install
-cp .env.example .env        # then fill in the two keys, see the comments
-bun run build               # builds the dashboard into web/dist
-bun start                   # http://localhost:3000
+bun run desktop:prepare     # builds the web app and the server binary
+bun run desktop:dev         # the Mac app, with its own data folder (…huginn.dev)
 ```
 
-Development: `bun run dev` (server, restarts on change) and `bun run dev:web` (Vite on
-:5173, proxies `/api`).
+The server on its own, in a browser: copy `.env.example` to `.env`, fill in the key, then
+`bun run dev` (restarts on change) and `bun run dev:web` (Vite on :5173). Run
+`bun run code:check && bun run test` before pushing (the pre-push hook does too).
 
-With Docker: `docker compose up -d --build`. The compose file binds to `127.0.0.1`
-only — Huginn holds tokens to all your accounts, so put it behind something that
-authenticates you (a tailnet, a VPN) rather than on the open internet.
+A release: `bun run release 1.2.3` tags the version; GitHub Actions builds the app, signs
+the update and publishes both. Installed copies pick it up within the hour.
 
-### Posting from a script
+When you run the server yourself with `HUGINN_INGEST_KEY`, scripts can post items:
 
 ```bash
 curl -X POST http://localhost:3000/api/items \
@@ -95,14 +81,12 @@ curl -X POST http://localhost:3000/api/items \
   -d '{"externalId":"backup-2026-09-28","author":"restic","title":"Backup failed","kind":"Alert"}'
 ```
 
-`externalId` makes the call idempotent; `threadKey` groups items into one conversation.
-
 ## Documentation
 
-- [HANDOFF.md](HANDOFF.md) — project state, decisions and why, what is next
-- [docs/architecture.md](docs/architecture.md) — layers, data model, flows, API, security
+- [docs/architecture.md](docs/architecture.md) — layers, data model, flows, API, security, the Mac app
 - [CLAUDE.md](CLAUDE.md) — coding conventions (hexagonal, enforced by ESLint)
 - [docs/triage.md](docs/triage.md) — how sorting and learning work
+- [icons/README.md](icons/README.md) — the artwork and how the app's icons are made from it
 - Connecting: [Slack](docs/slack-app.md) · [Gmail](docs/gmail.md) · [ClickUp](docs/clickup.md) · [LinkedIn](docs/linkedin.md) · [Signal](docs/signal.md)
 
 ## License

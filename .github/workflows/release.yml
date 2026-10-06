@@ -1,6 +1,6 @@
 # Builds Huginn for macOS and publishes it when a version tag (v1.2.3) is pushed.
 # `bun run release 1.2.3` makes such a tag. The app checks the latest release every
-# hour and installs it on restart (desktop/src-tauri, tauri-plugin-updater).
+# hour and installs it on restart (desktop/, tauri-plugin-updater).
 name: Release
 
 on:
@@ -24,7 +24,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: desktop/src-tauri -> target
+          workspaces: desktop -> target
 
       - run: bun install --frozen-lockfile
 
@@ -55,4 +55,4 @@ jobs:
           includeUpdaterJson: true
 
       - name: The app is signed (ad hoc) correctly
-        run: codesign -v --deep --strict desktop/src-tauri/target/release/bundle/macos/Huginn.app
+        run: codesign -v --deep --strict desktop/target/release/bundle/macos/Huginn.app

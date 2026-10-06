@@ -420,7 +420,7 @@ fn build_tray(app: &AppHandle) -> AnyResult<()> {
         ],
     )?;
     // A template image: macOS draws it white on a dark menu bar and black on a light one.
-    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray@2x.png"))?;
+    let icon = tauri::image::Image::from_bytes(include_bytes!("../../icons/app/tray@2x.png"))?;
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)

@@ -297,19 +297,6 @@ export interface ItemStatus {
   tone: StatusTone;
 }
 
-export interface PushDevice {
-  id: string;
-  endpoint: string;
-  label: string;
-  createdAt: string;
-}
-
-export interface PushSettings {
-  /** Null when the server has no VAPID keys. */
-  publicKey: string | null;
-  devices: PushDevice[];
-}
-
 export type PairingState = 'Waiting' | 'Linked' | 'Failed';
 
 export interface PairingStatus {

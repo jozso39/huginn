@@ -64,6 +64,13 @@
       "when": 1791305392729,
       "tag": "0008_drop_group_name",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791319929135,
+      "tag": "0009_drop_push_devices",
+      "breakpoints": true
     }
   ]
 }

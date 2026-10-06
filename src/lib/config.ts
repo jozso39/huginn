@@ -47,14 +47,6 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
     },
     publicUrl: env.HUGINN_PUBLIC_URL?.replace(/\/$/, '') ?? null,
     oauthRelayUrl: env.HUGINN_OAUTH_RELAY_URL ?? null,
-    vapid:
-      env.HUGINN_VAPID_PUBLIC_KEY && env.HUGINN_VAPID_PRIVATE_KEY
-        ? {
-            publicKey: env.HUGINN_VAPID_PUBLIC_KEY,
-            privateKey: env.HUGINN_VAPID_PRIVATE_KEY,
-            subject: env.HUGINN_VAPID_SUBJECT,
-          }
-        : null,
     signal: {
       // null: found on PATH or in Homebrew's folders when Signal is first used.
       cli: env.HUGINN_SIGNAL_CLI ?? null,

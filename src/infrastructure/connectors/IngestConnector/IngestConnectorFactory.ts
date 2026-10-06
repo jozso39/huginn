@@ -11,7 +11,7 @@ const NOTHING: ConnectorCapabilities = { reply: false, draft: false, react: fals
 
 /**
  * A connection with no poller. Items for it arrive through POST /api/items —
- * Hermes, cron scripts, anything holding the ingest key. It exists so those
+ * cron scripts, other tools, anything holding the ingest key. It exists so those
  * items have a connection to belong to and can be filtered like the others.
  */
 class IngestConnector implements IConnector {

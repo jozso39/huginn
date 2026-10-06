@@ -6,7 +6,6 @@ import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
 import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
 import type { IAttentionSink } from '@/core/attention/Attention.types';
 import type { IAiKeyChecker } from '@/core/settings/AiKey.types';
-import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { AttentionService } from '@/core/services/AttentionService/AttentionService';
 import { ConnectionGroupService } from '@/core/services/ConnectionGroupService/ConnectionGroupService';
@@ -15,14 +14,12 @@ import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
 import { FeedbackService } from '@/core/services/FeedbackService/FeedbackService';
 import { InboxService } from '@/core/services/InboxService/InboxService';
 import { OAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService';
-import { PushService } from '@/core/services/PushService/PushService';
 import { RuleService } from '@/core/services/RuleService/RuleService';
 import { SettingsService } from '@/core/services/SettingsService/SettingsService';
 import { TriageService } from '@/core/services/TriageService/TriageService';
 import { GoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient';
 import { JevClient } from '@/infrastructure/clients/JevClient/JevClient';
 import { OpenRouterLlmClient } from '@/infrastructure/clients/OpenRouterLlmClient/OpenRouterLlmClient';
-import { WebPushClient } from '@/infrastructure/clients/WebPushClient/WebPushClient';
 import { ClickUpConnectorFactory } from '@/infrastructure/connectors/ClickUpConnector/ClickUpConnectorFactory';
 import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnector/GitLabConnectorFactory';
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
@@ -38,7 +35,6 @@ import { SqliteConnectionGroupStore } from '@/infrastructure/stores/SqliteConnec
 import { SqliteConnectionStore } from '@/infrastructure/stores/SqliteConnectionStore/SqliteConnectionStore';
 import { SqliteItemStore } from '@/infrastructure/stores/SqliteItemStore/SqliteItemStore';
 import { SqliteOAuthAppStore } from '@/infrastructure/stores/SqliteOAuthAppStore/SqliteOAuthAppStore';
-import { SqlitePushDeviceStore } from '@/infrastructure/stores/SqlitePushDeviceStore/SqlitePushDeviceStore';
 import { SqliteRuleStore } from '@/infrastructure/stores/SqliteRuleStore/SqliteRuleStore';
 import { SqliteSettingsStore } from '@/infrastructure/stores/SqliteSettingsStore/SqliteSettingsStore';
 import { AiKeyChecker } from '@/infrastructure/clients/AiKeyChecker/AiKeyChecker';
@@ -54,7 +50,6 @@ export interface CreateContainerOptions {
   readonly llm?: ILlmClient;
   /** Checks an AI key with its provider before it is saved. */
   readonly aiKeyChecker?: IAiKeyChecker;
-  readonly push?: IPushClient;
   /** The Mac app's menu bar and notifications; nowhere when running without it. */
   readonly attentionSink?: IAttentionSink;
 }
@@ -170,14 +165,6 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     llm,
     eventBus
   );
-  const pushService = new PushService(
-    logger,
-    new SqlitePushDeviceStore(database.db),
-    options.push ?? new WebPushClient(logger, config.vapid),
-    itemStore,
-    connectionStore,
-    eventBus
-  );
 
   const connectionGroupService = new ConnectionGroupService(logger, connectionGroupStore);
 
@@ -207,7 +194,6 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     triageService,
     ruleService,
     feedbackService,
-    pushService,
     attentionService,
     close: () => database.close(),
   };

@@ -70,8 +70,8 @@ export const createItemRoutes = (container: Container) => {
     c.json({ item: await container.inboxService.reopen(c.req.param('id')) })
   );
 
-  // External writers. Authenticated by the ingest key, not by being on the tailnet,
-  // so a Hermes skill running as another user can still post.
+  // External writers (scripts), authenticated by the ingest key instead of the app's
+  // session. Only when the server is given HUGINN_INGEST_KEY; the Mac app is not.
   app.post('/', async (c) => {
     const ingestKey = container.config.ingestKey;
 

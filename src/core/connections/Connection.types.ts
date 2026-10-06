@@ -7,7 +7,7 @@ export enum ConnectorKind {
   LinkedIn = 'LinkedIn',
   /** The user's own Signal account, as a linked device of their phone. */
   Signal = 'Signal',
-  /** No poller: items arrive through POST /api/items (Hermes, scripts). */
+  /** No poller: items arrive through POST /api/items (scripts, other tools). */
   Ingest = 'Ingest',
 }
 

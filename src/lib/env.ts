@@ -33,14 +33,6 @@ const envSchema = z.object({
   HUGINN_JEV_MODEL: z.string().default('typesafe/jev-1.13'),
   HUGINN_TYPESAFE_JEV_MODEL: z.string().default('jev-1.13.0'),
   HUGINN_FEEDBACK_MODEL: z.string().default('anthropic/claude-haiku-4.5'),
-  // Web Push to phones (Important items only). Generate with `bun run vapid`; without
-  // them notifications are simply off.
-  HUGINN_VAPID_PUBLIC_KEY: z.string().min(40).optional(),
-  HUGINN_VAPID_PRIVATE_KEY: z.string().min(20).optional(),
-  HUGINN_VAPID_SUBJECT: z
-    .string()
-    .regex(/^(mailto:|https:)/)
-    .default('mailto:huginn@localhost'),
   // Signal: Huginn runs signal-cli itself (docs/signal.md), found on PATH or in
   // Homebrew's folders. Set this only for a signal-cli somewhere else.
   HUGINN_SIGNAL_CLI: z.string().min(1).optional(),

@@ -1,12 +1,14 @@
 # Huginn
 
-Self-hosted notification hub: connectors pull messages from Slack, Gmail, GitLab,
-ClickUp, … into one inbox where they are answered, reacted to, or marked done.
-Bun + TypeScript, SQLite (Drizzle), Hono, a Vite/React SPA in `web/`.
+A Mac app with one inbox: connectors pull messages from Slack, Gmail, GitLab, ClickUp,
+Signal, … into it, where they are answered, reacted to, or marked done.
+Bun + TypeScript, SQLite (Drizzle), Hono, a Vite/React SPA in `web/`, and a Tauri shell
+in `desktop/` that runs the server as its sidecar.
 
-**Start with [HANDOFF.md](HANDOFF.md)** (state, decisions, what is unverified, next steps),
-then [docs/architecture.md](docs/architecture.md) (layers, data model, flows, API).
-Keep both current when you change something they describe.
+**Start with [docs/architecture.md](docs/architecture.md)** (layers, data model, flows,
+API, the Mac app) and keep it current when you change something it describes. Working
+notes — `HANDOFF.md` (state, decisions, what is unverified) and `docs/plans/` — are kept
+locally and not committed; read them first when they are there.
 
 Run `bun run code:check && bun run test` after any change and fix everything it reports
 (the pre-push hook runs the same).
@@ -21,6 +23,8 @@ src/
 ├── dependency/      the DI container (container.ts) and its test twin (testContainer.ts)
 └── lib/             env, config, logger
 web/                 the SPA — talks to the server over HTTP only, never imports src/
+desktop/             the Mac app's shell (Tauri, Rust): starts the server, window, menu bar, updates
+icons/               every image of Huginn: source art, the app's icons, the web app's
 ```
 
 ESLint enforces the layer boundaries; do not disable those rules.

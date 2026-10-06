@@ -141,16 +141,6 @@ export const ruleHistory = sqliteTable(
   (table) => [index('rule_history_connection').on(table.connectionId, table.createdAt)]
 );
 
-export const pushDevices = sqliteTable('push_devices', {
-  id: text('id').primaryKey(),
-  endpoint: text('endpoint').notNull().unique(),
-  // The browser's public keys for encrypting payloads; not secrets.
-  p256dh: text('p256dh').notNull(),
-  auth: text('auth').notNull(),
-  label: text('label').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-});
-
 /** The user's preferences (theme, quick reactions), one JSON value per key. */
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),

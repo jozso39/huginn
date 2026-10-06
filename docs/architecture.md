@@ -1,21 +1,23 @@
 # Architecture
 
-How Huginn is put together. For *why* and *what next*, see [HANDOFF.md](../HANDOFF.md);
-for coding rules, [CLAUDE.md](../CLAUDE.md).
+How Huginn is put together. For coding rules, see [CLAUDE.md](../CLAUDE.md).
 
 ## 1. Shape
 
 One Bun process serves the API, the live event stream and the built dashboard, and runs
-every connector. State is one SQLite file.
+every connector. State is one SQLite file. In the Mac app that process is a compiled
+binary which the shell in `desktop/` starts and shows in its window (§9); in development
+it is `bun run dev`.
 
 ```
-browser (dashboard, installable)  ──HTTP + SSE──▶  Bun process  ──▶  SQLite (WAL)
+the Mac app's window (dashboard)   ──HTTP + SSE──▶  Bun process  ──▶  SQLite (WAL)
                                                     ├─ Hono routes (interface/http)
-external writers (scripts, Hermes) ──POST /api/items┤─ services (core/services)
+external writers (scripts)         ──POST /api/items┤─ services (core/services)
                                                     ├─ ConnectorHost → one connector per connection
                                                     │     Slack (search poll), Gmail (history poll),
-                                                    │     GitLab (todo poll), ClickUp (task poll)
-                                                    └─ Jev (OpenRouter System One), chat model (OpenRouter)
+                                                    │     GitLab (todo poll), ClickUp (task poll),
+                                                    │     Signal (signal-cli, run by Huginn)
+                                                    └─ Jev and the chat model, with the user's AI key
 ```
 
 ## 2. Layers
@@ -50,7 +52,6 @@ no infrastructure implementation worth mocking separately (Jev, the chat model).
 | `rules` | per-connection triage rules: verdict, kind Hard/Soft, predicate / criterion, threshold, **priority**, status Active/Proposed/Disabled, origin Default/User/Feedback, hits | |
 | `rule_history` | every rule change: before/after, reason (user's words), item, **checks** (guardrail scores, dry-run numbers) | outlives deleted rules |
 | `oauth_apps` | one OAuth client per provider (Google): client id, sealed secret, redirect mode | |
-| `push_devices` | browsers subscribed to Web Push: endpoint (unique), p256dh, auth, label | a push answered 404/410 removes the device |
 
 Migrations: `drizzle/000N_*.sql`, applied at boot (`SqliteDatabase.migrate`).
 
@@ -160,7 +161,6 @@ an end-to-end test through `createTestContainer`, a `docs/<x>.md`.
 | `GET /api/oauth/apps/:provider` · `PUT /api/oauth/apps/:provider` · `POST /api/oauth/sign-in` · `GET /api/oauth/callback` | sign-in |
 | `GET /api/events` | SSE: `ItemUpserted`, `ItemChanged`, `ConnectionChanged`, keep-alive `ping` |
 | `GET /api/health` | liveness |
-| `GET /api/push`, `POST /api/push/devices`, `…/devices/remove`, `…/test` | Web Push: VAPID public key + devices; subscribe, forget, test |
 | `POST /api/connections/pairings`, `GET …/pairings/:id` | link a phone (Signal): QR code, then poll until Linked/Failed |
 
 Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
@@ -180,8 +180,6 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
   it before the first paint).
 - `CategoryPicker` — choose, filter or create a category (n8n-style combobox), with a
   link to managing them; `ColorPicker` — palette swatches, any other colour, a preview.
-- `NotificationsPanel` — Web Push on/off per device (not shown in the Mac app);
-  `web/public/sw.js` shows pushes and sets the app badge.
 - `PairConnect` — linking a phone: QR (uqr, as a data: image) + polling the pairing.
 - `ConnectorIcon` — the source's logo (`web/src/assets/logos`, CC0 svg-logos set) or a
   coloured glyph for sources without one; doubles as the deep link.
@@ -192,13 +190,16 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
 - `ConnectionsView`, `ConnectionForm` (generated from the config schema), `SignInConnect`
   + `OAuthAppForm` (Google), `RulesView` + `RuleEditor` (condition builder or JSON, soft
   sentence + threshold, dry run), `ArchiveView` (with search over the whole archive).
-- `public/`: manifest, icons (from `huginn.png`), `sw.js` (pass-through service worker).
+- The favicon and the header logo come from `icons/web` (Vite's `publicDir`).
 
 ## 8. Security model
 
-- **Network**: loopback bind; expose only on a private network. The dashboard has no
-  login of its own yet — reachability is the access control. `POST /api/items` needs the
-  ingest key.
+- **Network**: the server listens on 127.0.0.1 only. In the Mac app, `localAccess`
+  answers only under its own host names (a DNS-rebinding page has a foreign Host
+  header), takes writes only from its own origin, and serves the API only to the app's
+  window: it proves itself once with the launch token from the shell (`/__launch`) and
+  then carries a SameSite=Strict, HttpOnly cookie. Open without it: health, the OAuth
+  callback (guarded by its one-time `state`) and `POST /api/items` (the ingest key).
 - **Secrets**: sealed with AES-256-GCM before storage; the API never returns them; the
   logger redacts common token keys. `.env` holds the master key.
 - **Untrusted content**: message text is data. Slack is rendered as React nodes (never
@@ -206,3 +207,32 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
   only `http(s)`/`mailto`. The rule agent sees content marked as untrusted, behind the
   Jev guardrails; its output is schema-validated and checked before going live.
 - **Providers**: model calls go through OpenRouter with zero-data-retention routing.
+
+## 9. The Mac app (`desktop/`)
+
+A thin Tauri shell (`desktop/src/lib.rs`) around the server, which does all the work:
+
+- **Start**: the server is bundled as a sidecar (`bun build --compile`,
+  `desktop/binaries/`). The shell starts it with `HUGINN_DESKTOP=1`, the data folder and
+  port 47823 (it falls back to the next two when taken), and passes the master key and
+  a fresh launch token on **stdin** — never in the environment or the process list.
+  While it starts, the window shows `desktop/loading/`; once the server says it is
+  ready, the window opens `http://127.0.0.1:<port>/__launch?token=…`.
+- **Data**: `~/Library/Application Support/cz.cambora.huginn/` — `huginn.db`,
+  `master.key` (created once, mode 600), `server.log`, `signal/`. A development build
+  (`bun run desktop:dev`) uses `cz.cambora.huginn.dev` next to it, so the two never
+  share data; `bun run desktop:dev-data` copies the real data over (and `--back`).
+- **Talking back**: the server prints one JSON line per event on stdout
+  (`DesktopChannel`): `ready`, `badge` (the number of Important items, shown in the menu
+  bar and on the Dock icon) and `notify` (a macOS notification).
+- **Links**: the window keeps Huginn's own pages; every other link is handed to macOS
+  (`open`), so it opens in the browser or the app it belongs to (Slack).
+- **Background**: closing the window hides it; the menu-bar item opens it, checks for
+  updates, toggles *Open at Login* (on after the first start) and quits. Quitting stops
+  the server with SIGTERM (connectors and signal-cli stop cleanly) and kills it after
+  5 s.
+- **Updates**: `bun run release 1.2.3` tags a version; GitHub Actions
+  (`.github/workflows/release.yml`) builds and signs the update and publishes it with
+  `latest.json`. The app checks every hour and installs on restart. The app itself is
+  signed ad hoc only, so macOS asks once on the first start.
+

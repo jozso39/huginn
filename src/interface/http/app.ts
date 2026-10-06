@@ -8,7 +8,6 @@ import { createEventRoutes } from './routes/eventRoutes';
 import { createGroupRoutes } from './routes/groupRoutes';
 import { createItemRoutes } from './routes/itemRoutes';
 import { createOAuthRoutes } from './routes/oauthRoutes';
-import { createPushRoutes } from './routes/pushRoutes';
 import { createRuleRoutes } from './routes/ruleRoutes';
 import { createSettingsRoutes } from './routes/settingsRoutes';
 
@@ -36,7 +35,6 @@ export const createApp = (container: Container, webRoot: string, port: () => num
   app.route('/api/events', createEventRoutes(container));
   app.route('/api/oauth', createOAuthRoutes(container));
   app.route('/api/rules', createRuleRoutes(container));
-  app.route('/api/push', createPushRoutes(container));
   app.get('/api/health', (c) => c.json({ ok: true }));
 
   app.onError((error, c) => {

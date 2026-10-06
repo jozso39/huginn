@@ -23,7 +23,7 @@ export interface IInboxService {
   get(id: string): Promise<ItemWithActions | null>;
   /** How to show the whole message: stored rich form, fetched from the source, or the text. */
   content(id: string): Promise<RichContent>;
-  /** External writers (Hermes, scripts) push straight into the inbox. */
+  /** External writers (scripts, other tools) push straight into the inbox. */
   ingest(item: NewItem): Promise<Item>;
   reply(id: string, text: string): Promise<Item>;
   /** Saves the reply as a draft at the source; the item stays open until it is sent. */

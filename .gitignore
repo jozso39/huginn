@@ -15,10 +15,11 @@ data/
 !.env.test
 .claude/
 
-# signal-cli's socket lives here on the host
-signal/
-
 # Mac app build output
-desktop/src-tauri/target/
-desktop/src-tauri/gen/
-desktop/src-tauri/binaries/
+desktop/target/
+desktop/gen/
+desktop/binaries/
+
+# Working notes: kept locally, not published
+/HANDOFF.md
+/docs/plans/

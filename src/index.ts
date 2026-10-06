@@ -46,7 +46,6 @@ const main = async () => {
   await container.ruleService.installMissingDefaults();
   await container.inboxService.indexForSearch();
   // Before the connectors, so nothing Important slips past the menu bar.
-  container.pushService.start();
   await container.attentionService.start();
   await container.connectorHost.startAll();
 
@@ -57,7 +56,6 @@ const main = async () => {
   const shutdown = async (reason: string) => {
     logger.info({ reason }, 'shutting down');
     container.attentionService.stop();
-    container.pushService.stop();
     await container.connectorHost.stopAll();
     // What the connections shared goes last: signal-cli is stopped cleanly here.
     await Promise.all(

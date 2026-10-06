@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Huginn",
-  "version": "../../package.json",
+  "version": "../package.json",
   "identifier": "cz.cambora.huginn",
   "build": {
-    "frontendDist": "../loading",
+    "frontendDist": "loading",
     "beforeBuildCommand": {
       "script": "bun run desktop:prepare",
-      "cwd": "../.."
+      "cwd": ".."
     }
   },
   "app": {
@@ -23,20 +23,20 @@
       "dmg"
     ],
     "category": "Productivity",
-    "shortDescription": "One inbox for Slack, Gmail, GitLab, ClickUp and LinkedIn",
+    "shortDescription": "One inbox for Slack, Gmail, GitLab, ClickUp, LinkedIn and Signal",
     "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.png"
+      "../icons/app/32x32.png",
+      "../icons/app/128x128.png",
+      "../icons/app/128x128@2x.png",
+      "../icons/app/icon.icns",
+      "../icons/app/icon.png"
     ],
     "externalBin": [
       "binaries/huginn-server"
     ],
     "resources": {
-      "../../web/dist/": "web/",
-      "../../drizzle/": "drizzle/"
+      "../web/dist/": "web/",
+      "../drizzle/": "drizzle/"
     },
     "createUpdaterArtifacts": true,
     "macOS": {

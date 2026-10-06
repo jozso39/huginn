@@ -7,7 +7,6 @@ import type { IGmailClient } from '@/core/clients/GmailClient/GmailClient.types'
 import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
 import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
 import type { IAttentionSink } from '@/core/attention/Attention.types';
-import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
 import type { ISignalClient } from '@/core/clients/SignalClient/SignalClient.types';
 import type { IAiKeyChecker } from '@/core/settings/AiKey.types';
 import type { ISlackOAuthClient } from '@/core/clients/SlackOAuthClient/SlackOAuthClient.types';
@@ -19,7 +18,6 @@ import { MockGmailClient } from '@/infrastructure/clients/GmailClient/GmailClien
 import { MockGoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient.mock';
 import { MockJevClient } from '@/core/clients/JevClient/JevClient.mock';
 import { MockLlmClient } from '@/core/clients/LlmClient/LlmClient.mock';
-import { MockPushClient } from '@/core/clients/PushClient/PushClient.mock';
 import { MockSignalClient } from '@/infrastructure/clients/SignalClient/SignalClient.mock';
 import { MockAiKeyChecker } from '@/infrastructure/clients/AiKeyChecker/AiKeyChecker.mock';
 import { MockSlackOAuthClient } from '@/infrastructure/clients/SlackOAuthClient/SlackOAuthClient.mock';
@@ -53,8 +51,6 @@ export interface CreateTestContainerOptions {
   /** Hand in a MockJevClient to decide what soft rules and guardrails answer. */
   readonly jev?: IJevClient;
   readonly llm?: ILlmClient;
-  /** Hand in a MockPushClient to see what would reach the phone. */
-  readonly push?: IPushClient;
   /** Hand in a MockAttentionSink to see what the Mac app would show. */
   readonly attentionSink?: IAttentionSink;
   /** Hand in a MockAiKeyChecker to see which keys were checked. */
@@ -91,7 +87,6 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
     logger,
     jev: options.jev ?? new MockJevClient(),
     llm: options.llm ?? new MockLlmClient(),
-    push: options.push ?? new MockPushClient(),
     aiKeyChecker: options.aiKeyChecker ?? new MockAiKeyChecker(),
     ...(options.attentionSink ? { attentionSink: options.attentionSink } : {}),
     connectorFactories: options.connectorFactories ?? [
