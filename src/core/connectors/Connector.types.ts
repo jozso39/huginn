@@ -123,4 +123,11 @@ export interface IConnectorFactory {
   readonly defaultRules?: readonly RuleDraft[];
   /** `app` is the provider app's credentials for connectors with `authorization`, else null. */
   create(connection: Connection, secrets: Secrets, app: OAuthAppCredentials | null): IConnector;
+  /**
+   * Why connections of this kind cannot be added on this machine (a program it needs is
+   * missing), or null when they can. Kinds without it are always available.
+   */
+  unavailableReason?(): string | null;
+  /** Stops what the kind's connections share (Signal's signal-cli). Called at shutdown. */
+  close?(): Promise<void>;
 }

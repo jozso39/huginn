@@ -40,7 +40,7 @@ a Mac and an iPhone. 8 commits, ~13k lines, **94 tests** (`bun run test`).
 | Rendering: Slack mrkdwn like Slack, e-mail HTML in a sandboxed frame | done |
 | Installable web app (manifest, service worker, dock badge) | done |
 | Push notifications for Important items (Web Push, VAPID; iPhone via Home Screen app) | done, **not yet tried on a phone** |
-| Connectors: **LinkedIn** (its notification mails via Gmail), **Signal** (linked device via signal-cli on a Unix socket) | done — see §5 |
+| Connectors: **LinkedIn** (its notification mails via Gmail), **Signal** (linked device; Huginn runs signal-cli itself over stdin/stdout, offered only where it is installed) | done — see §5 |
 | MR state pill (item `status`), ClickUp skips own tasks, Slack replies always thread | done |
 | Tokens encrypted at rest; one bad connection cannot crash the server | done |
 
@@ -121,7 +121,7 @@ These were argued out with the owner; keep them unless there is a reason.
 | Chrome "Install app", dock badge | built; not confirmed on the owner's machine |
 | Web Push | server + keys live on the Pi; no device subscribed yet |
 | LinkedIn parser | run over the owner's 17 real LinkedIn mails: all classified right (jobs, updates, security); no message mail exists yet to test |
-| Signal | daemon live on the Pi, container reaches it, `startLink` works; **not linked yet** |
+| Signal | on the Mac since 2026-10-06: signal-cli 0.14.8 from Homebrew, started by Huginn, `startLink` works; the phone link moved from the Pi (re-linked, the Pi's device to be removed on the phone) |
 
 ## 6. Known gaps and quirks
 
@@ -144,7 +144,8 @@ These were argued out with the owner; keep them unless there is a reason.
 ## 7. Working on it
 
 ```bash
-bun run desktop:dev-data        # copy the installed app's data for debugging (Slack paused)
+bun run desktop:dev-data        # copy the installed app's data for debugging (Slack, Signal paused)
+bun run desktop:dev-data --back # …and back to the installed app when done (quit both first)
 bun run desktop:dev             # the Mac app around a dev build (own folder: …huginn.dev)
 bun run desktop:build           # Huginn.app + .dmg locally (needs the updater key in env)
 bun run release 0.3.0           # bump, tag, push → GitHub builds and publishes the release
@@ -185,7 +186,10 @@ bun run build                   # web → web/dist, served by the server
    (`docker cp`), run it with `bun`, delete it — it can import the app's own utilities.
 9. **Push endpoints are allow-listed** (Apple, FCM, Mozilla, Windows): the server POSTs
    to whatever a browser registers, so anything else is refused.
-10. **signal-cli never on a port**: JSON-RPC has no auth; the Unix socket is the boundary.
+10. **signal-cli never on a port or socket**: JSON-RPC has no auth, so it is Huginn's own
+    child on stdin/stdout. Stop it with SIGTERM — a closed stdin makes it abort. Two
+    copies of its `signal/` folder must never run at once (`desktop:dev-data --back`
+    moves it rather than copying).
 
 ## 8. Documentation map
 

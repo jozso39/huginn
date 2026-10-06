@@ -29,6 +29,7 @@ rand = "0.9"
 base64 = "0.22"
 url = "2"
 tokio = { version = "1", features = ["time"] }
+libc = "0.2"
 
 [profile.release]
 codegen-units = 1

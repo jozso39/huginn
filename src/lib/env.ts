@@ -41,9 +41,9 @@ const envSchema = z.object({
     .string()
     .regex(/^(mailto:|https:)/)
     .default('mailto:huginn@localhost'),
-  // Signal: the Unix socket of the signal-cli daemon Huginn links as a device
-  // (docs/signal.md). Without it the Signal connection cannot be added.
-  HUGINN_SIGNAL_SOCKET: z.string().min(1).optional(),
+  // Signal: Huginn runs signal-cli itself (docs/signal.md), found on PATH or in
+  // Homebrew's folders. Set this only for a signal-cli somewhere else.
+  HUGINN_SIGNAL_CLI: z.string().min(1).optional(),
   PORT: z.coerce.number().int().min(0).default(3000),
   LOG_LEVEL: z.enum(['silent', 'debug', 'info', 'warn', 'error']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

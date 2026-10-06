@@ -67,7 +67,9 @@ export type SignalTarget = { readonly recipient: string } | { readonly groupId: 
 export type SignalEnvelopeHandler = (envelope: SignalEnvelope) => void;
 
 export interface ISignalClient {
-  /** Accounts the daemon has (linked ones). */
+  /** Whether signal-cli is installed on this machine, so Signal can be offered at all. */
+  isAvailable(): boolean;
+  /** Accounts signal-cli has (linked ones). */
   accounts(): Promise<readonly string[]>;
   /** Delivers this account's envelopes to `handler` until `unsubscribe`. Reconnects on its own. */
   subscribe(account: string, handler: SignalEnvelopeHandler): Promise<void>;

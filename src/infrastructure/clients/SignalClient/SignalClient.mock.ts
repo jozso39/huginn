@@ -21,6 +21,8 @@ export const MOCK_SIGNAL_DM: SignalEnvelope = {
 
 /** Linking succeeds with MOCK_SIGNAL_ACCOUNT; `deliver` plays the daemon pushing envelopes. */
 export class MockSignalClient implements ISignalClient {
+  /** Set to false to play a Mac without signal-cli. */
+  public available = true;
   public linked: readonly string[] = [];
   public sent: readonly {
     target: SignalTarget;
@@ -29,6 +31,10 @@ export class MockSignalClient implements ISignalClient {
   }[] = [];
   public reactions: readonly { target: SignalTarget; emoji: string; timestamp: number }[] = [];
   private handlers: ReadonlyMap<string, SignalEnvelopeHandler> = new Map();
+
+  public isAvailable(): boolean {
+    return this.available;
+  }
 
   public accounts(): Promise<readonly string[]> {
     return Promise.resolve(this.linked);

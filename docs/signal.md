@@ -5,33 +5,42 @@ of your phone. It then sees the messages sent to you, can answer and react as yo
 notices when you answer or read on the phone. It is not a bot and needs no number of
 its own.
 
+## What it needs
+
+[signal-cli](https://github.com/AsamK/signal-cli) on the Mac. Huginn does not ship it,
+so Signal is offered under *Connections → Add* only once it is installed:
+
+```bash
+brew install signal-cli
+```
+
+Homebrew's build is a native program (about 120 MB, no Java). Huginn finds it on `PATH`
+or in Homebrew's folders; `HUGINN_SIGNAL_CLI` points to a copy anywhere else.
+
 ## How it works
 
-A [signal-cli](https://github.com/AsamK/signal-cli) daemon on the Huginn host holds the
-linked device. Huginn talks to it over a **Unix socket** mounted into the container —
-never a network port, because whoever can talk to the daemon can read and send as you.
+Huginn starts signal-cli itself the first time Signal is used and stops it when Huginn
+quits. They talk JSON-RPC over signal-cli's stdin and stdout, never a socket or a port,
+because whoever can talk to signal-cli can read and send as you. If signal-cli crashes,
+Huginn starts it again.
 
 ```
-phone ──Signal servers── signal-cli daemon ──unix socket── Huginn container
+phone ──Signal servers── signal-cli (run by Huginn) ──stdin/stdout── Huginn
 ```
 
-## Set up (once, on the host)
-
-1. Install signal-cli (on arm64 use the JVM build; see its README) so that
-   `signal-cli --version` works.
-2. Install the service: copy [deploy/signal-huginn.service](../deploy/signal-huginn.service)
-   to `~/.config/systemd/user/`, then
-   `loginctl enable-linger $USER && systemctl --user daemon-reload && systemctl --user enable --now signal-huginn`.
-   It creates `./signal/signal.sock` next to `docker-compose.yml`.
-3. In Huginn's `.env`: `HUGINN_SIGNAL_SOCKET=/app/signal/signal.sock`, then
-   `docker compose up -d`.
+signal-cli keeps the linked device's keys in `signal/` inside Huginn's data folder
+(`~/Library/Application Support/cz.cambora.huginn/signal`), next to the database and
+readable only by you. While Huginn is not running, or the connection is paused, new
+messages wait on Signal's servers and come in when it is back.
 
 ## Link your phone
 
 *Connections → Add → Signal → Link my phone.* A QR code appears. On the phone: **Signal
 → Settings → Linked devices → +**, scan it. The connection appears (named after your
-number) within a few seconds of the phone confirming. The phone lists it as "Huginn";
-removing it there disconnects Huginn.
+number) within a few seconds of the phone confirming. The phone lists it as "Huginn".
+
+To disconnect for good, delete the connection in Huginn **and** remove "Huginn" on the
+phone under Linked devices. Only the phone can cut the link.
 
 ## What comes in
 
@@ -51,6 +60,8 @@ the message they answer; the quick reactions work too.
 ## Privacy
 
 - Message text is stored in Huginn's database (and its backups), like mail and Slack.
+- The `signal/` folder is as sensitive as Signal Desktop's own: whoever copies it can
+  read your new messages until you remove the device on the phone.
 - The default rules are conditions only: **no Signal text goes to a model** unless you
   add a sentence rule, or press Spam / Important *with a reason* (then the rule agent
   reads that one message, through the zero-retention route and the guardrails).

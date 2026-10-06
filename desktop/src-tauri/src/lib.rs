@@ -16,7 +16,7 @@ use std::{
         atomic::{AtomicBool, AtomicU32, Ordering},
         Mutex,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use base64::Engine;
@@ -41,6 +41,9 @@ const PORT: u16 = 47823;
 const UPDATE_EVERY: Duration = Duration::from_secs(60 * 60);
 const FIRST_UPDATE_CHECK: Duration = Duration::from_secs(30);
 const MAX_SERVER_RESTARTS: u32 = 5;
+/// How long the server gets to shut down on quit (it stops signal-cli within ~3 s at
+/// worst) before it is killed.
+const SERVER_STOP_GRACE: Duration = Duration::from_secs(5);
 const MAX_LOG_BYTES: u64 = 5 * 1024 * 1024;
 const TRAY_ID: &str = "huginn";
 
@@ -326,16 +329,44 @@ fn on_server_gone(app: &AppHandle) {
     });
 }
 
+/// Lets the server shut down on its own: its stdin closing is the cue to stop the
+/// connectors and signal-cli cleanly (a killed signal-cli can lose its keys' latest
+/// state). It is killed only if it is still running after a grace period.
 fn stop_server(app: &AppHandle) {
     let shell = app.state::<Shell>();
 
     shell.quitting.store(true, Ordering::SeqCst);
 
-    let child = shell.server.lock().expect("server lock").take();
-
-    if let Some(child) = child {
+    let Some(child) = shell.server.lock().expect("server lock").take() else {
+        return;
+    };
+    let Ok(pid) = libc::pid_t::try_from(child.pid()) else {
         let _ = child.kill();
+
+        return;
+    };
+
+    // The handle owns the only writing end of the server's stdin: dropping it closes it.
+    drop(child);
+
+    let deadline = Instant::now() + SERVER_STOP_GRACE;
+
+    while is_running(pid) && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(25));
     }
+
+    if is_running(pid) {
+        // SAFETY: kill(2) has no memory-safety preconditions; the pid was the
+        // server's a moment ago.
+        unsafe { libc::kill(pid, libc::SIGKILL) };
+    }
+}
+
+/// Whether the server still runs. The shell plugin reaps it the moment it exits, so a
+/// finished server is gone rather than a zombie.
+fn is_running(pid: libc::pid_t) -> bool {
+    // SAFETY: signal 0 only checks that the process exists.
+    unsafe { libc::kill(pid, 0) == 0 }
 }
 
 fn open_app(app: &AppHandle, port: u16) {

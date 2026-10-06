@@ -1,4 +1,5 @@
-import type { Socket } from 'bun';
+import type { Subprocess } from 'bun';
+import { mkdir } from 'node:fs/promises';
 import type { Logger } from '@/lib/logger';
 import type {
   ISignalClient,
@@ -11,7 +12,24 @@ import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 const CALL_TIMEOUT_MS = 20_000;
 // The phone owner has to find the QR screen and scan; give them time.
 const LINK_TIMEOUT_MS = 10 * 60 * 1000;
-const RECONNECT_MS = 5_000;
+// signal-cli exits within ~100 ms of SIGTERM; one that hangs is killed after this.
+const STOP_GRACE_MS = 3_000;
+// A run this long was healthy: the next crash restarts it with the shortest wait again.
+const HEALTHY_RUN_MS = 60_000;
+// Homebrew's folders (Apple silicon, Intel): the Mac app starts with neither on PATH.
+const HOMEBREW_BINS = ['/opt/homebrew/bin', '/usr/local/bin'];
+// Nothing is downloaded but text. Manual receiving: messages wait on Signal's servers
+// until a connection subscribes, so a paused connection loses nothing.
+const ARGS = [
+  'jsonRpc',
+  '--receive-mode=manual',
+  '--ignore-attachments',
+  '--ignore-stories',
+  '--ignore-avatars',
+  '--ignore-stickers',
+];
+
+type SignalProcess = Subprocess<'pipe', 'pipe', 'pipe'>;
 
 interface PendingCall {
   readonly resolve: (value: unknown) => void;
@@ -19,38 +37,60 @@ interface PendingCall {
   readonly timer: ReturnType<typeof setTimeout>;
 }
 
+interface ReceivedMessage {
+  readonly account?: string;
+  readonly envelope?: SignalEnvelope;
+}
+
 interface RpcMessage {
   readonly id?: number;
   readonly method?: string;
   readonly result?: unknown;
   readonly error?: { readonly message?: string };
-  readonly params?: { readonly account?: string; readonly envelope?: SignalEnvelope };
+  // A subscription's `receive` carries the message in `result`.
+  readonly params?: ReceivedMessage & { readonly result?: ReceivedMessage };
+}
+
+export interface SignalCliOptions {
+  /** The signal-cli to run; null finds it on PATH or in Homebrew's folders. */
+  readonly cli: string | null;
+  /** signal-cli's data: the linked device's keys. */
+  readonly dataDir: string;
+  /** Waits before starting it again after it stopped on its own, one per failure in a row. */
+  readonly restartBackoffMs: readonly number[];
 }
 
 const targetParams = (target: SignalTarget) =>
   'groupId' in target ? { groupId: target.groupId } : { recipient: [target.recipient] };
 
 /**
- * signal-cli's JSON-RPC over its Unix socket (`signal-cli daemon --socket …`): one
- * connection, requests matched to answers by id, received messages pushed as
- * `receive` notifications. A socket, not a port, because whoever can talk to the
- * daemon can read and send as the account.
+ * signal-cli, run by Huginn itself in JSON-RPC mode over its stdin and stdout: requests
+ * matched to answers by id, received messages pushed as `receive` notifications. It
+ * starts on first use and stops with Huginn. There is no socket or port on purpose:
+ * whoever can talk to it can read and send as the account.
  */
 export class SignalRpcClient implements ISignalClient {
-  private socket: Socket | null = null;
-  private connecting: Promise<Socket> | null = null;
-  private buffer = '';
+  private child: SignalProcess | null = null;
+  private starting: Promise<SignalProcess> | null = null;
+  private startedAt = 0;
+  private failures = 0;
   private nextId = 1;
   private closed = false;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private subscription: number | null = null;
+  private subscribing: Promise<void> | null = null;
+  private restartTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly pending = new Map<number, PendingCall>();
   private readonly handlers = new Map<string, SignalEnvelopeHandler>();
   private readonly groupNames = new Map<string, string | null>();
 
   constructor(
     private readonly logger: Logger,
-    private readonly socketPath: string | null
+    private readonly options: SignalCliOptions
   ) {}
+
+  public isAvailable(): boolean {
+    return this.locate() !== null;
+  }
 
   public async accounts(): Promise<readonly string[]> {
     const result = (await this.call('listAccounts', {})) as readonly { number: string }[];
@@ -62,17 +102,35 @@ export class SignalRpcClient implements ISignalClient {
     this.closed = false;
     this.handlers.set(account, handler);
 
-    if (!(await this.accounts()).includes(account)) {
+    try {
+      if (!(await this.accounts()).includes(account)) {
+        throw new HuginnError(
+          ErrorCode.Unauthorized,
+          `${account} is not linked in signal-cli any more — link the phone again`
+        );
+      }
+
+      await this.receive();
+    } catch (error) {
       this.handlers.delete(account);
-      throw new HuginnError(
-        ErrorCode.Unauthorized,
-        `${account} is not linked in signal-cli any more — link the phone again`
-      );
+      throw error;
     }
   }
 
   public unsubscribe(account: string): void {
     this.handlers.delete(account);
+
+    if (this.handlers.size > 0 || this.subscription === null || !this.child) {
+      return;
+    }
+
+    const subscription = this.subscription;
+
+    this.subscription = null;
+    // Nobody listens any more: let messages wait on Signal's servers again.
+    this.call('unsubscribeReceive', { subscription }).catch((error: unknown) =>
+      this.logger.warn({ err: toError(error) }, 'signal-cli unsubscribe failed')
+    );
   }
 
   public async send(
@@ -144,23 +202,53 @@ export class SignalRpcClient implements ISignalClient {
     return result.number;
   }
 
-  public close(): Promise<void> {
+  public async close(): Promise<void> {
     this.closed = true;
     this.handlers.clear();
 
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
+    if (this.restartTimer) {
+      clearTimeout(this.restartTimer);
+      this.restartTimer = null;
     }
 
-    this.socket?.end();
-    this.socket = null;
+    const running = this.child ?? (await this.starting?.catch(() => null)) ?? null;
 
-    return Promise.resolve();
+    if (!running) {
+      return;
+    }
+
+    // SIGTERM lets it save and exit; a closed stdin alone makes it abort.
+    running.kill('SIGTERM');
+
+    const stopped = await Promise.race([
+      running.exited.then(() => true),
+      Bun.sleep(STOP_GRACE_MS).then(() => false),
+    ]);
+
+    if (!stopped) {
+      running.kill('SIGKILL');
+    }
+  }
+
+  /** One subscription for every account; messages are routed by their account. */
+  private receive(): Promise<void> {
+    if (this.subscription !== null) {
+      return Promise.resolve();
+    }
+
+    this.subscribing ??= this.call('subscribeReceive', {})
+      .then((id) => {
+        this.subscription = id as number;
+      })
+      .finally(() => {
+        this.subscribing = null;
+      });
+
+    return this.subscribing;
   }
 
   private async call(method: string, params: object, timeoutMs = CALL_TIMEOUT_MS) {
-    const socket = await this.connect();
+    const running = await this.running();
     const id = this.nextId++;
 
     return new Promise<unknown>((resolve, reject) => {
@@ -169,58 +257,79 @@ export class SignalRpcClient implements ISignalClient {
         reject(new HuginnError(ErrorCode.Upstream, `signal-cli did not answer ${method}`));
       }, timeoutMs);
 
+      const fail = (error: unknown) => {
+        this.pending.delete(id);
+        clearTimeout(timer);
+        reject(new HuginnError(ErrorCode.Upstream, `signal-cli: ${toError(error).message}`));
+      };
+
       this.pending.set(id, { resolve, reject, timer });
-      socket.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`);
+
+      try {
+        // A pipe that just closed fails here or later; either way only this call fails.
+        Promise.resolve(
+          running.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
+        )
+          .then(() => running.stdin.flush())
+          .catch(fail);
+      } catch (error) {
+        fail(error);
+      }
     });
   }
 
-  private connect(): Promise<Socket> {
-    if (this.socket) {
-      return Promise.resolve(this.socket);
+  private running(): Promise<SignalProcess> {
+    if (this.child) {
+      return Promise.resolve(this.child);
     }
 
-    if (!this.socketPath) {
-      return Promise.reject(
-        new HuginnError(
-          ErrorCode.Validation,
-          'Signal is not set up on this server (HUGINN_SIGNAL_SOCKET, see docs/signal.md)'
-        )
+    this.starting ??= this.launch().finally(() => {
+      this.starting = null;
+    });
+
+    return this.starting;
+  }
+
+  private async launch(): Promise<SignalProcess> {
+    const cli = this.locate();
+
+    if (!cli) {
+      throw new HuginnError(
+        ErrorCode.Validation,
+        'Signal needs signal-cli on this Mac: install it with "brew install signal-cli", then try again'
       );
     }
 
-    this.connecting ??= Bun.connect({
-      unix: this.socketPath,
-      socket: {
-        data: (_socket, data) => this.receive(data.toString('utf8')),
-        close: () => this.dropped(),
-        error: (_socket, error) => this.logger.warn({ err: error }, 'signal-cli socket error'),
-      },
-    })
-      .then((socket) => {
-        this.socket = socket;
+    await mkdir(this.options.dataDir, { recursive: true, mode: 0o700 });
 
-        return socket;
-      })
-      .catch((error: unknown) => {
-        throw new HuginnError(
-          ErrorCode.Upstream,
-          `Cannot reach signal-cli at ${this.socketPath}: ${toError(error).message}`
-        );
-      })
-      .finally(() => {
-        this.connecting = null;
-      });
+    const child = Bun.spawn([cli, '--config', this.options.dataDir, ...ARGS], {
+      stdin: 'pipe',
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    // However Huginn exits, signal-cli is told to stop cleanly too.
+    const stopWithHuginn = () => child.kill('SIGTERM');
 
-    return this.connecting;
+    process.on('exit', stopWithHuginn);
+    this.child = child;
+    this.startedAt = Date.now();
+    SignalRpcClient.readLines(child.stdout, (line) => this.dispatch(line)).catch((error: unknown) =>
+      this.logger.warn({ err: toError(error) }, 'signal-cli output lost')
+    );
+    SignalRpcClient.readLines(child.stderr, (line) => this.log(line)).catch(() => undefined);
+    void child.exited.then((code) => {
+      process.off('exit', stopWithHuginn);
+      this.exited(child, code);
+    });
+    this.logger.info({ pid: child.pid }, 'signal-cli started');
+
+    return child;
   }
 
-  private receive(chunk: string): void {
-    this.buffer += chunk;
-
-    const lines = this.buffer.split('\n');
-
-    this.buffer = lines.pop() ?? '';
-    lines.filter((line) => line.trim() !== '').forEach((line) => this.dispatch(line));
+  private locate(): string | null {
+    return this.options.cli
+      ? Bun.which(this.options.cli)
+      : (Bun.which('signal-cli') ?? Bun.which('signal-cli', { PATH: HOMEBREW_BINS.join(':') }));
   }
 
   private dispatch(line: string): void {
@@ -253,35 +362,88 @@ export class SignalRpcClient implements ISignalClient {
       return;
     }
 
-    const account = message.params?.account;
-    const envelope = message.params?.envelope;
+    const received = message.params?.result ?? message.params;
 
-    if (message.method === 'receive' && account && envelope) {
-      this.handlers.get(account)?.(envelope);
-    }
-  }
-
-  /** The daemon restarted or the socket broke: fail what was waiting, come back if needed. */
-  private dropped(): void {
-    this.socket = null;
-    this.buffer = '';
-    [...this.pending.values()].forEach((call) => {
-      clearTimeout(call.timer);
-      call.reject(new HuginnError(ErrorCode.Upstream, 'signal-cli connection closed'));
-    });
-    this.pending.clear();
-
-    if (this.closed || this.handlers.size === 0 || this.reconnectTimer) {
+    if (message.method !== 'receive' || !received?.account || !received.envelope) {
       return;
     }
 
-    this.logger.warn('signal-cli connection lost, reconnecting');
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      void this.connect().catch((error: unknown) => {
-        this.logger.warn({ err: toError(error) }, 'signal-cli reconnect failed');
-        this.dropped();
+    try {
+      this.handlers.get(received.account)?.(received.envelope);
+    } catch (error) {
+      // One bad message must not stop the reading of everything after it.
+      this.logger.warn({ err: toError(error) }, 'signal message dropped');
+    }
+  }
+
+  /** signal-cli's own log: its warnings are worth keeping, the rest only when debugging. */
+  private log(line: string): void {
+    const entry = { line: line.slice(0, 500) };
+
+    if (/^(WARN|ERROR|Fatal)/.test(line)) {
+      this.logger.warn(entry, 'signal-cli');
+    } else {
+      this.logger.debug(entry, 'signal-cli');
+    }
+  }
+
+  /** Fails what was waiting; starts it again if connections still listen. */
+  private exited(child: SignalProcess, code: number | null): void {
+    if (this.child !== child) {
+      return;
+    }
+
+    this.child = null;
+    this.subscription = null;
+    [...this.pending.values()].forEach((call) => {
+      clearTimeout(call.timer);
+      call.reject(new HuginnError(ErrorCode.Upstream, `signal-cli stopped (exit ${code})`));
+    });
+    this.pending.clear();
+
+    if (this.closed || this.handlers.size === 0) {
+      this.logger.info({ code }, 'signal-cli stopped');
+
+      return;
+    }
+
+    if (Date.now() - this.startedAt > HEALTHY_RUN_MS) {
+      this.failures = 0;
+    }
+
+    this.restartLater(`exit ${code}`);
+  }
+
+  private restartLater(reason: string): void {
+    const backoff = this.options.restartBackoffMs;
+    const delay = backoff[Math.min(this.failures, backoff.length - 1)] ?? 0;
+
+    this.failures += 1;
+    this.logger.warn({ reason, restartInMs: delay }, 'signal-cli stopped, starting it again');
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null;
+      this.receive().catch((error: unknown) => {
+        // It did not even start (removed?): try again later. If it started and then
+        // failed, its exit schedules the next attempt.
+        if (!this.child && !this.closed && this.handlers.size > 0) {
+          this.restartLater(toError(error).message);
+        }
       });
-    }, RECONNECT_MS);
+    }, delay);
+  }
+
+  private static async readLines(
+    stream: ReadableStream<Uint8Array>,
+    onLine: (line: string) => void
+  ): Promise<void> {
+    const decoder = new TextDecoder();
+    let rest = '';
+
+    for await (const chunk of stream) {
+      const lines = (rest + decoder.decode(chunk, { stream: true })).split('\n');
+
+      rest = lines.pop() ?? '';
+      lines.filter((line) => line.trim() !== '').forEach(onLine);
+    }
   }
 }

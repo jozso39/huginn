@@ -18,7 +18,7 @@ version (PWA, Web Push) are **retired** — there is no server version beside it
 | Slack: one Huginn Slack app per company, never distributed; each person signs in (option B) | ✅ |
 | Triage: on first launch the user may enter an **OpenRouter** or a **TypeSafe** API key (explained there); without one, condition rules only. **No local model** (no 2 GB download) | ✅ |
 | **Full backup export** (encrypted, password) to move to a new Mac | ✅ |
-| Signal: left out for now | ✅ |
+| Signal: not shipped; offered where signal-cli is installed (`brew install signal-cli`), which Jozef uses (2026-10-06) | ✅ |
 | Retire the Pi and the iPhone version after M1 | ✅ |
 | Notifications: build them, Jozef tries them for a few days before deciding on more | ✅ |
 
@@ -158,8 +158,9 @@ Each milestone ends with something Jozef uses daily.
 
 ### M4 — Clean-up and first release (≈ 3–4 days)
 1. Remove what belongs to the Pi and the phone: Docker/compose, `deploy/`, Web Push +
-   `push_devices` (migration), PWA manifest/service worker, relay page, Ingest key env,
-   Signal connector (tag the last Pi version `pi-final` so it can be restored).
+   `push_devices` (migration), PWA manifest/service worker, relay page, Ingest key env
+   (tag the last Pi version `pi-final` so it can be restored). The Signal connector stays:
+   since 2026-10-06 it runs signal-cli itself (docs/signal.md).
 2. User docs: install (Open Anyway), first run; admin docs: the company Google project
    and Slack app.
 3. Release `v1.0.0`; install for Jozef's wife and one colleague.
@@ -253,7 +254,9 @@ M1 ≈ 1 week · M2 ≈ 1 week · M3 ≈ 1 week · M4 ≈ 3–4 days → **first
 - Apple Developer ID: notarised app, Keychain for the master key, reliable notifications.
 - Intel Mac builds (one more CI runner, free) — when someone needs them.
 - Publishing the Slack app (Marketplace) for use outside Medevio.
-- Signal again; a local triage model if a small (≪ 1 GB) one becomes good enough.
+- Signal for everyone: bundle signal-cli (Homebrew's native build, ~120 MB, GPL-3.0 —
+  shipped as a separate program next to the server) instead of asking for Homebrew.
+- A local triage model if a small (≪ 1 GB) one becomes good enough.
 
 ## 11. Answers (2026-10-06)
 

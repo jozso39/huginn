@@ -99,6 +99,8 @@ export interface ConnectorDescriptor {
   signInProvider: OAuthProvider | null;
   /** Created by linking a phone (scan a QR code). */
   pairing: boolean;
+  /** Why it cannot be added on this Mac (signal-cli missing); null when it can. */
+  unavailable: string | null;
   configSchema: { properties?: Record<string, JsonSchemaProperty>; required?: string[] };
   secretFields: SecretField[];
 }

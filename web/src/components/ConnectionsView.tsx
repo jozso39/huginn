@@ -35,7 +35,9 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
   const [error, setError] = useState<string | null>(null);
 
   const descriptorOf = (kind: string) => kinds.find((k) => k.kind === kind);
-  const newKind = chosenKind !== '' ? chosenKind : (kinds[0]?.kind ?? '');
+  // Kinds this Mac cannot run (Signal without signal-cli) are not offered at all.
+  const addable = kinds.filter((k) => k.unavailable === null);
+  const newKind = chosenKind !== '' ? chosenKind : (addable[0]?.kind ?? '');
   const newDescriptor = descriptorOf(newKind);
 
   const create = async (values: ConnectionFormValues) => {
@@ -199,7 +201,7 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
         <label>
           Type
           <select value={newKind} onChange={(e) => setChosenKind(e.target.value)}>
-            {kinds.map((k) => (
+            {addable.map((k) => (
               <option key={k.kind} value={k.kind}>
                 {k.label}
               </option>

@@ -69,6 +69,7 @@ export class ConnectionService implements IConnectionService {
       capabilities: factory.capabilities,
       signInProvider: factory.authorization?.provider ?? null,
       pairing: Boolean(factory.pairing),
+      unavailable: factory.unavailableReason?.() ?? null,
     }));
   }
 

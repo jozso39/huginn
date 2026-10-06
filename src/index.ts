@@ -58,6 +58,10 @@ const main = async () => {
     container.attentionService.stop();
     container.pushService.stop();
     await container.connectorHost.stopAll();
+    // What the connections shared goes last: signal-cli is stopped cleanly here.
+    await Promise.all(
+      container.connectorFactories.map((factory) => factory.close?.() ?? Promise.resolve())
+    );
     // Close open connections too (the window's live stream): a plain stop waits for them.
     await server.stop(true);
     container.close();

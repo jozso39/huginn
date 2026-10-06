@@ -1,4 +1,4 @@
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { getCleanEnv } from './env';
 
 // From src/lib to the repository, for development runs; the Mac app passes its own paths.
@@ -18,12 +18,14 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
     throw new Error('HUGINN_SECRET_KEY is missing: 32 random bytes, base64');
   }
 
+  const dbPath = env.HUGINN_DATA_DIR ? join(env.HUGINN_DATA_DIR, 'huginn.db') : env.HUGINN_DB_PATH;
+
   return {
     env: env.NODE_ENV,
     port: env.PORT,
     logLevel: env.LOG_LEVEL,
     host: env.HUGINN_HOST,
-    dbPath: env.HUGINN_DATA_DIR ? join(env.HUGINN_DATA_DIR, 'huginn.db') : env.HUGINN_DB_PATH,
+    dbPath,
     secretKey,
     ingestKey: env.HUGINN_INGEST_KEY ?? null,
     paths: {
@@ -48,7 +50,12 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
             subject: env.HUGINN_VAPID_SUBJECT,
           }
         : null,
-    signalSocket: env.HUGINN_SIGNAL_SOCKET ?? null,
+    signal: {
+      // null: found on PATH or in Homebrew's folders when Signal is first used.
+      cli: env.HUGINN_SIGNAL_CLI ?? null,
+      // signal-cli's own data: the linked device's keys, kept with the database.
+      dataDir: join(dirname(dbPath), 'signal'),
+    },
     ai: {
       openRouterApiKey: env.HUGINN_OPENROUTER_API_KEY ?? null,
       jevModel: env.HUGINN_JEV_MODEL,

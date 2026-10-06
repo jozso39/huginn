@@ -20,7 +20,8 @@ const DEVICE_NAME = 'Huginn';
 
 /**
  * Signal, linked as a device of the user's phone (Settings → Linked devices → scan).
- * One signal-cli daemon serves every Signal connection, so the client is shared.
+ * One signal-cli serves every Signal connection, so the client is shared. Offered only
+ * where signal-cli is installed: Huginn does not ship it.
  */
 export class SignalConnectorFactory implements IConnectorFactory {
   public readonly kind = ConnectorKind.Signal;
@@ -37,7 +38,12 @@ export class SignalConnectorFactory implements IConnectorFactory {
     private readonly config: IConfig,
     client?: ISignalClient
   ) {
-    const shared = client ?? new SignalRpcClient(logger, config.signalSocket);
+    const shared =
+      client ??
+      new SignalRpcClient(logger, {
+        ...config.signal,
+        restartBackoffMs: config.connectors.restartBackoffMs,
+      });
 
     this.client = shared;
     this.pairing = {
@@ -59,5 +65,15 @@ export class SignalConnectorFactory implements IConnectorFactory {
       secrets.account ?? '',
       this.config.maxBodyChars
     );
+  }
+
+  public unavailableReason(): string | null {
+    return this.client.isAvailable()
+      ? null
+      : 'Needs signal-cli on this Mac: brew install signal-cli';
+  }
+
+  public close(): Promise<void> {
+    return this.client.close();
   }
 }

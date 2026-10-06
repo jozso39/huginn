@@ -146,3 +146,28 @@ describe('Signal connector end to end', () => {
     expect((await open()).map((item) => item.body)).toEqual(['See you at 6']);
   });
 });
+
+describe('Signal on a Mac without signal-cli', () => {
+  test('is not offered, and says what to install', async () => {
+    const signal = new MockSignalClient();
+    const container = createTestContainer({ signalClient: signal });
+    const signalKind = () =>
+      container.connectionService
+        .describeConnectors()
+        .find((descriptor) => descriptor.kind === ConnectorKind.Signal);
+
+    expect(signalKind()?.unavailable).toBeNull();
+    signal.available = false;
+    expect(signalKind()?.unavailable).toContain('brew install signal-cli');
+    // Everything else stays on offer.
+    expect(
+      container.connectionService
+        .describeConnectors()
+        .filter((descriptor) => descriptor.unavailable !== null)
+        .map((descriptor) => descriptor.kind)
+    ).toEqual([ConnectorKind.Signal]);
+
+    await container.connectorHost.stopAll();
+    container.close();
+  });
+});

@@ -14,6 +14,8 @@ export interface ConnectorDescriptor {
   readonly signInProvider: OAuthProvider | null;
   /** Set when connections of this kind are created by linking a phone (a QR code). */
   readonly pairing: boolean;
+  /** Why this kind cannot be added here (e.g. signal-cli is not installed); null when it can. */
+  readonly unavailable: string | null;
 }
 
 export enum PairingState {
