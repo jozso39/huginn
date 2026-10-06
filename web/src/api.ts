@@ -1,6 +1,7 @@
 import type {
   Action,
   Connection,
+  ConnectionGroup,
   ConnectorDescriptor,
   ConnectorKind,
   DryRunResult,
@@ -19,8 +20,15 @@ import type {
   RuleDraft,
   RuleHistoryEntry,
   RuleStatus,
+  Settings,
   Verdict,
 } from './api.types';
+
+/** What the settings form sends besides the connector's own config and tokens. */
+export interface ConnectionLook {
+  groupId: string | null;
+  color: string;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -60,6 +68,12 @@ export const api = {
     request<{ delivered: boolean }>('POST', '/push/test', { endpoint }).then((r) => r.delivered),
   listItems: (state: ItemState) =>
     request<{ items: Item[] }>('GET', `/items?state=${state}&limit=500`).then((r) => r.items),
+  /** The archive: items with every word of `query` (case and accents ignored), newest first. */
+  searchArchive: (query: string, limit: number) =>
+    request<{ items: Item[] }>(
+      'GET',
+      `/items?state=Done&limit=${limit}&q=${encodeURIComponent(query)}`
+    ).then((r) => r.items),
   content: (id: string) =>
     request<{ content: RichContent }>('GET', `/items/${id}/content`).then((r) => r.content),
   getItem: (id: string) => request<{ item: Item; actions: Action[] }>('GET', `/items/${id}`),
@@ -79,26 +93,35 @@ export const api = {
     request<{ connections: Connection[] }>('GET', '/connections').then((r) => r.connections),
   listKinds: () =>
     request<{ kinds: ConnectorDescriptor[] }>('GET', '/connections/kinds').then((r) => r.kinds),
-  createConnection: (input: {
-    kind: string;
-    name: string;
-    config: Record<string, unknown>;
-    secrets: Record<string, string>;
-    groupName?: string | null;
-  }) =>
-    request<{ connection: Connection }>('POST', '/connections', input).then((r) => r.connection),
+  createConnection: (
+    input: ConnectionLook & {
+      kind: string;
+      name: string;
+      config: Record<string, unknown>;
+      secrets: Record<string, string>;
+    }
+  ) => request<{ connection: Connection }>('POST', '/connections', input).then((r) => r.connection),
   updateConnection: (
     id: string,
-    name: string,
-    config: Record<string, unknown>,
-    groupName: string | null
-  ) =>
-    request<{ connection: Connection }>('PUT', `/connections/${id}`, { name, config, groupName }),
+    changes: ConnectionLook & { name: string; config: Record<string, unknown> }
+  ) => request<{ connection: Connection }>('PUT', `/connections/${id}`, changes),
   updateSecrets: (id: string, secrets: Record<string, string>) =>
     request<{ ok: true }>('PUT', `/connections/${id}/secrets`, { secrets }),
   setEnabled: (id: string, enabled: boolean) =>
     request<{ connection: Connection }>('PUT', `/connections/${id}/enabled`, { enabled }),
   removeConnection: (id: string) => request<{ ok: true }>('DELETE', `/connections/${id}`),
+  listGroups: () => request<{ groups: ConnectionGroup[] }>('GET', '/groups').then((r) => r.groups),
+  /** Returns the existing category when the name is taken (ignoring case). */
+  createGroup: (name: string) =>
+    request<{ group: ConnectionGroup }>('POST', '/groups', { name }).then((r) => r.group),
+  renameGroup: (id: string, name: string) =>
+    request<{ group: ConnectionGroup }>('PUT', `/groups/${id}`, { name }).then((r) => r.group),
+  deleteGroup: (id: string) => request<{ ok: true }>('DELETE', `/groups/${id}`),
+
+  getSettings: () => request<{ settings: Settings }>('GET', '/settings').then((r) => r.settings),
+  saveSettings: (patch: Partial<Settings>) =>
+    request<{ settings: Settings }>('PUT', '/settings', patch).then((r) => r.settings),
+
   getOAuthApp: (provider: OAuthProvider) =>
     request<{ app: OAuthAppView }>('GET', `/oauth/apps/${provider}`).then((r) => r.app),
   saveOAuthApp: (

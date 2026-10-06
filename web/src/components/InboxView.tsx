@@ -3,6 +3,7 @@ import { api } from '../api';
 import type {
   Category,
   Connection,
+  ConnectionGroup,
   ConnectorCapabilities,
   ConnectorDescriptor,
   Item,
@@ -15,6 +16,10 @@ interface InboxViewProps {
   items: Item[];
   connections: Connection[];
   kinds: ConnectorDescriptor[];
+  /** Categories: connections in one share a section. */
+  groups: ConnectionGroup[];
+  /** The quick reactions chosen in Settings, in order ("👍"). */
+  reactions: string[];
   onChanged: (item: Item) => void;
 }
 
@@ -29,7 +34,8 @@ const FILTERS: { id: Filter; label: string; categories: Category[] }[] = [
 
 const NONE: ConnectorCapabilities = { reply: false, draft: false, react: false, ack: false };
 const RANK: Record<Category, number> = { Important: 0, Undecided: 1, Spam: 2 };
-const EXPANDED_KEY = 'huginn.expandedGroups';
+// Keyed by category or connection id, so renaming one keeps it open.
+const EXPANDED_KEY = 'huginn.openSections';
 
 interface Thread {
   key: string;
@@ -37,6 +43,8 @@ interface Thread {
 }
 
 interface Group {
+  /** `g:<category id>`, or `c:<connection id>` for one without a category. */
+  key: string;
   name: string;
   connections: Connection[];
   threads: Thread[];
@@ -56,8 +64,19 @@ const groupByThread = (items: Item[]): Thread[] =>
 const byImportance = (a: Thread, b: Thread) =>
   RANK[a.items[0]?.category ?? 'Undecided'] - RANK[b.items[0]?.category ?? 'Undecided'];
 
-const groupNameOf = (connection: Connection | undefined) =>
-  connection?.groupName ?? connection?.name ?? 'Unknown source';
+/** Where a connection is shown: its category's section, or a section of its own. */
+const sectionOf = (
+  connection: Connection | undefined,
+  groupById: Map<string, ConnectionGroup>
+): { key: string; name: string } => {
+  const group = connection?.groupId ? groupById.get(connection.groupId) : undefined;
+
+  if (group) {
+    return { key: `g:${group.id}`, name: group.name };
+  }
+
+  return { key: `c:${connection?.id ?? 'unknown'}`, name: connection?.name ?? 'Unknown source' };
+};
 
 const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
@@ -80,7 +99,14 @@ const saveExpanded = (expanded: Set<string>) => {
   }
 };
 
-export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewProps) => {
+export const InboxView = ({
+  items,
+  connections,
+  kinds,
+  groups,
+  reactions,
+  onChanged,
+}: InboxViewProps) => {
   const [filter, setFilter] = useState<Filter>('Inbox');
   const [expanded, setExpanded] = useState<Set<string>>(loadExpanded);
   const [cursor, setCursor] = useState(0);
@@ -100,6 +126,7 @@ export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewPro
   }, [toast]);
 
   const connectionById = useMemo(() => new Map(connections.map((c) => [c.id, c])), [connections]);
+  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
   const capabilitiesOf = (connection: Connection | undefined): ConnectorCapabilities =>
     kinds.find((kind) => kind.kind === connection?.kind)?.capabilities ?? NONE;
 
@@ -111,23 +138,24 @@ export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewPro
     [items]
   );
 
-  const groups = useMemo((): Group[] => {
+  const sections = useMemo((): Group[] => {
     const categories = FILTERS.find((f) => f.id === filter)?.categories ?? [];
     const visible = items.filter((item) => categories.includes(item.category));
-    const names = [
-      ...new Set(visible.map((item) => groupNameOf(connectionById.get(item.connectionId)))),
+    const sectionOfItem = (item: Item) =>
+      sectionOf(connectionById.get(item.connectionId), groupById);
+    const sections = [
+      ...new Map(visible.map((item) => [sectionOfItem(item).key, sectionOfItem(item)])).values(),
     ];
 
-    const built = names.map((name): Group => {
+    const built = sections.map(({ key, name }): Group => {
       const threads = [
-        ...groupByThread(
-          visible.filter((item) => groupNameOf(connectionById.get(item.connectionId)) === name)
-        ),
+        ...groupByThread(visible.filter((item) => sectionOfItem(item).key === key)),
       ].sort(byImportance);
 
       return {
+        key,
         name,
-        connections: connections.filter((c) => groupNameOf(c) === name),
+        connections: connections.filter((c) => sectionOf(c, groupById).key === key),
         threads,
         important: threads.filter((t) => t.items[0]?.category === 'Important').length,
       };
@@ -137,19 +165,19 @@ export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewPro
     return [...built].sort(
       (a, b) => Number(b.important > 0) - Number(a.important > 0) || a.name.localeCompare(b.name)
     );
-  }, [items, filter, connections, connectionById]);
+  }, [items, filter, connections, connectionById, groupById]);
 
   // Keyboard navigation walks the threads of the open groups only.
   const navigable = useMemo(
-    () => groups.filter((g) => expanded.has(g.name)).flatMap((g) => g.threads),
-    [groups, expanded]
+    () => sections.filter((g) => expanded.has(g.key)).flatMap((g) => g.threads),
+    [sections, expanded]
   );
   const selected = Math.min(cursor, Math.max(navigable.length - 1, 0));
   const selectedKey = navigable[selected]?.key;
 
-  const toggle = (name: string) => {
+  const toggle = (key: string) => {
     const next = new Set(
-      expanded.has(name) ? [...expanded].filter((open) => open !== name) : [...expanded, name]
+      expanded.has(key) ? [...expanded].filter((open) => open !== key) : [...expanded, key]
     );
 
     setExpanded(next);
@@ -210,7 +238,7 @@ export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewPro
         ))}
       </nav>
 
-      {groups.length === 0 ? (
+      {sections.length === 0 ? (
         <div className="empty">
           <p className="empty__title">{filter === 'Spam' ? 'No spam.' : 'Nothing waiting.'}</p>
           <p className="muted">
@@ -220,16 +248,16 @@ export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewPro
         </div>
       ) : (
         <div className="groups">
-          {groups.map((group) => {
-            const open = expanded.has(group.name);
+          {sections.map((group) => {
+            const open = expanded.has(group.key);
 
             return (
-              <section key={group.name} className={open ? 'group group--open' : 'group'}>
+              <section key={group.key} className={open ? 'group group--open' : 'group'}>
                 <button
                   type="button"
                   className="group__head"
                   aria-expanded={open}
-                  onClick={() => toggle(group.name)}
+                  onClick={() => toggle(group.key)}
                 >
                   <span className="group__chevron" aria-hidden>
                     ▸
@@ -257,6 +285,7 @@ export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewPro
                           items={thread.items}
                           connection={connection}
                           capabilities={capabilitiesOf(connection)}
+                          reactions={reactions}
                           selected={thread.key === selectedKey}
                           replying={replyFor === thread.key}
                           onStartReply={() => setReplyFor(thread.key)}

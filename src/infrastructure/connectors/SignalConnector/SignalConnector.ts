@@ -12,11 +12,11 @@ import type {
   ConnectorContext,
   IConnector,
 } from '@/core/connectors/Connector.types';
+import { emojiOf, isShortName, shortNameOf } from '@/core/emoji/emoji.utils';
 import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import type { Item } from '@/core/items/Item.types';
 import type { SignalItemRaw } from './SignalConnector.types';
 import {
-  EMOJI_BY_NAME,
   conversationKey,
   incomingToItem,
   messageText,
@@ -93,10 +93,11 @@ export class SignalConnector implements IConnector {
 
   public async react(item: Item, emoji: string): Promise<ActionResult> {
     const raw = item.raw as SignalItemRaw;
-    const char = EMOJI_BY_NAME[emoji];
+    // Signal reacts with the emoji itself; a Slack-style short name is turned into one.
+    const char = isShortName(emoji) ? emojiOf(emoji) : shortNameOf(emoji) ? emoji : null;
 
     if (!char) {
-      return { ok: false, error: `Signal needs a real emoji; ${emoji} is not one Huginn knows` };
+      return { ok: false, error: `${emoji} is not an emoji Huginn can react with` };
     }
 
     try {

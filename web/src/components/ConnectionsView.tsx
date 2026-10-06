@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
-import type { Connection, ConnectorDescriptor } from '../api.types';
+import type { Connection, ConnectionGroup, ConnectorDescriptor } from '../api.types';
+import { nextConnectionColor, tint } from '../colors';
 import { relativeTime } from '../connectorMeta';
 import type { ConnectionFormValues } from './ConnectionForm';
 import { ConnectionForm } from './ConnectionForm';
@@ -11,7 +12,15 @@ import { PairConnect } from './PairConnect';
 interface ConnectionsViewProps {
   connections: Connection[];
   kinds: ConnectorDescriptor[];
+  groups: ConnectionGroup[];
   onChanged: () => Promise<void>;
+  onCreateGroup: (name: string) => Promise<ConnectionGroup>;
+}
+
+interface Section {
+  key: string;
+  name: string;
+  connections: Connection[];
 }
 
 const STATUS_LABEL: Record<Connection['status'], string> = {
@@ -26,8 +35,35 @@ const STATUS_LABEL: Record<Connection['status'], string> = {
 const filledOnly = (values: Record<string, string>) =>
   Object.fromEntries(Object.entries(values).filter(([, value]) => value.trim() !== ''));
 
-/** Add, edit, pause and remove connections. */
-export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsViewProps) => {
+const byName = (a: Connection, b: Connection) => a.name.localeCompare(b.name);
+
+/** One section per category in use (alphabetical, like the categories), the rest last. */
+const sectionsOf = (connections: Connection[], groups: ConnectionGroup[]): Section[] => {
+  const known = new Set(groups.map((group) => group.id));
+
+  return [
+    ...groups.map((group) => ({
+      key: group.id,
+      name: group.name,
+      connections: connections.filter((c) => c.groupId === group.id).sort(byName),
+    })),
+    {
+      key: 'none',
+      name: 'No category',
+      connections: connections.filter((c) => !c.groupId || !known.has(c.groupId)).sort(byName),
+    },
+  ].filter((section) => section.connections.length > 0);
+};
+
+/** Add, edit, pause and remove connections, shown by category. */
+export const ConnectionsView = ({
+  connections,
+  kinds,
+  groups,
+  onChanged,
+  onCreateGroup,
+}: ConnectionsViewProps) => {
+  const [adding, setAdding] = useState(false);
   const [chosenKind, setChosenKind] = useState<string>('');
   const [editing, setEditing] = useState<string | null>(null);
   // The connection whose card asks "really delete?" instead of showing itself.
@@ -46,22 +82,25 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
     await api.createConnection({
       kind: newKind,
       name: name !== '' ? name : (newDescriptor?.label ?? newKind),
-      groupName: values.groupName.trim() === '' ? null : values.groupName.trim(),
+      groupId: values.groupId,
+      color: values.color,
       config: filledOnly(values.config),
       secrets: values.secrets,
     });
+    setAdding(false);
+    setChosenKind('');
     await onChanged();
   };
 
   const update = async (connection: Connection, values: ConnectionFormValues) => {
     const name = values.name.trim();
 
-    await api.updateConnection(
-      connection.id,
-      name !== '' ? name : connection.name,
-      filledOnly(values.config),
-      values.groupName.trim() === '' ? null : values.groupName.trim()
-    );
+    await api.updateConnection(connection.id, {
+      name: name !== '' ? name : connection.name,
+      groupId: values.groupId,
+      color: values.color,
+      config: filledOnly(values.config),
+    });
 
     const newSecrets = filledOnly(values.secrets);
 
@@ -84,154 +123,184 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
     }
   };
 
+  const card = (connection: Connection) => {
+    const descriptor = descriptorOf(connection.kind);
+
+    if (deleting === connection.id) {
+      return (
+        <li key={connection.id} className="connection connection--deleting">
+          <p className="delete-confirm__question">
+            Do you really want to permanently delete the <strong>“{connection.name}”</strong>{' '}
+            connection? Its items and rules are deleted with it.
+          </p>
+          <div className="delete-confirm__buttons">
+            <button
+              type="button"
+              className="danger-solid"
+              onClick={() => {
+                setDeleting(null);
+                void act(() => api.removeConnection(connection.id));
+              }}
+            >
+              Yes, delete
+            </button>
+            <button type="button" onClick={() => setDeleting(null)}>
+              Cancel
+            </button>
+          </div>
+        </li>
+      );
+    }
+
+    return (
+      <li key={connection.id} className="connection" style={tint(connection.color)}>
+        <div className="connection__row">
+          <ConnectorIcon kind={connection.kind} />
+          <div className="connection__info">
+            <strong>{connection.name}</strong>
+            <span className={`status status--${connection.status.toLowerCase()}`}>
+              {STATUS_LABEL[connection.status]}
+            </span>
+            <span className="muted">
+              {connection.lastSyncAt
+                ? `synced ${relativeTime(connection.lastSyncAt)}`
+                : 'never synced'}
+            </span>
+            {connection.statusMessage && (
+              <span className={connection.status === 'Error' ? 'error' : 'warn'}>
+                {connection.statusMessage}
+              </span>
+            )}
+          </div>
+          <div className="connection__buttons">
+            <a className="button" href={`#rules/${connection.id}`}>
+              Rules
+            </a>
+            {descriptor && editing !== connection.id && (
+              <button type="button" onClick={() => setEditing(connection.id)}>
+                Edit
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void act(() => api.setEnabled(connection.id, !connection.enabled))}
+            >
+              {connection.enabled ? 'Pause' : 'Resume'}
+            </button>
+            <button type="button" className="danger" onClick={() => setDeleting(connection.id)}>
+              Delete
+            </button>
+          </div>
+        </div>
+        {descriptor?.signInProvider && connection.status === 'NeedsAuth' && (
+          <div className="sign-in">
+            <button
+              type="button"
+              className="primary"
+              onClick={() => void startSignIn({ connectionId: connection.id }, setError)}
+            >
+              Sign in with {descriptor.signInProvider}
+            </button>
+          </div>
+        )}
+        {descriptor?.pairing && connection.status === 'NeedsAuth' && (
+          <PairConnect target={{ connectionId: connection.id }} onLinked={onChanged} />
+        )}
+        {descriptor && editing === connection.id && (
+          <ConnectionForm
+            descriptor={descriptor}
+            existing={connection}
+            groups={groups}
+            onCreateGroup={onCreateGroup}
+            defaultColor={connection.color}
+            submitLabel="Save"
+            busyLabel="Saving…"
+            onSubmit={(values) => update(connection, values)}
+            onCancel={() => setEditing(null)}
+          />
+        )}
+      </li>
+    );
+  };
+
   return (
-    <section className="connections">
-      <ul className="connection-list">
-        {connections.length === 0 && <li className="muted">No connections yet.</li>}
-        {connections.map((connection) => {
-          const descriptor = descriptorOf(connection.kind);
-
-          if (deleting === connection.id) {
-            return (
-              <li key={connection.id} className="connection connection--deleting">
-                <p className="delete-confirm__question">
-                  Do you really want to permanently delete the <strong>“{connection.name}”</strong>{' '}
-                  connection? Its items and rules are deleted with it.
-                </p>
-                <div className="delete-confirm__buttons">
-                  <button
-                    type="button"
-                    className="danger-solid"
-                    onClick={() => {
-                      setDeleting(null);
-                      void act(() => api.removeConnection(connection.id));
-                    }}
-                  >
-                    Yes, delete
-                  </button>
-                  <button type="button" onClick={() => setDeleting(null)}>
-                    Cancel
-                  </button>
-                </div>
-              </li>
-            );
-          }
-
-          return (
-            <li key={connection.id} className="connection">
-              <div className="connection__row">
-                <ConnectorIcon kind={connection.kind} />
-                <div className="connection__info">
-                  <strong>{connection.name}</strong>
-                  {connection.groupName && (
-                    <span className="muted small">in {connection.groupName}</span>
-                  )}
-                  <span className={`status status--${connection.status.toLowerCase()}`}>
-                    {STATUS_LABEL[connection.status]}
-                  </span>
-                  <span className="muted">
-                    {connection.lastSyncAt
-                      ? `synced ${relativeTime(connection.lastSyncAt)}`
-                      : 'never synced'}
-                  </span>
-                  {connection.statusMessage && (
-                    <span className={connection.status === 'Error' ? 'error' : 'warn'}>
-                      {connection.statusMessage}
-                    </span>
-                  )}
-                </div>
-                <div className="connection__buttons">
-                  <a className="button" href={`#rules/${connection.id}`}>
-                    Rules
-                  </a>
-                  {descriptor && editing !== connection.id && (
-                    <button type="button" onClick={() => setEditing(connection.id)}>
-                      Edit
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void act(() => api.setEnabled(connection.id, !connection.enabled))
-                    }
-                  >
-                    {connection.enabled ? 'Pause' : 'Resume'}
-                  </button>
-                  <button
-                    type="button"
-                    className="danger"
-                    onClick={() => setDeleting(connection.id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-              {descriptor?.signInProvider && connection.status === 'NeedsAuth' && (
-                <div className="sign-in">
-                  <button
-                    type="button"
-                    className="primary"
-                    onClick={() => void startSignIn({ connectionId: connection.id }, setError)}
-                  >
-                    Sign in with {descriptor.signInProvider}
-                  </button>
-                </div>
-              )}
-              {descriptor?.pairing && connection.status === 'NeedsAuth' && (
-                <PairConnect target={{ connectionId: connection.id }} onLinked={onChanged} />
-              )}
-              {descriptor && editing === connection.id && (
-                <ConnectionForm
-                  descriptor={descriptor}
-                  existing={connection}
-                  submitLabel="Save"
-                  busyLabel="Saving…"
-                  onSubmit={(values) => update(connection, values)}
-                  onCancel={() => setEditing(null)}
-                />
-              )}
-            </li>
-          );
-        })}
-      </ul>
+    <div className="connections">
+      {connections.length === 0 && <p className="muted">No connections yet.</p>}
+      {sectionsOf(connections, groups).map((section) => (
+        <section key={section.key} className="connection-group">
+          <h3 className="connection-group__name">
+            {section.name}
+            <span className="muted"> · {section.connections.length}</span>
+          </h3>
+          <ul className="connection-list">{section.connections.map(card)}</ul>
+        </section>
+      ))}
       {error && <p className="error">{error}</p>}
 
-      <div className="add-connection">
-        <h2>Add a connection</h2>
-        <label>
-          Type
-          <select value={newKind} onChange={(e) => setChosenKind(e.target.value)}>
-            {addable.map((k) => (
-              <option key={k.kind} value={k.kind}>
-                {k.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {newDescriptor?.signInProvider && (
-          <SignInConnect
-            key={newDescriptor.kind}
-            descriptor={{ ...newDescriptor, signInProvider: newDescriptor.signInProvider }}
-          />
-        )}
-        {newDescriptor?.pairing && (
-          <PairConnect
-            key={newDescriptor.kind}
-            target={{ kind: newDescriptor.kind }}
-            onLinked={onChanged}
-          />
-        )}
-        {newDescriptor && !newDescriptor.signInProvider && !newDescriptor.pairing && (
-          // Keyed by kind so switching type starts a fresh form with that type's defaults.
-          <ConnectionForm
-            key={newDescriptor.kind}
-            descriptor={newDescriptor}
-            submitLabel="Connect"
-            busyLabel="Connecting…"
-            onSubmit={create}
-          />
-        )}
-      </div>
-    </section>
+      {!adding ? (
+        <button type="button" className="add-button" onClick={() => setAdding(true)}>
+          <span aria-hidden>＋</span> Add connection
+        </button>
+      ) : (
+        <div className="add-connection">
+          <div className="add-connection__head">
+            <h3>New connection</h3>
+            <button
+              type="button"
+              onClick={() => {
+                setAdding(false);
+                setChosenKind('');
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+          <label>
+            Type
+            <select value={newKind} onChange={(e) => setChosenKind(e.target.value)}>
+              {addable.map((k) => (
+                <option key={k.kind} value={k.kind}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {newDescriptor?.signInProvider && (
+            <SignInConnect
+              key={newDescriptor.kind}
+              descriptor={{ ...newDescriptor, signInProvider: newDescriptor.signInProvider }}
+            />
+          )}
+          {newDescriptor?.pairing && (
+            <PairConnect
+              key={newDescriptor.kind}
+              target={{ kind: newDescriptor.kind }}
+              onLinked={async () => {
+                setAdding(false);
+                await onChanged();
+              }}
+            />
+          )}
+          {(newDescriptor?.signInProvider ?? newDescriptor?.pairing) && (
+            <p className="muted small">
+              Its category and colour can be set with Edit once it is connected.
+            </p>
+          )}
+          {newDescriptor && !newDescriptor.signInProvider && !newDescriptor.pairing && (
+            // Keyed by kind so switching type starts a fresh form with that type's defaults.
+            <ConnectionForm
+              key={newDescriptor.kind}
+              descriptor={newDescriptor}
+              groups={groups}
+              onCreateGroup={onCreateGroup}
+              defaultColor={nextConnectionColor(connections.map((c) => c.color))}
+              submitLabel="Connect"
+              busyLabel="Connecting…"
+              onSubmit={create}
+            />
+          )}
+        </div>
+      )}
+    </div>
   );
 };

@@ -118,7 +118,12 @@ export class MockSlackClient implements ISlackClient {
     return Promise.resolve({ channel, ts: '1759046500.000200' });
   }
 
-  public addReaction(_channel: string, _ts: string, _emoji: string): Promise<void> {
+  /** Reactions added through the client (Slack short names), oldest first. */
+  public reactions: readonly { channel: string; ts: string; name: string }[] = [];
+
+  public addReaction(channel: string, ts: string, name: string): Promise<void> {
+    this.reactions = [...this.reactions, { channel, ts, name }];
+
     return Promise.resolve();
   }
 

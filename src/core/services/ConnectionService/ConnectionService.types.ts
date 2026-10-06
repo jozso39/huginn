@@ -1,4 +1,9 @@
-import type { Connection, ConnectorKind, NewConnection } from '@/core/connections/Connection.types';
+import type {
+  Connection,
+  ConnectionChanges,
+  ConnectorKind,
+  NewConnection,
+} from '@/core/connections/Connection.types';
 import type { ConnectorCapabilities, SecretField } from '@/core/connectors/Connector.types';
 import type { OAuthProvider } from '@/core/oauth/OAuthApp.types';
 
@@ -49,12 +54,8 @@ export interface IConnectionService {
   list(): Promise<readonly Connection[]>;
   get(id: string): Promise<Connection | null>;
   create(input: NewConnection): Promise<Connection>;
-  updateConfig(
-    id: string,
-    name: string,
-    config: Connection['config'],
-    groupName?: string | null
-  ): Promise<Connection>;
+  /** Restarts the connector only when its settings changed, not its name, category or colour. */
+  update(id: string, changes: ConnectionChanges): Promise<Connection>;
   /** Replaces only the keys given; untouched secrets stay as they were. */
   updateSecrets(id: string, secrets: Readonly<Record<string, string>>): Promise<void>;
   setEnabled(id: string, enabled: boolean): Promise<Connection>;

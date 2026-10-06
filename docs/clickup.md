@@ -1,6 +1,6 @@
 # Connecting ClickUp
 
-**Connections → Add a connection → ClickUp**, paste your personal API token
+**Settings → Add connection → ClickUp**, paste your personal API token
 (ClickUp → avatar → *Settings* → *Apps* → *API Token*, starts with `pk_`). If the token
 sees more than one workspace, the connection says so and lists their IDs — put the one
 you want under *Workspace ID* with **Edit**.

@@ -124,4 +124,19 @@ describe('Slack connector end to end', () => {
     expect(reacted.state).toBe(ItemState.Open);
     expect(detail?.actions.map((action) => action.type)).toEqual([ActionType.React]);
   });
+
+  test('an emoji is sent to Slack by its short name; one Slack does not know is refused', async () => {
+    const [item] = await container.inboxService.list({ state: ItemState.Open, connectionId });
+
+    await container.inboxService.react(item?.id ?? '', '🫥');
+    await container.inboxService.react(item?.id ?? '', '👍🏽');
+
+    expect(slack.reactions.slice(-2).map((reaction) => reaction.name)).toEqual([
+      'dotted_line_face',
+      '+1::skin-tone-4',
+    ]);
+    await expect(container.inboxService.react(item?.id ?? '', 'Hi!')).rejects.toThrow(
+      'Slack has no name for Hi!'
+    );
+  });
 });

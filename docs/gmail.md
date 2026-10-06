@@ -1,6 +1,6 @@
 # Connecting Gmail
 
-Adding a mailbox is **Connections → Add a connection → Gmail → Sign in with Google**:
+Adding a mailbox is **Settings → Add connection → Gmail → Sign in with Google**:
 pick the account, approve, and you are back in Huginn with a running connection named
 after the address. Do it once per mailbox (personal, work…). Before the first one,
 Huginn needs a Google OAuth client — a one-time setup of about five minutes.

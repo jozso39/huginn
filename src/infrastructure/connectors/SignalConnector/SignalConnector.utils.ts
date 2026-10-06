@@ -151,16 +151,3 @@ export const readMessageIds = (reads: readonly SignalReadMessage[]): readonly st
       .filter((author): author is string => Boolean(author))
       .map((author) => signalMessageId(author, read.timestamp))
   );
-
-/** The quick-reaction short names the dashboard offers, as the emoji Signal wants. */
-export const EMOJI_BY_NAME: Readonly<Record<string, string>> = {
-  thumbsup: '👍',
-  '+1': '👍',
-  white_check_mark: '✅',
-  eyes: '👀',
-  pray: '🙏',
-  raised_hands: '🙌',
-  joy: '😂',
-  heart: '❤️',
-  tada: '🎉',
-};

@@ -12,6 +12,7 @@ import type {
   ConnectorContext,
   IConnector,
 } from '@/core/connectors/Connector.types';
+import { isShortName, shortNameOf } from '@/core/emoji/emoji.utils';
 import { toError } from '@/core/errors/errors';
 import type { Item, NewItem } from '@/core/items/Item.types';
 import { RichFormat } from '@/core/items/Item.types';
@@ -163,11 +164,17 @@ export class SlackConnector implements IConnector {
 
   public async react(item: Item, emoji: string): Promise<ActionResult> {
     const event = item.raw as SlackMessageEvent;
+    // Slack reacts by short name; the dashboard sends the emoji itself.
+    const name = isShortName(emoji) ? emoji : shortNameOf(emoji);
+
+    if (!name) {
+      return { ok: false, error: `Slack has no name for ${emoji}` };
+    }
 
     try {
-      await this.client.addReaction(event.channel, event.ts, emoji);
+      await this.client.addReaction(event.channel, event.ts, name);
 
-      return { ok: true, ref: `${event.ts}:${emoji}` };
+      return { ok: true, ref: `${event.ts}:${name}` };
     } catch (error) {
       return { ok: false, error: toError(error).message };
     }

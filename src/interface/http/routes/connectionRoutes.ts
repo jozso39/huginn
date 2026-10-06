@@ -48,12 +48,7 @@ export const createConnectionRoutes = (container: Container) => {
 
   app.put('/:id', async (c) => {
     const body = parseBody(updateConnectionBodySchema, await c.req.json());
-    const connection = await container.connectionService.updateConfig(
-      c.req.param('id'),
-      body.name,
-      body.config,
-      body.groupName
-    );
+    const connection = await container.connectionService.update(c.req.param('id'), body);
 
     return c.json({ connection });
   });

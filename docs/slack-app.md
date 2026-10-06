@@ -59,7 +59,7 @@ settings:
 
 ## 3. Add the connection in Huginn
 
-**Connections → Add a connection → Slack**, paste both tokens, pick what channel
+**Settings → Add connection → Slack**, paste both tokens, pick what channel
 messages you want (below). The status turns **Running** once the socket is connected.
 Everything except the tokens can be changed later with **Edit**.
 

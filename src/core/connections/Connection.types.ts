@@ -37,8 +37,10 @@ export interface Connection {
   readonly status: ConnectionStatus;
   readonly statusMessage: string | null;
   readonly lastSyncAt: Date | null;
-  /** Inbox group; null means the connection is its own group. */
-  readonly groupName: string | null;
+  /** Its category (a ConnectionGroup); null: none, the inbox shows it on its own. */
+  readonly groupId: string | null;
+  /** '#rrggbb' its items are tinted with (Connection.utils.ts). */
+  readonly color: string;
   readonly createdAt: Date;
 }
 
@@ -49,7 +51,17 @@ export interface NewConnection {
   readonly name: string;
   readonly config: ConnectionConfig;
   readonly secrets: Secrets;
-  readonly groupName?: string | null;
+  readonly groupId?: string | null;
+  /** Left out: the first palette colour no other connection has. */
+  readonly color?: string;
+}
+
+/** What the settings form changes. Only a new config restarts the connector. */
+export interface ConnectionChanges {
+  readonly name: string;
+  readonly config: ConnectionConfig;
+  readonly groupId?: string | null;
+  readonly color?: string;
 }
 
 export interface ConnectionPatch {
@@ -60,5 +72,6 @@ export interface ConnectionPatch {
   readonly status?: ConnectionStatus;
   readonly statusMessage?: string | null;
   readonly lastSyncAt?: Date | null;
-  readonly groupName?: string | null;
+  readonly groupId?: string | null;
+  readonly color?: string;
 }

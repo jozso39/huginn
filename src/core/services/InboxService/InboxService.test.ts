@@ -105,3 +105,68 @@ describe('InboxService with a GitLab connection', () => {
     await expect(container.inboxService.reply(item.id, 'hi')).rejects.toBeInstanceOf(HuginnError);
   });
 });
+
+describe('Searching the archive', () => {
+  let container: Container;
+
+  beforeAll(async () => {
+    container = createTestContainer();
+
+    const scripts = await container.connectionService.create({
+      kind: ConnectorKind.Ingest,
+      name: 'Scripts',
+      config: {},
+      secrets: {},
+    });
+    const messages = [
+      { id: 'a', author: 'Matúš Kašuba', title: 'Release notes', body: 'Ready for review' },
+      { id: 'b', author: 'Igor', title: 'Deploy blocked', body: 'The pipeline failed at 100%' },
+      { id: 'c', author: 'Igor', title: 'Lunch?', body: 'Pizza at noon' },
+    ];
+    const items = await Promise.all(
+      messages.map((m, index) =>
+        container.inboxService.ingest({
+          connectionId: scripts.id,
+          externalId: m.id,
+          threadKey: m.id,
+          kind: ItemKind.Message,
+          author: m.author,
+          title: m.title,
+          body: m.body,
+          url: null,
+          receivedAt: new Date(Date.UTC(2026, 9, 1, index)),
+          features: {},
+          raw: {},
+        })
+      )
+    );
+
+    // a and b are archived; c stays in the inbox.
+    await Promise.all(items.slice(0, 2).map((item) => container.inboxService.done(item.id)));
+  });
+
+  afterAll(async () => {
+    await container.connectorHost.stopAll();
+    container.close();
+  });
+
+  const search = async (query: string) =>
+    (await container.inboxService.list({ state: ItemState.Done, query })).map((i) => i.title);
+
+  test('finds by author, title or body, ignoring case and accents', async () => {
+    expect(await search('kasuba')).toEqual(['Release notes']);
+    expect(await search('PIPELINE')).toEqual(['Deploy blocked']);
+    expect(await search('igor')).toEqual(['Deploy blocked']);
+  });
+
+  test('every word has to match, and SQL wildcards are just characters', async () => {
+    expect(await search('igor failed')).toEqual(['Deploy blocked']);
+    expect(await search('igor review')).toEqual([]);
+    expect(await search('100%')).toEqual(['Deploy blocked']);
+    expect(await search('_')).toEqual([]);
+  });
+
+  test('an empty query lists the whole archive, newest first', async () => {
+    expect(await search('  ')).toEqual(['Deploy blocked', 'Release notes']);
+  });
+});

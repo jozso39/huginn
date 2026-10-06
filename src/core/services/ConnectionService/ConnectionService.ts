@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import type { Logger } from '@/lib/logger';
-import type { Connection, NewConnection, Secrets } from '@/core/connections/Connection.types';
+import type {
+  Connection,
+  ConnectionChanges,
+  NewConnection,
+  Secrets,
+} from '@/core/connections/Connection.types';
+import type { IConnectionGroupStore } from '@/core/connections/ConnectionGroup.types';
 import type { IConnectionStore } from '@/core/connections/ConnectionStore.types';
+import { isHexColor, nextConnectionColor } from '@/core/connections/Connection.utils';
 import type {
   IConnectorAuthorization,
   IConnectorFactory,
@@ -52,6 +59,7 @@ export class ConnectionService implements IConnectionService {
     private readonly logger: Logger,
     private readonly factories: readonly IConnectorFactory[],
     private readonly connectionStore: IConnectionStore,
+    private readonly groupStore: IConnectionGroupStore,
     private readonly secretBox: ISecretBox,
     private readonly connectorHost: IConnectorHost,
     private readonly oauthApps: IOAuthAppService,
@@ -92,7 +100,11 @@ export class ConnectionService implements IConnectionService {
       name: input.name,
       config,
       secretsCiphertext: await this.secretBox.seal(JSON.stringify(input.secrets)),
-      groupName: ConnectionService.groupOf(input.groupName),
+      groupId: await this.existingGroup(input.groupId),
+      color:
+        input.color === undefined
+          ? nextConnectionColor((await this.connectionStore.list()).map((c) => c.color))
+          : ConnectionService.validColor(input.color),
     });
 
     this.logger.info({ connectionId: connection.id, kind: connection.kind }, 'connection created');
@@ -102,22 +114,25 @@ export class ConnectionService implements IConnectionService {
     return this.restartAndReload(connection.id);
   }
 
-  public async updateConfig(
-    id: string,
-    name: string,
-    config: Connection['config'],
-    groupName?: string | null
-  ): Promise<Connection> {
+  public async update(id: string, changes: ConnectionChanges): Promise<Connection> {
     const existing = await this.require(id);
-    const parsed = this.parseConfig(this.factory(existing.kind), config);
+    const config = this.parseConfig(this.factory(existing.kind), changes.config);
 
     await this.connectionStore.update(id, {
-      name,
-      config: parsed,
-      ...(groupName !== undefined ? { groupName: ConnectionService.groupOf(groupName) } : {}),
+      name: changes.name,
+      config,
+      ...(changes.groupId !== undefined
+        ? { groupId: await this.existingGroup(changes.groupId) }
+        : {}),
+      ...(changes.color !== undefined
+        ? { color: ConnectionService.validColor(changes.color) }
+        : {}),
     });
 
-    return this.restartAndReload(id);
+    // Name, category and colour are only shown; the connector restarts for new settings.
+    return ConnectionService.sameConfig(existing.config, config)
+      ? this.require(id)
+      : this.restartAndReload(id);
   }
 
   public async updateSecrets(id: string, secrets: Secrets): Promise<void> {
@@ -350,11 +365,31 @@ export class ConnectionService implements IConnectionService {
     return accounts.find((entry) => entry.account === account)?.id ?? null;
   }
 
-  /** Blank means "its own group". */
-  private static groupOf(groupName: string | null | undefined): string | null {
-    const trimmed = groupName?.trim() ?? '';
+  private async existingGroup(groupId: string | null | undefined): Promise<string | null> {
+    if (!groupId) {
+      return null;
+    }
 
-    return trimmed === '' ? null : trimmed;
+    if (!(await this.groupStore.get(groupId))) {
+      throw new HuginnError(ErrorCode.Validation, 'That category does not exist any more');
+    }
+
+    return groupId;
+  }
+
+  private static validColor(color: string): string {
+    if (!isHexColor(color)) {
+      throw new HuginnError(ErrorCode.Validation, `${color} is not a colour like #3b82f6`);
+    }
+
+    return color.toLowerCase();
+  }
+
+  /** Configs are flat: compared key by key, whatever order they were written in. */
+  private static sameConfig(a: Connection['config'], b: Connection['config']): boolean {
+    const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])];
+
+    return keys.every((key) => JSON.stringify(a[key]) === JSON.stringify(b[key]));
   }
 
   private authorizationOf(kind: Connection['kind']): IConnectorAuthorization {

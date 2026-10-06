@@ -5,6 +5,8 @@ export interface InboxFilter {
   readonly state?: ItemState;
   readonly category?: Category;
   readonly connectionId?: string;
+  /** Words that must all appear in the title, author or body (case and accents ignored). */
+  readonly query?: string;
   readonly limit?: number;
 }
 
@@ -16,6 +18,8 @@ export interface ItemWithActions {
 /** What the dashboard does with an item. Every call is written to the archive. */
 export interface IInboxService {
   list(filter: InboxFilter): Promise<readonly Item[]>;
+  /** At boot: makes items stored before search existed findable. */
+  indexForSearch(): Promise<void>;
   get(id: string): Promise<ItemWithActions | null>;
   /** How to show the whole message: stored rich form, fetched from the source, or the text. */
   content(id: string): Promise<RichContent>;

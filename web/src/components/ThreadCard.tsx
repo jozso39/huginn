@@ -7,7 +7,8 @@ import type {
   TriageDecision,
   Verdict,
 } from '../api.types';
-import { CONNECTOR_META, KIND_LABEL, QUICK_EMOJI, relativeTime } from '../connectorMeta';
+import { tint } from '../colors';
+import { CONNECTOR_META, KIND_LABEL, relativeTime } from '../connectorMeta';
 import { ConnectorIcon } from './ConnectorIcon';
 import { itemLink, openLinkProps } from '../openLink';
 import { MessageBody } from './MessageBody';
@@ -18,6 +19,8 @@ interface ThreadCardProps {
   connection: Connection | undefined;
   /** What this source supports; the buttons follow it. */
   capabilities: ConnectorCapabilities;
+  /** The quick reactions chosen in Settings, as emoji. */
+  reactions: string[];
   selected: boolean;
   /** Owned by the inbox so the `r` shortcut and the button open the same box. */
   replying: boolean;
@@ -59,6 +62,7 @@ export const ThreadCard = ({
   items,
   connection,
   capabilities,
+  reactions,
   selected,
   replying,
   onStartReply,
@@ -154,6 +158,7 @@ export const ThreadCard = ({
     <article
       ref={cardRef}
       className={`thread${selected ? ' thread--selected' : ''}`}
+      style={tint(connection?.color)}
       onClick={onSelect}
     >
       <header className="thread__head">
@@ -318,16 +323,16 @@ export const ThreadCard = ({
         )}
         {capabilities.react && (
           <span className="emoji-row">
-            {QUICK_EMOJI.map((emoji) => (
+            {reactions.map((emoji) => (
               <button
-                key={emoji.name}
+                key={emoji}
                 type="button"
                 className="emoji"
-                title={`:${emoji.name}:`}
+                aria-label={`React with ${emoji}`}
                 disabled={busy}
-                onClick={() => void run(() => api.react(latest.id, emoji.name))}
+                onClick={() => void run(() => api.react(latest.id, emoji))}
               >
-                {emoji.char}
+                {emoji}
               </button>
             ))}
           </span>

@@ -57,8 +57,10 @@ the item's fields or one-sentence criteria judged by a small calibrated classifi
 lets an agent adjust the rules, fenced by guardrails because messages are untrusted
 input. Details: [docs/triage.md](docs/triage.md).
 
-The inbox groups connections (e.g. *Work*, *Personal*); groups start collapsed and show
-how much is waiting and how much of it is important.
+The inbox shows connections by category (e.g. *Work*, *Personal*); sections start
+collapsed and show how much is waiting and how much of it is important. Each connection
+has a colour its messages are tinted with. The archive is searchable, the quick
+reactions are any emoji you type, and the app follows macOS or stays light or dark.
 
 ## Roadmap
 

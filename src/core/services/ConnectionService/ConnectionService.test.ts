@@ -96,7 +96,8 @@ describe('ConnectionService', () => {
       name: 'Broken',
       config: { baseUrl: 'https://gitlab.example.com' },
       secretsCiphertext: 'v1.not.valid',
-      groupName: null,
+      groupId: null,
+      color: '#3b82f6',
     });
 
     await container.connectorHost.startAll();

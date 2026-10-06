@@ -35,15 +35,6 @@ export const KIND_LABEL: Record<ItemKind, string> = {
   Alert: 'alert',
 };
 
-export const QUICK_EMOJI: { name: string; char: string }[] = [
-  { name: 'thumbsup', char: '👍' },
-  { name: 'white_check_mark', char: '✅' },
-  { name: 'eyes', char: '👀' },
-  { name: 'pray', char: '🙏' },
-  { name: 'raised_hands', char: '🙌' },
-  { name: 'joy', char: '😂' },
-];
-
 const RELATIVE = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
 
 export const relativeTime = (iso: string, now: number = Date.now()): string => {

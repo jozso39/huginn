@@ -10,7 +10,7 @@ and turns them into LinkedIn items that link straight to the conversation or pos
    Communications → Email* (or *Notifications → Email*), and switch on at least
    **Conversations → Messages** (and *InMail*, *Invitations*, *Mentions* if you like).
    Without this LinkedIn sends only digests and job mail.
-2. **In Huginn**, *Connections → Add → LinkedIn (via Gmail)* → *Sign in with Google*
+2. **In Huginn**, *Settings → Add connection → LinkedIn (via Gmail)* → *Sign in with Google*
    with the account LinkedIn mails. It uses the same Google sign-in app as Gmail.
 3. On that account's **Gmail** connection, **Edit → Leave out mail from:
    `linkedin.com`**, so the same mail does not show up twice.

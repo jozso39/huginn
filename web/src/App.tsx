@@ -1,39 +1,63 @@
 import { useEffect, useState } from 'react';
 import { ArchiveView } from './components/ArchiveView';
-import { ConnectionsView } from './components/ConnectionsView';
 import { InboxView } from './components/InboxView';
 import { RulesView } from './components/RulesView';
+import { SettingsView } from './components/SettingsView';
+import { applyTheme } from './theme';
 import { useHuginn } from './useHuginn';
 
-type Tab = 'inbox' | 'archive' | 'connections';
+type Tab = 'inbox' | 'archive' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'inbox', label: 'Inbox' },
   { id: 'archive', label: 'Archive' },
-  { id: 'connections', label: 'Connections' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 interface Route {
   tab: Tab;
-  /** #rules/<connectionId> opens that connection's rules under the Connections tab. */
+  /** #rules/<connectionId> opens that connection's rules under Settings. */
   rulesFor: string | null;
+  /** #settings/categories: when it was asked for, so asking again is a new request. */
+  categoriesAt: number | null;
 }
 
 const routeFromHash = (): Route => {
   const hash = window.location.hash.replace('#', '');
 
   if (hash.startsWith('rules/')) {
-    return { tab: 'connections', rulesFor: hash.slice('rules/'.length) };
+    return { tab: 'settings', rulesFor: hash.slice('rules/'.length), categoriesAt: null };
   }
 
-  return { tab: TABS.some((t) => t.id === hash) ? (hash as Tab) : 'inbox', rulesFor: null };
+  if (hash === 'settings/categories') {
+    return { tab: 'settings', rulesFor: null, categoriesAt: Date.now() };
+  }
+
+  // #connections is where Settings lived before it had more than connections.
+  const tab = hash === 'connections' ? 'settings' : TABS.find((t) => t.id === hash)?.id;
+
+  return { tab: tab ?? 'inbox', rulesFor: null, categoriesAt: null };
 };
 
 export const App = () => {
-  const { open, closed, connections, kinds, live, error, refresh, applyItem } = useHuginn();
+  const {
+    open,
+    closed,
+    connections,
+    kinds,
+    groups,
+    settings,
+    live,
+    error,
+    refresh,
+    applyItem,
+    saveSettings,
+    createGroup,
+  } = useHuginn();
   const [route, setRoute] = useState<Route>(routeFromHash);
   const { tab, rulesFor } = route;
   const rulesConnection = connections.find((c) => c.id === rulesFor);
+  const theme = settings?.theme;
 
   useEffect(() => {
     const onHash = () => setRoute(routeFromHash());
@@ -42,6 +66,14 @@ export const App = () => {
 
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  useEffect(() => {
+    if (theme) {
+      applyTheme(theme);
+    }
+  }, [theme]);
+
+  const reactions = settings?.quickReactions ?? [];
 
   // The tab title counts what needs you: important items, not everything waiting.
   const importantCount = open.filter((item) => item.category === 'Important').length;
@@ -78,7 +110,7 @@ export const App = () => {
               {t.id === 'inbox' && importantCount > 0 && (
                 <span className="count count--important">{importantCount}</span>
               )}
-              {t.id === 'connections' && failing.length > 0 && (
+              {t.id === 'settings' && failing.length > 0 && (
                 <span className="count count--bad">{failing.length}</span>
               )}
             </a>
@@ -91,14 +123,30 @@ export const App = () => {
 
       <main className="content">
         {tab === 'inbox' && (
-          <InboxView items={open} connections={connections} kinds={kinds} onChanged={applyItem} />
+          <InboxView
+            items={open}
+            connections={connections}
+            kinds={kinds}
+            groups={groups}
+            reactions={reactions}
+            onChanged={applyItem}
+          />
         )}
         {tab === 'archive' && (
           <ArchiveView items={closed} connections={connections} onChanged={applyItem} />
         )}
-        {tab === 'connections' && rulesConnection && <RulesView connection={rulesConnection} />}
-        {tab === 'connections' && !rulesConnection && (
-          <ConnectionsView connections={connections} kinds={kinds} onChanged={refresh} />
+        {tab === 'settings' && rulesConnection && <RulesView connection={rulesConnection} />}
+        {tab === 'settings' && !rulesConnection && (
+          <SettingsView
+            connections={connections}
+            kinds={kinds}
+            groups={groups}
+            settings={settings}
+            categoriesRequest={route.categoriesAt}
+            onChanged={refresh}
+            onCreateGroup={createGroup}
+            saveSettings={saveSettings}
+          />
         )}
       </main>
     </div>

@@ -1,9 +1,17 @@
 import { useState } from 'react';
-import type { Connection, ConnectorDescriptor, JsonSchemaProperty } from '../api.types';
+import type {
+  Connection,
+  ConnectionGroup,
+  ConnectorDescriptor,
+  JsonSchemaProperty,
+} from '../api.types';
+import { CategoryPicker } from './CategoryPicker';
+import { ColorPicker } from './ColorPicker';
 
 export interface ConnectionFormValues {
   name: string;
-  groupName: string;
+  groupId: string | null;
+  color: string;
   config: Record<string, string>;
   secrets: Record<string, string>;
 }
@@ -12,6 +20,10 @@ interface ConnectionFormProps {
   descriptor: ConnectorDescriptor;
   /** Present when editing: fields start from its values, secrets start blank. */
   existing?: Connection;
+  groups: ConnectionGroup[];
+  onCreateGroup: (name: string) => Promise<ConnectionGroup>;
+  /** A new connection's colour until the user picks one. */
+  defaultColor: string;
   submitLabel: string;
   busyLabel: string;
   onSubmit: (values: ConnectionFormValues) => Promise<void>;
@@ -71,13 +83,17 @@ const ConfigField = ({
 export const ConnectionForm = ({
   descriptor,
   existing,
+  groups,
+  onCreateGroup,
+  defaultColor,
   submitLabel,
   busyLabel,
   onSubmit,
   onCancel,
 }: ConnectionFormProps) => {
   const [name, setName] = useState(existing?.name ?? '');
-  const [groupName, setGroupName] = useState(existing?.groupName ?? '');
+  const [groupId, setGroupId] = useState<string | null>(existing?.groupId ?? null);
+  const [color, setColor] = useState(existing?.color ?? defaultColor);
   const [config, setConfig] = useState<Record<string, string>>(() =>
     initialConfig(descriptor, existing)
   );
@@ -91,7 +107,7 @@ export const ConnectionForm = ({
     setError(null);
 
     try {
-      await onSubmit({ name, groupName, config, secrets });
+      await onSubmit({ name, groupId, color, config, secrets });
       setSecrets({});
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -116,17 +132,22 @@ export const ConnectionForm = ({
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      <label>
-        Group
-        <input
-          value={groupName}
-          placeholder="optional — e.g. Work"
-          onChange={(e) => setGroupName(e.target.value)}
+      <div className="field">
+        <span className="field__label">Category</span>
+        <CategoryPicker
+          groups={groups}
+          value={groupId}
+          onChange={setGroupId}
+          onCreate={onCreateGroup}
         />
         <small className="muted">
-          Connections with the same group share one section in the inbox. Empty: its own group.
+          Connections in one category share a section in the inbox. None: a section of its own.
         </small>
-      </label>
+      </div>
+      <div className="field">
+        <span className="field__label">Colour</span>
+        <ColorPicker value={color} onChange={setColor} />
+      </div>
       {Object.entries(descriptor.configSchema.properties ?? {}).map(([key, prop]) => (
         <label key={key}>
           {prop.title ?? key}

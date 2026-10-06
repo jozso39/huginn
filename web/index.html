@@ -14,6 +14,17 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Huginn</title>
+    <script>
+      // The theme chosen in Settings, applied before the first paint (src/theme.ts
+      // keeps it here); the server's copy wins once it has loaded.
+      try {
+        var theme = localStorage.getItem('huginn.theme');
+
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -6,6 +6,7 @@ import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import type { IEventBus } from '@/core/events/EventBus.types';
 import type { IItemStore } from '@/core/items/ItemStore.types';
 import type { ISecretBox } from '@/core/secrets/SecretBox.types';
+import type { IConnectionGroupService } from '@/core/services/ConnectionGroupService/ConnectionGroupService.types';
 import type { IConnectionService } from '@/core/services/ConnectionService/ConnectionService.types';
 import type { IConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost.types';
 import type { IInboxService } from '@/core/services/InboxService/InboxService.types';
@@ -14,6 +15,7 @@ import type { IAttentionService } from '@/core/services/AttentionService/Attenti
 import type { IPushService } from '@/core/services/PushService/PushService.types';
 import type { IOAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService.types';
 import type { IRuleService } from '@/core/services/RuleService/RuleService.types';
+import type { ISettingsService } from '@/core/services/SettingsService/SettingsService.types';
 import type { ITriageService } from '@/core/services/TriageService/TriageService.types';
 
 export interface Container {
@@ -28,6 +30,8 @@ export interface Container {
   readonly connectorHost: IConnectorHost;
   readonly inboxService: IInboxService;
   readonly connectionService: IConnectionService;
+  readonly connectionGroupService: IConnectionGroupService;
+  readonly settingsService: ISettingsService;
   readonly oauthAppService: IOAuthAppService;
   readonly triageService: ITriageService;
   readonly ruleService: IRuleService;

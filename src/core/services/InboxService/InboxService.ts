@@ -26,6 +26,14 @@ export class InboxService implements IInboxService {
     return this.itemStore.list(filter);
   }
 
+  public async indexForSearch(): Promise<void> {
+    const indexed = await this.itemStore.indexForSearch();
+
+    if (indexed > 0) {
+      this.logger.info({ indexed }, 'older items made searchable');
+    }
+  }
+
   public async get(id: string): Promise<ItemWithActions | null> {
     const item = await this.itemStore.get(id);
 

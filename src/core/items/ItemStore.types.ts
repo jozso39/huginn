@@ -5,6 +5,8 @@ export interface ItemFilter {
   readonly state?: ItemState;
   readonly category?: Category;
   readonly connectionId?: string;
+  /** Words that must all appear in the title, author or body (case and accents ignored). */
+  readonly query?: string;
   readonly limit?: number;
 }
 
@@ -18,6 +20,8 @@ export interface IItemStore {
   upsert(item: NewItem): Promise<UpsertResult>;
   get(id: string): Promise<Item | null>;
   list(filter: ItemFilter): Promise<readonly Item[]>;
+  /** Makes items stored before search existed findable; returns how many it did. */
+  indexForSearch(): Promise<number>;
   setState(id: string, state: ItemState): Promise<Item | null>;
   setDecision(id: string, decision: TriageDecision): Promise<Item | null>;
   /**

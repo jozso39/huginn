@@ -16,9 +16,9 @@ export const createItemRoutes = (container: Container) => {
   const app = new Hono();
 
   app.get('/', async (c) => {
-    const filter = parseQuery(listItemsQuerySchema, c.req.query());
+    const { q, ...filter } = parseQuery(listItemsQuerySchema, c.req.query());
 
-    return c.json({ items: await container.inboxService.list(filter) });
+    return c.json({ items: await container.inboxService.list({ ...filter, query: q }) });
   });
 
   app.get('/:id', async (c) => {

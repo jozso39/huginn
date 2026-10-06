@@ -5,24 +5,21 @@ import { MoveDirection } from '@/core/services/RuleService/RuleService.types';
 import { predicateSchema } from '@/core/triage/predicate.utils';
 import { RuleKind, RuleStatus, RuleVerdict } from '@/core/triage/Rule.types';
 import { Category, ItemKind, ItemState } from '@/core/items/Item.types';
+import { Theme } from '@/core/settings/Settings.types';
 
 export const listItemsQuerySchema = z.object({
   state: z.enum(ItemState).optional(),
   category: z.enum(Category).optional(),
   connectionId: z.uuid().optional(),
+  // The archive search: words that must all appear (case and accents ignored).
+  q: z.string().trim().max(200).optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 
 export const replyBodySchema = z.object({ text: z.string().trim().min(1).max(10_000) });
 
-export const reactBodySchema = z.object({
-  emoji: z
-    .string()
-    .trim()
-    .min(1)
-    .max(64)
-    .regex(/^[a-z0-9_+-]+$/, 'emoji short name without colons'),
-});
+// An emoji ("👍") or a Slack short name ("thumbsup"); the connector checks it can send it.
+export const reactBodySchema = z.object({ emoji: z.string().trim().min(1).max(64) });
 
 /** What an external writer may post. Everything else is set by the hub. */
 export const ingestBodySchema = z.object({
@@ -40,20 +37,34 @@ export const ingestBodySchema = z.object({
     .default({}),
 });
 
-const groupNameSchema = z.string().trim().max(60).nullable().optional();
+// The category: a ConnectionGroup's id, null for none.
+const groupIdSchema = z.uuid().nullable().optional();
+const colorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, 'a colour like #3b82f6')
+  .optional();
 
 export const createConnectionBodySchema = z.object({
   kind: z.enum(ConnectorKind),
   name: z.string().trim().min(1).max(100),
-  groupName: groupNameSchema,
+  groupId: groupIdSchema,
+  color: colorSchema,
   config: z.record(z.string(), z.unknown()).default({}),
   secrets: z.record(z.string(), z.string()).default({}),
 });
 
 export const updateConnectionBodySchema = z.object({
   name: z.string().trim().min(1).max(100),
-  groupName: groupNameSchema,
+  groupId: groupIdSchema,
+  color: colorSchema,
   config: z.record(z.string(), z.unknown()).default({}),
+});
+
+export const groupBodySchema = z.object({ name: z.string().max(100) });
+
+export const settingsBodySchema = z.strictObject({
+  theme: z.enum(Theme).optional(),
+  quickReactions: z.array(z.string().max(32)).max(20).optional(),
 });
 
 export const updateSecretsBodySchema = z.object({

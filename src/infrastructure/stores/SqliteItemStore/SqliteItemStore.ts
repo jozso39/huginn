@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
 import type {
   Category,
   Item,
@@ -10,11 +10,15 @@ import type {
 } from '@/core/items/Item.types';
 import { Category as CategoryEnum, ItemState } from '@/core/items/Item.types';
 import type { IItemStore, ItemFilter, UpsertResult } from '@/core/items/ItemStore.types';
+import { searchTermsOf, searchTextOf } from '@/core/items/search.utils';
 import type { TriageDecision } from '@/core/triage/Rule.types';
 import type { Db } from '@/infrastructure/db/SqliteDatabase';
 import { items } from '@/infrastructure/db/schema';
 
 type Row = typeof items.$inferSelect;
+
+// Items made searchable per round at boot: small transactions, nothing blocks long.
+const INDEX_BATCH = 500;
 
 export class SqliteItemStore implements IItemStore {
   constructor(private readonly db: Db) {}
@@ -46,6 +50,7 @@ export class SqliteItemStore implements IItemStore {
           receivedAt: newItem.receivedAt,
           features: newItem.features,
           raw: newItem.raw,
+          searchText: searchTextOf(newItem),
         })
         .where(eq(items.id, existing.id))
         .returning()
@@ -78,6 +83,7 @@ export class SqliteItemStore implements IItemStore {
         decision: null,
         state: ItemState.Open,
         stateChangedAt: now,
+        searchText: searchTextOf(newItem),
         createdAt: now,
       })
       .returning()
@@ -97,6 +103,10 @@ export class SqliteItemStore implements IItemStore {
       filter.state ? eq(items.state, filter.state) : undefined,
       filter.category ? eq(items.category, filter.category) : undefined,
       filter.connectionId ? eq(items.connectionId, filter.connectionId) : undefined,
+      ...searchTermsOf(filter.query ?? '').map(
+        (term) =>
+          sql`${items.searchText} LIKE ${`%${term.replace(/[\\%_]/g, '\\$&')}%`} ESCAPE '\\'`
+      ),
     ].filter((condition) => condition !== undefined);
 
     const rows = this.db
@@ -108,6 +118,35 @@ export class SqliteItemStore implements IItemStore {
       .all();
 
     return Promise.resolve(rows.map((row) => SqliteItemStore.toItem(row)));
+  }
+
+  public indexForSearch(): Promise<number> {
+    const round = (done: number): number => {
+      const rows = this.db
+        .select({ id: items.id, title: items.title, author: items.author, body: items.body })
+        .from(items)
+        .where(isNull(items.searchText))
+        .limit(INDEX_BATCH)
+        .all();
+
+      if (rows.length === 0) {
+        return done;
+      }
+
+      this.db.transaction((tx) =>
+        rows.forEach((row) =>
+          tx
+            .update(items)
+            .set({ searchText: searchTextOf(row) })
+            .where(eq(items.id, row.id))
+            .run()
+        )
+      );
+
+      return round(done + rows.length);
+    };
+
+    return Promise.resolve(round(0));
   }
 
   public setState(id: string, state: ItemState): Promise<Item | null> {

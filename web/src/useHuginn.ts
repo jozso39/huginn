@@ -1,16 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
-import type { Connection, ConnectorDescriptor, HuginnEvent, Item } from './api.types';
+import type {
+  Connection,
+  ConnectionGroup,
+  ConnectorDescriptor,
+  HuginnEvent,
+  Item,
+  Settings,
+} from './api.types';
 
 export interface HuginnData {
   open: Item[];
   closed: Item[];
   connections: Connection[];
   kinds: ConnectorDescriptor[];
+  /** Categories, alphabetical. */
+  groups: ConnectionGroup[];
+  /** Null until the first load. */
+  settings: Settings | null;
   live: boolean;
   error: string | null;
   refresh: () => Promise<void>;
   applyItem: (item: Item) => void;
+  saveSettings: (patch: Partial<Settings>) => Promise<void>;
+  /** Makes a category (or finds the one with that name) and returns it. */
+  createGroup: (name: string) => Promise<ConnectionGroup>;
 }
 
 const byNewest = (a: Item, b: Item) => b.receivedAt.localeCompare(a.receivedAt);
@@ -27,6 +41,8 @@ export const useHuginn = (): HuginnData => {
   const [closed, setClosed] = useState<Item[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [kinds, setKinds] = useState<ConnectorDescriptor[]>([]);
+  const [groups, setGroups] = useState<ConnectionGroup[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,21 +55,45 @@ export const useHuginn = (): HuginnData => {
 
   const refresh = useCallback(async () => {
     try {
-      const [openItems, doneItems, conns, kindList] = await Promise.all([
+      const [openItems, doneItems, conns, kindList, groupList, preferences] = await Promise.all([
         api.listItems('Open'),
         api.listItems('Done'),
         api.listConnections(),
         api.listKinds(),
+        api.listGroups(),
+        api.getSettings(),
       ]);
 
       setOpen(openItems);
       setClosed(doneItems);
       setConnections(conns);
       setKinds(kindList);
+      setGroups(groupList);
+      setSettings(preferences);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
+  }, []);
+
+  const saveSettings = useCallback(async (patch: Partial<Settings>) => {
+    // Shown at once; the server's answer settles it (and puts it back if refused).
+    setSettings((current) => (current ? { ...current, ...patch } : current));
+
+    try {
+      setSettings(await api.saveSettings(patch));
+    } catch (e) {
+      setSettings(await api.getSettings());
+      throw e;
+    }
+  }, []);
+
+  const createGroup = useCallback(async (name: string) => {
+    const group = await api.createGroup(name);
+
+    setGroups(await api.listGroups());
+
+    return group;
   }, []);
 
   useEffect(() => {
@@ -102,5 +142,18 @@ export const useHuginn = (): HuginnData => {
     };
   }, [refresh, applyItem]);
 
-  return { open, closed, connections, kinds, live, error, refresh, applyItem };
+  return {
+    open,
+    closed,
+    connections,
+    kinds,
+    groups,
+    settings,
+    live,
+    error,
+    refresh,
+    applyItem,
+    saveSettings,
+    createGroup,
+  };
 };

@@ -32,7 +32,10 @@ a Mac and an iPhone. 8 commits, ~13k lines, **94 tests** (`bun run test`).
 | Area | State |
 |---|---|
 | Inbox, reply, react, draft, done, archive, live updates (SSE) | done |
-| Connection groups (collapsed by default, waiting/important counts) | done |
+| Categories (n8n-style picker, created on the spot, managed in Settings; inbox sections collapsed by default with waiting/important counts) | done |
+| Settings page: connections by category + *Add connection*, categories, quick reactions (typed emoji, validated), theme System/Light/Dark | done |
+| Connection colours (palette or any colour, mixed into the background so text stays readable) | done |
+| Archive search (every word, case and accents ignored, over the whole archive) | done |
 | Connectors: **Slack** (Socket Mode, user token), **Gmail** (any number, Google sign-in), **GitLab** (todos), **ClickUp** (polling), **Ingest API** | done — see §5 for what is verified live |
 | Google sign-in: one shared OAuth app, connections created by signing in, relay page | done, used live |
 | Triage: hard + soft (Jev) rules, default rules per connector, rules page, dry run, history | done, running live |
@@ -92,7 +95,7 @@ These were argued out with the owner; keep them unless there is a reason.
 > copies can no longer update. Next: M2 (desktop sign-in for Google, Slack sign-in +
 > polling). Sections below describe the server era; the plan supersedes §4.
 
-1. **Owner actions**: link Signal (Connections → Signal → scan); add LinkedIn (sign in
+1. **Owner actions**: link Signal (Settings → Add connection → Signal → scan); add LinkedIn (sign in
    with Google) and set the personal Gmail's *Leave out mail from* to `linkedin.com`;
    turn on LinkedIn's message e-mails (it currently mails only jobs/digests); install
    the Home Screen app on the iPhone and turn notifications on.

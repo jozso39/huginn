@@ -23,11 +23,17 @@
   --pill-warning-text: #8f4700;
   --pill-neutral-bg: #dcdcde;
   --pill-neutral-text: #4c4b51;
+  --slack-mention-text: #1264a3;
+  --slack-code-text: #c0305a;
+  /* How much of a connection's colour its cards take (see .thread). */
+  --tint-mix: 9%;
   color-scheme: light;
 }
 
+/* Dark when macOS is dark, unless Settings chose Light; always when it chose Dark
+   (src/theme.ts sets data-theme, index.html restores it before the first paint). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #14161a;
     --surface: #1c1f24;
     --surface-2: #252930;
@@ -51,7 +57,39 @@
     --pill-neutral-bg: #3a383f;
     --pill-neutral-text: #bfbfc3;
     color-scheme: dark;
+    --slack-mention-text: #6fb8e8;
+    --slack-code-text: #e8779a;
+    --tint-mix: 14%;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #14161a;
+  --surface: #1c1f24;
+  --surface-2: #252930;
+  --border: #2e333b;
+  --text: #e8e6e1;
+  --muted: #979aa1;
+  --accent: #7aa7d6;
+  --accent-text: #0e1116;
+  --danger: #e0766e;
+  --ok: #6cc28d;
+  --warn: #e0b060;
+  --select: #7aa7d633;
+  --pill-success-bg: #0d532a;
+  --pill-success-text: #91d4a8;
+  --pill-info-bg: #033464;
+  --pill-info-text: #9dc7f1;
+  --pill-danger-bg: #8d1300;
+  --pill-danger-text: #fcb5aa;
+  --pill-warning-bg: #5c2900;
+  --pill-warning-text: #e9be74;
+  --pill-neutral-bg: #3a383f;
+  --pill-neutral-text: #bfbfc3;
+  color-scheme: dark;
+  --slack-mention-text: #6fb8e8;
+  --slack-code-text: #e8779a;
+  --tint-mix: 14%;
 }
 
 * {
@@ -436,6 +474,8 @@ kbd {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
+  /* Tinted rows keep the rounded corners. */
+  overflow: hidden;
 }
 
 .archive__row + .archive__row {
@@ -1034,7 +1074,7 @@ a.button {
   border-radius: 4px;
   border: 1px solid var(--border);
   background: var(--surface-2);
-  color: #c0305a;
+  color: var(--slack-code-text);
 }
 
 .slack-pre {
@@ -1060,22 +1100,12 @@ a.button {
   padding: 0 2px;
   border-radius: 3px;
   background: #1d9bd11f;
-  color: #1264a3;
+  color: var(--slack-mention-text);
 }
 
 .slack-mention--broadcast {
   background: #ecb22e33;
   color: inherit;
-}
-
-@media (prefers-color-scheme: dark) {
-  .slack-mention {
-    color: #6fb8e8;
-  }
-
-  .slack-code {
-    color: #e8779a;
-  }
 }
 
 .slack-emoji {
@@ -1315,4 +1345,438 @@ a.slack-attachment__title:hover {
 .delete-confirm__buttons {
   display: flex;
   gap: 8px;
+}
+
+/* A connection's colour (--tint, set per element) mixed lightly into the surface: any
+   colour turns into a calm shade that keeps the text readable, in both themes. */
+.thread,
+.connection,
+.archive__row,
+.colors__preview {
+  background: color-mix(in oklab, var(--tint, var(--surface)) var(--tint-mix), var(--surface));
+}
+
+.thread,
+.colors__preview {
+  border-left: 3px solid color-mix(in oklab, var(--tint, var(--border)) 60%, var(--surface));
+}
+
+.thread.thread--selected {
+  border-left-color: var(--accent);
+}
+
+.archive__row {
+  box-shadow: inset 3px 0 0 color-mix(in oklab, var(--tint, var(--surface)) 60%, var(--surface));
+}
+
+/* Settings */
+.settings {
+  display: grid;
+  gap: 32px;
+}
+
+.settings__section {
+  display: grid;
+  gap: 12px;
+}
+
+.settings__section > h2,
+.settings__fold > summary h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+/* <details> is not a grid container everywhere; spacing comes from its children. */
+.settings__fold {
+  display: block;
+}
+
+.settings__fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings__fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings__fold > summary::before {
+  content: '▸';
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.settings__fold[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.settings__fold[open] > summary {
+  margin-bottom: 12px;
+}
+
+.connection-group {
+  display: grid;
+  gap: 8px;
+}
+
+.connection-group__name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.add-button {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-style: dashed;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.add-connection__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.add-connection__head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+/* The category picker: a combobox in the manner of n8n's tag picker. */
+.picker {
+  position: relative;
+}
+
+.picker__field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: text;
+}
+
+.picker__field--open,
+.picker__field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--select);
+}
+
+.picker__field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+}
+
+.picker__clear {
+  border: 0;
+  background: none;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.picker__clear:hover:not(:disabled) {
+  background: none;
+  color: var(--text);
+}
+
+.picker__chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.picker__menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(100%, 340px);
+  min-width: 240px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 28%);
+  overflow: hidden;
+}
+
+.picker__options {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.picker__option {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.picker__option--active {
+  background: var(--surface-2);
+}
+
+.picker__check {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.picker__empty {
+  padding: 9px 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.picker__manage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.picker__manage:hover {
+  background: var(--surface-2);
+}
+
+/* Colour swatches */
+.colors {
+  display: grid;
+  gap: 8px;
+}
+
+.colors__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.swatch {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.swatch:hover:not(:disabled) {
+  background: var(--swatch);
+  transform: scale(1.1);
+}
+
+.swatch--on {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.swatch--custom {
+  overflow: hidden;
+  background: conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #ef4444);
+}
+
+.swatch--custom.swatch--on {
+  background: var(--swatch);
+}
+
+.swatch--custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.colors__preview {
+  max-width: 420px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* Category management */
+.categories {
+  display: grid;
+  gap: 10px;
+}
+
+.categories__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.categories__list:empty {
+  display: none;
+}
+
+.categories__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+}
+
+.categories__row + .categories__row {
+  border-top: 1px solid var(--border);
+}
+
+.categories__row--deleting {
+  background: color-mix(in oklab, var(--danger) 10%, var(--surface));
+}
+
+.categories__name {
+  font-weight: 600;
+}
+
+.categories__buttons {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.categories__rename,
+.categories__add {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+
+.categories__add {
+  max-width: 420px;
+}
+
+/* Quick reactions */
+.reactions {
+  display: grid;
+  gap: 10px;
+}
+
+.reactions p {
+  margin: 0;
+}
+
+.reactions__field {
+  display: flex;
+  gap: 8px;
+  max-width: 560px;
+}
+
+.reactions__field input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 12px;
+  font-size: 20px;
+  letter-spacing: 0.12em;
+}
+
+.reactions__field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.reactions__preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 20px;
+}
+
+.reactions__problems {
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* Theme switch */
+.segmented {
+  justify-self: start;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.segmented button {
+  border: 0;
+  background: none;
+  padding: 5px 16px;
+  border-radius: 7px;
+}
+
+.segmented button.segmented__on {
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+  font-weight: 600;
+}
+
+/* Archive search */
+.archive-view {
+  display: grid;
+  gap: 12px;
+}
+
+.archive-search {
+  position: relative;
+}
+
+.archive-search__icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.archive-search input {
+  padding-left: 34px;
+}
+
+.archive-search__status {
+  margin: -4px 0 0;
 }

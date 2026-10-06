@@ -68,6 +68,18 @@ describe('Signal connector end to end', () => {
     });
   });
 
+  test('a reaction goes out as the emoji itself; a short name becomes one', async () => {
+    const [item] = await container.inboxService.list({ state: ItemState.Done, connectionId });
+
+    await container.inboxService.react(item?.id ?? '', '🫥');
+    await container.inboxService.react(item?.id ?? '', 'thumbsup');
+
+    expect(signal.reactions.slice(-2).map((reaction) => reaction.emoji)).toEqual(['🫥', '👍']);
+    await expect(container.inboxService.react(item?.id ?? '', 'hello')).rejects.toThrow(
+      'not an emoji'
+    );
+  });
+
   test('group chatter waits Undecided; a mention of me is Important and reads @names', async () => {
     const inGroup = (timestamp: number, message: string, mentionMe: boolean) => ({
       ...MOCK_SIGNAL_DM,

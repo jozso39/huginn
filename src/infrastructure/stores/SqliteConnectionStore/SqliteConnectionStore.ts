@@ -31,7 +31,8 @@ export class SqliteConnectionStore implements IConnectionStore {
         status: ConnectionStatus.Idle,
         statusMessage: null,
         lastSyncAt: null,
-        groupName: input.groupName,
+        groupId: input.groupId,
+        color: input.color,
         createdAt: new Date(),
       })
       .returning()
@@ -63,7 +64,8 @@ export class SqliteConnectionStore implements IConnectionStore {
         ...(patch.status !== undefined ? { status: patch.status } : {}),
         ...(patch.statusMessage !== undefined ? { statusMessage: patch.statusMessage } : {}),
         ...(patch.lastSyncAt !== undefined ? { lastSyncAt: patch.lastSyncAt } : {}),
-        ...(patch.groupName !== undefined ? { groupName: patch.groupName } : {}),
+        ...(patch.groupId !== undefined ? { groupId: patch.groupId } : {}),
+        ...(patch.color !== undefined ? { color: patch.color } : {}),
       })
       .where(eq(connections.id, id))
       .returning()
@@ -105,7 +107,8 @@ export class SqliteConnectionStore implements IConnectionStore {
       status: row.status as ConnectionStatus,
       statusMessage: row.statusMessage,
       lastSyncAt: row.lastSyncAt,
-      groupName: row.groupName,
+      groupId: row.groupId,
+      color: row.color,
       createdAt: row.createdAt,
     };
   }

@@ -8,7 +8,7 @@ its own.
 ## What it needs
 
 [signal-cli](https://github.com/AsamK/signal-cli) on the Mac. Huginn does not ship it,
-so Signal is offered under *Connections → Add* only once it is installed:
+so Signal is offered under *Settings → Add connection* only once it is installed:
 
 ```bash
 brew install signal-cli
@@ -35,7 +35,7 @@ messages wait on Signal's servers and come in when it is back.
 
 ## Link your phone
 
-*Connections → Add → Signal → Link my phone.* A QR code appears. On the phone: **Signal
+*Settings → Add connection → Signal → Link my phone.* A QR code appears. On the phone: **Signal
 → Settings → Linked devices → +**, scan it. The connection appears (named after your
 number) within a few seconds of the phone confirming. The phone lists it as "Huginn".
 

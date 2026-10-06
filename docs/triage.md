@@ -5,7 +5,7 @@ Important and Undecided; Spam has its own tab. Each item says *why* it is where 
 
 ## Rules
 
-Each connection has its own rules (**Connections → Rules**). They are tried top to
+Each connection has its own rules (**Settings → Rules** on the connection). They are tried top to
 bottom and **the first one that fires decides**; if none fires, the item is Undecided.
 Every decision names its rule, and every rule counts its hits.
 

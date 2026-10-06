@@ -42,8 +42,10 @@ no infrastructure implementation worth mocking separately (Jev, the chat model).
 
 | Table | Holds | Notes |
 |---|---|---|
-| `connections` | one row per connected account: kind, name, **group_name**, config (JSON, validated by the connector's Zod schema), **cursor** (connector's sync position), status + message, `secrets_ciphertext` | secrets are AES-256-GCM sealed JSON (`AesSecretBox`, key `HUGINN_SECRET_KEY`); never returned by the API |
-| `items` | one row per message/notification: `external_id` unique per connection, `thread_key`, kind, author, title, **body** (clean plain text — what rules and Jev read), `url` (deep link), **rich** (Slack mrkdwn + names; null for e-mail), **status** (source state pill, e.g. MR Open/Merged/Closed), **features** (flat metadata for rules), `raw` (what the connector needs to act, e.g. Slack event, compact Gmail headers), **category**, **decision** (TriageDecision JSON), state Open/Done/Archived | re-ingesting the same external id updates content but keeps state and decision |
+| `connections` | one row per connected account: kind, name, **group_id** (its category), **color** (`#rrggbb` its items are tinted with), config (JSON, validated by the connector's Zod schema), **cursor** (connector's sync position), status + message, `secrets_ciphertext` | secrets are AES-256-GCM sealed JSON (`AesSecretBox`, key `HUGINN_SECRET_KEY`); never returned by the API. A new connection takes the first palette colour nobody has (`Connection.utils.ts`) |
+| `connection_groups` | the categories ("Work", "Personal") connections are shown under; exist on their own, so they are offered even while unused | called groups in code because Category is the triage verdict; names are unique ignoring case; deleting one leaves its connections without a category |
+| `settings` | the user's preferences as JSON under one key: theme (System/Light/Dark), quick reactions (emoji) | `SettingsService` keeps what is valid of what an older version stored |
+| `items` | one row per message/notification: `external_id` unique per connection, `thread_key`, kind, author, title, **body** (clean plain text — what rules and Jev read), `url` (deep link), **rich** (Slack mrkdwn + names; null for e-mail), **status** (source state pill, e.g. MR Open/Merged/Closed), **features** (flat metadata for rules), `raw` (what the connector needs to act, e.g. Slack event, compact Gmail headers), **category**, **decision** (TriageDecision JSON), state Open/Done/Archived, **search_text** (title, author and body folded to lower case without accents) | re-ingesting the same external id updates content but keeps state and decision; items from before search are indexed at boot |
 | `actions` | the archive: every reply, draft, reaction, done, mark-spam/important, with payload and provider result | |
 | `rules` | per-connection triage rules: verdict, kind Hard/Soft, predicate / criterion, threshold, **priority**, status Active/Proposed/Disabled, origin Default/User/Feedback, hits | |
 | `rule_history` | every rule change: before/after, reason (user's words), item, **checks** (guardrail scores, dry-run numbers) | outlives deleted rules |
@@ -143,14 +145,16 @@ an end-to-end test through `createTestContainer`, a `docs/<x>.md`.
 
 | Method & path | Does |
 |---|---|
-| `GET /api/items?state=&category=&connectionId=&limit=` | list items |
+| `GET /api/items?state=&category=&connectionId=&q=&limit=` | list items; `q` searches (every word must appear; case and accents ignored) |
 | `GET /api/items/:id` | item + its actions |
 | `GET /api/items/:id/content` | rich content for display (stored, fetched, or text) |
 | `POST /api/items` (header `X-Huginn-Key`) | ingest from outside; creates an Ingest connection on first use |
-| `POST /api/items/:id/reply` `{text}` · `/draft` `{text}` · `/react` `{emoji}` · `/done` · `/reopen` | act |
+| `POST /api/items/:id/reply` `{text}` · `/draft` `{text}` · `/react` `{emoji}` (the emoji, or a Slack short name) · `/done` · `/reopen` | act |
 | `POST /api/items/:id/feedback` `{verdict, explanation}` | Spam / Important (+ learn) |
 | `GET /api/connections` · `GET /api/connections/kinds` · `GET /api/connections/:id` | read |
-| `POST /api/connections` · `PUT /:id` `{name, groupName, config}` · `PUT /:id/secrets` · `PUT /:id/enabled` · `DELETE /:id` | manage |
+| `POST /api/connections` · `PUT /:id` `{name, config, groupId, color}` · `PUT /:id/secrets` · `PUT /:id/enabled` · `DELETE /:id` | manage; `PUT` restarts the connector only when `config` changed |
+| `GET /api/groups` · `POST /api/groups` `{name}` · `PUT /:id` `{name}` · `DELETE /:id` | categories; `POST` returns the existing one when the name is taken |
+| `GET /api/settings` · `PUT /api/settings` `{theme?, quickReactions?}` | preferences; quick reactions must be emoji Slack has a name for |
 | `GET /api/connections/:id/rules` · `POST /:id/rules` · `POST /:id/rules/dry-run` · `POST /:id/triage` · `GET /:id/fields` | rules of a connection |
 | `PUT /api/rules/:id` · `PUT /:id/status` · `POST /:id/move` `{direction}` · `DELETE /:id` | one rule |
 | `GET /api/oauth/apps/:provider` · `PUT /api/oauth/apps/:provider` · `POST /api/oauth/sign-in` · `GET /api/oauth/callback` | sign-in |
@@ -165,10 +169,18 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
 
 - `useHuginn` — all state: initial fetch on SSE `open`, then events; refetch when a
   backgrounded tab becomes visible (phones freeze tabs).
-- `InboxView` — category tabs; groups by `connection.groupName ?? name`, collapsed by
-  default (open ones remembered in `localStorage`), header counts; keyboard
-  `j/k r e i s o`; a toast for results that outlive their card.
-- `NotificationsPanel` (Connections page) — Web Push on/off per device, test, device list;
+- `InboxView` — category tabs; one section per category (a connection without one gets
+  its own), collapsed by default (open ones remembered in `localStorage` by id), header
+  counts; keyboard `j/k r e i s o`; a toast for results that outlive their card. Cards
+  are tinted with their connection's colour: `styles.css` mixes `--tint-mix` of it into
+  the surface, so any colour stays a readable shade in both themes.
+- `SettingsView` — connections by category with an *Add connection* button, categories
+  (`CategoriesManager`, folded), quick reactions (`ReactionsPicker`: typed emoji, checked
+  as you type and again on the server) and the theme (`theme.ts`; `index.html` restores
+  it before the first paint).
+- `CategoryPicker` — choose, filter or create a category (n8n-style combobox), with a
+  link to managing them; `ColorPicker` — palette swatches, any other colour, a preview.
+- `NotificationsPanel` — Web Push on/off per device (not shown in the Mac app);
   `web/public/sw.js` shows pushes and sets the app badge.
 - `PairConnect` — linking a phone: QR (uqr, as a data: image) + polling the pairing.
 - `ConnectorIcon` — the source's logo (`web/src/assets/logos`, CC0 svg-logos set) or a
@@ -179,7 +191,7 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
   reply/draft/emoji/Spam/Important/Done driven by the connector's `capabilities`.
 - `ConnectionsView`, `ConnectionForm` (generated from the config schema), `SignInConnect`
   + `OAuthAppForm` (Google), `RulesView` + `RuleEditor` (condition builder or JSON, soft
-  sentence + threshold, dry run), `ArchiveView`.
+  sentence + threshold, dry run), `ArchiveView` (with search over the whole archive).
 - `public/`: manifest, icons (from `huginn.png`), `sw.js` (pass-through service worker).
 
 ## 8. Security model

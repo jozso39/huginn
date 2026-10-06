@@ -44,6 +44,7 @@ const main = async () => {
 
   // Connections from before triage existed get their connector's default rules.
   await container.ruleService.installMissingDefaults();
+  await container.inboxService.indexForSearch();
   // Before the connectors, so nothing Important slips past the menu bar.
   container.pushService.start();
   await container.attentionService.start();

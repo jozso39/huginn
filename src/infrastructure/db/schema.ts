@@ -3,6 +3,16 @@ import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-or
 // Enums are stored as their string value; the core enums are the source of truth
 // and the stores cast on the way out. Dates are epoch milliseconds.
 
+/**
+ * What the UI calls categories ("Work", "Personal"): connections are shown under them.
+ * Named groups here because Category is the triage verdict (Important/Undecided/Spam).
+ */
+export const connectionGroups = sqliteTable('connection_groups', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+});
+
 export const connections = sqliteTable('connections', {
   id: text('id').primaryKey(),
   kind: text('kind').notNull(),
@@ -14,8 +24,10 @@ export const connections = sqliteTable('connections', {
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
   status: text('status').notNull(),
   statusMessage: text('status_message'),
-  // Inbox grouping; null means the connection is its own group.
-  groupName: text('group_name'),
+  // Its category; null means none (the inbox then shows it on its own).
+  groupId: text('group_id').references(() => connectionGroups.id, { onDelete: 'set null' }),
+  // '#rrggbb' the inbox tints its items with, always mixed into the theme's background.
+  color: text('color').notNull().default('#64748b'),
   lastSyncAt: integer('last_sync_at', { mode: 'timestamp_ms' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
@@ -46,6 +58,9 @@ export const items = sqliteTable(
     decision: text('decision', { mode: 'json' }).$type<Record<string, unknown> | null>(),
     state: text('state').notNull(),
     stateChangedAt: integer('state_changed_at', { mode: 'timestamp_ms' }).notNull(),
+    // Title, author and body in lower case without diacritics, for searching the
+    // archive ("kasuba" finds "Kašuba"). Null until filled (items from before search).
+    searchText: text('search_text'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (table) => [
@@ -134,4 +149,11 @@ export const pushDevices = sqliteTable('push_devices', {
   auth: text('auth').notNull(),
   label: text('label').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+});
+
+/** The user's preferences (theme, quick reactions), one JSON value per key. */
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value', { mode: 'json' }).notNull().$type<unknown>(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 });

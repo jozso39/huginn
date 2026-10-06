@@ -61,9 +61,26 @@ export interface Connection {
   status: ConnectionStatus;
   statusMessage: string | null;
   lastSyncAt: string | null;
-  /** Inbox group; null means the connection is its own group. */
-  groupName: string | null;
+  /** Its category; null: none (the inbox shows it on its own). */
+  groupId: string | null;
+  /** '#rrggbb' its items are tinted with. */
+  color: string;
   createdAt: string;
+}
+
+/** A category connections are shown under (a ConnectionGroup on the server). */
+export interface ConnectionGroup {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export type Theme = 'System' | 'Light' | 'Dark';
+
+export interface Settings {
+  theme: Theme;
+  /** The emoji offered as one-click reactions, in order ("👍", "🫥"). */
+  quickReactions: string[];
 }
 
 export interface SecretField {

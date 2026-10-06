@@ -180,8 +180,8 @@ export const RulesView = ({ connection }: RulesViewProps) => {
 
   return (
     <section className="rules-view">
-      <a href="#connections" className="small">
-        ← Connections
+      <a href="#settings" className="small">
+        ← Settings
       </a>
       <header className="rules-view__head">
         <ConnectorIcon kind={connection.kind} />

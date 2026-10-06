@@ -8,6 +8,7 @@ import type { IAttentionSink } from '@/core/attention/Attention.types';
 import type { IPushClient } from '@/core/clients/PushClient/PushClient.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { AttentionService } from '@/core/services/AttentionService/AttentionService';
+import { ConnectionGroupService } from '@/core/services/ConnectionGroupService/ConnectionGroupService';
 import { ConnectionService } from '@/core/services/ConnectionService/ConnectionService';
 import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
 import { FeedbackService } from '@/core/services/FeedbackService/FeedbackService';
@@ -15,6 +16,7 @@ import { InboxService } from '@/core/services/InboxService/InboxService';
 import { OAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService';
 import { PushService } from '@/core/services/PushService/PushService';
 import { RuleService } from '@/core/services/RuleService/RuleService';
+import { SettingsService } from '@/core/services/SettingsService/SettingsService';
 import { TriageService } from '@/core/services/TriageService/TriageService';
 import { GoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClient/GoogleOAuthClient';
 import { JevClient } from '@/infrastructure/clients/JevClient/JevClient';
@@ -31,11 +33,13 @@ import { SqliteDatabase } from '@/infrastructure/db/SqliteDatabase';
 import { InMemoryEventBus } from '@/infrastructure/events/InMemoryEventBus/InMemoryEventBus';
 import { AesSecretBox } from '@/infrastructure/secrets/AesSecretBox/AesSecretBox';
 import { SqliteActionStore } from '@/infrastructure/stores/SqliteActionStore/SqliteActionStore';
+import { SqliteConnectionGroupStore } from '@/infrastructure/stores/SqliteConnectionGroupStore/SqliteConnectionGroupStore';
 import { SqliteConnectionStore } from '@/infrastructure/stores/SqliteConnectionStore/SqliteConnectionStore';
 import { SqliteItemStore } from '@/infrastructure/stores/SqliteItemStore/SqliteItemStore';
 import { SqliteOAuthAppStore } from '@/infrastructure/stores/SqliteOAuthAppStore/SqliteOAuthAppStore';
 import { SqlitePushDeviceStore } from '@/infrastructure/stores/SqlitePushDeviceStore/SqlitePushDeviceStore';
 import { SqliteRuleStore } from '@/infrastructure/stores/SqliteRuleStore/SqliteRuleStore';
+import { SqliteSettingsStore } from '@/infrastructure/stores/SqliteSettingsStore/SqliteSettingsStore';
 import type { Container } from './container.types';
 
 export interface CreateContainerOptions {
@@ -64,6 +68,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
   const secretBox = new AesSecretBox(config.secretKey);
   const itemStore = new SqliteItemStore(database.db);
   const connectionStore = new SqliteConnectionStore(database.db);
+  const connectionGroupStore = new SqliteConnectionGroupStore(database.db);
   const actionStore = new SqliteActionStore(database.db);
   const ruleStore = new SqliteRuleStore(database.db);
   const oauthAppService = new OAuthAppService(
@@ -137,6 +142,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     logger,
     connectorFactories,
     connectionStore,
+    connectionGroupStore,
     secretBox,
     connectorHost,
     oauthAppService,
@@ -163,6 +169,9 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     eventBus
   );
 
+  const connectionGroupService = new ConnectionGroupService(logger, connectionGroupStore);
+  const settingsService = new SettingsService(logger, new SqliteSettingsStore(database.db));
+
   const attentionService = new AttentionService(
     logger,
     options.attentionSink ?? NO_ATTENTION,
@@ -183,6 +192,8 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     connectorHost,
     inboxService,
     connectionService,
+    connectionGroupService,
+    settingsService,
     oauthAppService,
     triageService,
     ruleService,

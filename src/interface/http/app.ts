@@ -5,10 +5,12 @@ import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import { localAccess } from './localAccess';
 import { createConnectionRoutes } from './routes/connectionRoutes';
 import { createEventRoutes } from './routes/eventRoutes';
+import { createGroupRoutes } from './routes/groupRoutes';
 import { createItemRoutes } from './routes/itemRoutes';
 import { createOAuthRoutes } from './routes/oauthRoutes';
 import { createPushRoutes } from './routes/pushRoutes';
 import { createRuleRoutes } from './routes/ruleRoutes';
+import { createSettingsRoutes } from './routes/settingsRoutes';
 
 const STATUS_BY_CODE: Record<ErrorCode, 400 | 401 | 404 | 422 | 502> = {
   [ErrorCode.Validation]: 400,
@@ -29,6 +31,8 @@ export const createApp = (container: Container, webRoot: string, port: () => num
 
   app.route('/api/items', createItemRoutes(container));
   app.route('/api/connections', createConnectionRoutes(container));
+  app.route('/api/groups', createGroupRoutes(container));
+  app.route('/api/settings', createSettingsRoutes(container));
   app.route('/api/events', createEventRoutes(container));
   app.route('/api/oauth', createOAuthRoutes(container));
   app.route('/api/rules', createRuleRoutes(container));
