@@ -1,4 +1,7 @@
 import type {
+  SlackAttachment,
+  SlackBlock,
+  SlackBlockElement,
   SlackChannelInfo,
   SlackMessageEvent,
 } from '@/core/clients/SlackClient/SlackClient.types';
@@ -237,6 +240,76 @@ const attachmentColor = (color: string | undefined): string | null => {
   return /^#?[0-9a-f]{3,8}$/i.test(color) ? `#${color.replace(/^#/, '')}` : null;
 };
 
+const isWebLink = (url: string | undefined): url is string => /^https?:\/\//.test(url ?? '');
+
+/** A context line's text, or a button's label (an object there). */
+const elementText = (element: SlackBlockElement): string =>
+  typeof element.text === 'string' ? element.text : (element.text?.text ?? '');
+
+interface BlockLine {
+  readonly context: boolean;
+  readonly text: string;
+}
+
+/**
+ * One block as a line of mrkdwn, or null for what is not text (images, buttons, and
+ * `rich_text`, which only repeats the message's own text).
+ */
+const blockLine = (block: SlackBlock): BlockLine | null => {
+  const text =
+    block.type === 'header'
+      ? block.text?.text
+        ? `*${block.text.text}*`
+        : ''
+      : block.type === 'context'
+        ? (block.elements ?? [])
+            .map(elementText)
+            .filter((part) => part !== '')
+            .join(' · ')
+        : block.type === 'section'
+          ? [block.text?.text ?? '', ...(block.fields ?? []).map((field) => field.text)]
+              .filter((part) => part !== '')
+              .join('\n')
+          : '';
+
+  return text === '' ? null : { context: block.type === 'context', text };
+};
+
+/** Buttons that open a page ("View comment"); those that only call the app are left out. */
+const blockLinks = (block: SlackBlock): { text: string; url: string }[] =>
+  [
+    ...(block.type === 'actions' ? (block.elements ?? []) : []),
+    ...(block.accessory ? [block.accessory] : []),
+  ]
+    .filter((element) => element.type === 'button' && isWebLink(element.url))
+    .map((element) => ({ text: elementText(element), url: element.url ?? '' }))
+    .filter((link) => link.text !== '');
+
+/**
+ * An attachment's Block Kit as lines, in Slack's order, when it shows more than the
+ * attachment's own text: its `rich_text` block is that text, so a shared message keeps it
+ * and gains the lines around it ("Sent using …"). Empty when the blocks add nothing.
+ */
+const attachmentLines = (attachment: SlackAttachment): BlockLine[] => {
+  const blocks = attachment.blocks ?? [];
+
+  if (!blocks.some((block) => blockLine(block) !== null)) {
+    return [];
+  }
+
+  const textAt = blocks.findIndex((block) => block.type === 'rich_text');
+
+  return blocks.flatMap((block, index) => {
+    if (index === textAt) {
+      return attachment.text ? [{ context: false, text: attachment.text }] : [];
+    }
+
+    const line = blockLine(block);
+
+    return line ? [line] : [];
+  });
+};
+
 /** Attachments as the dashboard draws them; empty ones (only buttons) are dropped. */
 export const attachmentViews = (event: SlackMessageEvent): SlackAttachmentView[] =>
   (event.attachments ?? [])
@@ -244,25 +317,34 @@ export const attachmentViews = (event: SlackMessageEvent): SlackAttachmentView[]
       const fields = (attachment.fields ?? [])
         .map((field) => ({ title: field.title ?? '', value: field.value ?? '' }))
         .filter((field) => field.title !== '' || field.value !== '');
-      const links = (attachment.actions ?? [])
-        .filter((action) => /^https?:\/\//.test(action.url ?? '') && action.text)
-        .map((action) => ({ text: action.text ?? '', url: action.url ?? '' }));
+      const blocks = attachmentLines(attachment);
+      const links = [
+        ...(attachment.actions ?? [])
+          .filter((action) => isWebLink(action.url) && action.text)
+          .map((action) => ({ text: action.text ?? '', url: action.url ?? '' })),
+        ...(attachment.blocks ?? []).flatMap(blockLinks),
+      ];
       // Buttons count as content: then `fallback` ("[no preview available]") is noise.
       const hasContent =
         Boolean(attachment.text ?? attachment.title ?? attachment.pretext) ||
         fields.length > 0 ||
-        (attachment.actions ?? []).length > 0;
+        blocks.length > 0 ||
+        (attachment.actions ?? []).length > 0 ||
+        (attachment.blocks ?? []).some((block) => block.type === 'actions');
 
       return {
         color: attachmentColor(attachment.color),
         pretext: attachment.pretext ?? '',
         author: attachment.author_name ?? '',
         title: attachment.title ?? '',
-        titleLink: /^https?:\/\//.test(attachment.title_link ?? '')
-          ? (attachment.title_link ?? null)
-          : null,
-        // `fallback` is the plain summary; use it only when nothing else is there.
-        text: attachment.text ?? (hasContent ? '' : (attachment.fallback ?? '')),
+        titleLink: isWebLink(attachment.title_link) ? attachment.title_link : null,
+        // Blocks that say something replace the text, as in Slack. `fallback` is the
+        // plain summary; use it only when nothing else is there.
+        text:
+          blocks.length > 0
+            ? ''
+            : (attachment.text ?? (hasContent ? '' : (attachment.fallback ?? ''))),
+        blocks,
         fields,
         footer: attachment.footer ?? '',
         links,
@@ -273,11 +355,10 @@ export const attachmentViews = (event: SlackMessageEvent): SlackAttachmentView[]
         view.text !== '' ||
         view.title !== '' ||
         view.pretext !== '' ||
+        view.blocks.length > 0 ||
         view.fields.length > 0 ||
         view.links.length > 0
     );
-
-const DISPLAY_BLOCKS = new Set(['section', 'header', 'context']);
 
 /**
  * What an app's Block Kit message says, as mrkdwn. Slack shows blocks instead of
@@ -285,31 +366,9 @@ const DISPLAY_BLOCKS = new Set(['section', 'header', 'context']);
  * text, so a message with only those keeps its text (null).
  */
 export const blocksText = (blocks: SlackMessageEvent['blocks']): string | null => {
-  const shown = (blocks ?? []).filter((block) => DISPLAY_BLOCKS.has(block.type));
+  const lines = (blocks ?? []).map(blockLine).filter((line): line is BlockLine => line !== null);
 
-  if (shown.length === 0) {
-    return null;
-  }
-
-  return shown
-    .map((block) => {
-      if (block.type === 'header') {
-        return `*${block.text?.text ?? ''}*`;
-      }
-
-      if (block.type === 'context') {
-        return (block.elements ?? [])
-          .map((element) => element.text ?? '')
-          .filter((text) => text !== '')
-          .join(' · ');
-      }
-
-      return [block.text?.text ?? '', ...(block.fields ?? []).map((field) => field.text)]
-        .filter((text) => text !== '')
-        .join('\n');
-    })
-    .filter((text) => text !== '')
-    .join('\n');
+  return lines.length > 0 ? lines.map((line) => line.text).join('\n') : null;
 };
 
 /** Every piece of mrkdwn an attachment shows, in reading order. */
@@ -319,6 +378,7 @@ export const attachmentTexts = (view: SlackAttachmentView): string[] =>
     view.author,
     view.title,
     view.text,
+    ...(view.blocks ?? []).map((line) => line.text),
     ...view.fields.map((field) => (field.title ? `${field.title}: ${field.value}` : field.value)),
     view.footer,
     ...view.links.map((link) => link.text),

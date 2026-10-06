@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { MOCK_SLACK_AGENDA } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
+import {
+  MOCK_SLACK_AGENDA,
+  MOCK_SLACK_APP_PREVIEW,
+} from '@/infrastructure/clients/SlackClient/SlackClient.mock';
 import type { SlackMessageEvent } from '@/core/clients/SlackClient/SlackClient.types';
 import { ItemKind } from '@/core/items/Item.types';
 import { SlackChannelScope } from './SlackConnector.types';
@@ -8,6 +11,7 @@ import {
   appLink,
   channelsToCheck,
   readItemIds,
+  attachmentTexts,
   attachmentViews,
   blocksText,
   SlackRelevance,
@@ -193,6 +197,39 @@ describe('attachments and blocks', () => {
     expect(views[3]).toMatchObject({
       text: '',
       links: [{ text: 'Join Google Meet', url: 'https://meet.google.com/abc' }],
+    });
+  });
+
+  test('an attachment built from blocks keeps its lines and link buttons, not the fallback', () => {
+    const [preview, shared, signed] = attachmentViews(MOCK_SLACK_APP_PREVIEW);
+
+    expect(preview).toMatchObject({
+      color: '#d33d44',
+      text: '',
+      blocks: [
+        {
+          context: true,
+          text: ":speech_balloon: Petra's Comment on <https://app.clickup.com/t/1|Banner copy>",
+        },
+        { context: false, text: 'Version 1.0 of the banner text.' },
+        { context: true, text: 'in AI summary' },
+      ],
+      links: [{ text: 'View comment', url: 'https://app.clickup.com/t/1?comment=2' }],
+    });
+    expect(preview ? attachmentTexts(preview) : []).toContain('Version 1.0 of the banner text.');
+    // A shared message keeps its text; its rich_text blocks are not shown twice.
+    expect(shared).toMatchObject({
+      author: 'Jana',
+      text: 'Can you check the *invoices*?',
+      blocks: [],
+    });
+    // Signed by an app: the text stays where its rich_text block is, the line follows.
+    expect(signed).toMatchObject({
+      text: '',
+      blocks: [
+        { context: false, text: 'And the *SMS* ones?' },
+        { context: true, text: '*Sent using* <@UAPP>' },
+      ],
     });
   });
 

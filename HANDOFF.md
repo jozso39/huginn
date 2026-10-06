@@ -193,6 +193,10 @@ bun run build                   # web → web/dist, served by the server
     child on stdin/stdout. Stop it with SIGTERM — a closed stdin makes it abort. Two
     copies of its `signal/` folder must never run at once (`desktop:dev-data --back`
     moves it rather than copying).
+11. **Slack's look is stored when a message arrives** (`items.rich`, and `body` from it):
+    a rendering fix shows on new messages only. Old ones keep the event in `raw`, so they
+    can be re-rendered with `attachmentViews`/`blocksText` (done once, 2026-10-06, for
+    attachments built from Block Kit — ClickUp's previews).
 
 ## 8. Documentation map
 

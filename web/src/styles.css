@@ -1275,6 +1275,12 @@ a.slack-attachment__title:hover {
   margin-top: 0;
 }
 
+/* Block Kit context lines: Slack's small grey text. */
+.slack-attachment__context {
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .slack-attachment__footer {
   margin-top: 4px;
   font-size: 12px;

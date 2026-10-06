@@ -250,6 +250,11 @@ export interface SlackAttachmentView {
   title: string;
   titleLink: string | null;
   text: string;
+  /**
+   * An attachment built from Block Kit (ClickUp): its lines in order; `context` ones are
+   * Slack's small grey lines. Missing on attachments stored before.
+   */
+  blocks?: { context: boolean; text: string }[];
   fields: { title: string; value: string }[];
   footer: string;
   /** Missing on attachments stored before link buttons were kept. */

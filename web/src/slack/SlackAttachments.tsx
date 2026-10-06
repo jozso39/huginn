@@ -7,8 +7,9 @@ const DEFAULT_BAR = '#dddddd';
 
 /**
  * Message attachments drawn as Slack draws them: a coloured bar, then pretext,
- * author, linked title, text, fields in two columns, footer. Link buttons ("Join
- * Google Meet") are links; buttons that call the app only work in Slack and are left out.
+ * author, linked title, text or Block Kit lines (context ones small and grey), fields
+ * in two columns, footer. Link buttons ("Join Google Meet", "View comment") are links;
+ * buttons that call the app only work in Slack and are left out.
  */
 export const SlackAttachments = ({
   attachments,
@@ -44,6 +45,15 @@ export const SlackAttachments = ({
               </div>
             ))}
           {attachment.text && <SlackText text={attachment.text} names={names} />}
+          {(attachment.blocks ?? []).map((line, lineIndex) =>
+            line.context ? (
+              <div key={lineIndex} className="slack-attachment__context">
+                <SlackText text={line.text} names={names} />
+              </div>
+            ) : (
+              <SlackText key={lineIndex} text={line.text} names={names} />
+            )
+          )}
           {attachment.fields.length > 0 && (
             <dl className="slack-attachment__fields">
               {attachment.fields.map((field, fieldIndex) => (

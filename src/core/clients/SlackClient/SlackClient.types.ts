@@ -12,14 +12,28 @@ export interface SlackAttachment {
   readonly footer?: string;
   /** Buttons; only those with a `url` mean anything outside Slack. */
   readonly actions?: readonly { readonly text?: string; readonly url?: string }[];
+  /**
+   * Block Kit instead of the fields above (ClickUp builds its previews this way). Shared
+   * messages carry `rich_text` blocks too, but those only repeat `text`.
+   */
+  readonly blocks?: readonly SlackBlock[];
 }
 
-/** The subset of Block Kit Huginn reads: text in sections, headers and context lines. */
+/** A Block Kit element: a context line's text, an image, or a button (whose label is an object). */
+export interface SlackBlockElement {
+  readonly type: string;
+  readonly text?: string | { readonly type: string; readonly text: string };
+  readonly url?: string;
+}
+
+/** The subset of Block Kit Huginn reads: text in sections, headers and context lines, link buttons. */
 export interface SlackBlock {
   readonly type: string;
   readonly text?: { readonly type: string; readonly text: string };
   readonly fields?: readonly { readonly type: string; readonly text: string }[];
-  readonly elements?: readonly { readonly type: string; readonly text?: string }[];
+  readonly elements?: readonly SlackBlockElement[];
+  /** A section's element on the side, e.g. a link button. */
+  readonly accessory?: SlackBlockElement;
 }
 
 export interface SlackMessageEvent {

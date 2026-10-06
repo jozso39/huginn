@@ -47,6 +47,11 @@ export interface SlackAttachmentView {
   readonly title: string;
   readonly titleLink: string | null;
   readonly text: string;
+  /**
+   * What an attachment built from Block Kit says (ClickUp), in Slack's order; `context`
+   * lines are Slack's small grey ones. Missing on items stored before it was kept.
+   */
+  readonly blocks?: readonly { readonly context: boolean; readonly text: string }[];
   readonly fields: readonly { readonly title: string; readonly value: string }[];
   readonly footer: string;
   /** Link buttons ("Join Google Meet"); buttons that only call the app are left out. */

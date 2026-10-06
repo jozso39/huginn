@@ -56,6 +56,73 @@ export const MOCK_SLACK_AGENDA: SlackMessageEvent = {
   ],
 };
 
+/** An app's DM whose preview is Block Kit inside the attachment, as ClickUp sends them. */
+export const MOCK_SLACK_APP_PREVIEW: SlackMessageEvent = {
+  type: 'message',
+  channel: 'DCU',
+  channel_type: 'im',
+  bot_id: 'BCU',
+  username: 'ClickUp',
+  text: '*Petra* mentioned you in a comment in *Banner copy*.',
+  ts: '1790850000.000100',
+  blocks: [
+    {
+      type: 'section',
+      text: { type: 'mrkdwn', text: '*Petra* mentioned you in a comment in *Banner copy*.' },
+    },
+  ],
+  attachments: [
+    {
+      color: '#d33d44',
+      fallback: '[no preview available]',
+      blocks: [
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: ":speech_balloon: Petra's Comment on <https://app.clickup.com/t/1|Banner copy>",
+            },
+          ],
+        },
+        { type: 'section', text: { type: 'mrkdwn', text: 'Version 1.0 of the banner text.' } },
+        {
+          type: 'context',
+          elements: [{ type: 'image' }, { type: 'mrkdwn', text: 'in AI summary' }],
+        },
+        {
+          type: 'actions',
+          elements: [
+            {
+              type: 'button',
+              text: { type: 'plain_text', text: 'View comment' },
+              url: 'https://app.clickup.com/t/1?comment=2',
+            },
+            { type: 'button', text: { type: 'plain_text', text: 'Resolve' } },
+          ],
+        },
+      ],
+    },
+    // A shared Slack message: its text, plus rich_text blocks that only repeat it.
+    {
+      author_name: 'Jana',
+      text: 'Can you check the *invoices*?',
+      fallback: '[October 3rd] jana: Can you check the invoices?',
+      blocks: [{ type: 'rich_text', elements: [] }],
+    },
+    // The same, sent through an app, which signs it below the text.
+    {
+      author_name: 'Jana',
+      text: 'And the *SMS* ones?',
+      fallback: '[October 3rd] jana: And the SMS ones?',
+      blocks: [
+        { type: 'rich_text', elements: [] },
+        { type: 'context', elements: [{ type: 'mrkdwn', text: '*Sent using* <@UAPP>' }] },
+      ],
+    },
+  ],
+};
+
 /**
  * Replays MOCK_SLACK_DM as soon as someone listens. Tests that need more events
  * keep the handler through `listen` and call it themselves via `deliver`.
