@@ -56,7 +56,8 @@ const main = async () => {
     container.attentionService.stop();
     container.pushService.stop();
     await container.connectorHost.stopAll();
-    await server.stop();
+    // Close open connections too (the window's live stream): a plain stop waits for them.
+    await server.stop(true);
     container.close();
     process.exit(0);
   };
