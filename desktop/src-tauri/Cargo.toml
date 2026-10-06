@@ -5,6 +5,11 @@ description = "Huginn for macOS: the shell around Huginn's server"
 edition = "2021"
 publish = false
 
+# The process macOS shows in the menu bar and Activity Monitor.
+[[bin]]
+name = "Huginn"
+path = "src/main.rs"
+
 [lib]
 name = "huginn_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]

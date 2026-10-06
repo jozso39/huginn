@@ -108,6 +108,19 @@ button.danger {
   color: var(--danger);
 }
 
+/* The last step of something that cannot be undone. */
+button.danger-solid {
+  background: #c62828;
+  border-color: #c62828;
+  color: #fff;
+  font-weight: 600;
+}
+
+button.danger-solid:hover {
+  background: #a51f1f;
+  border-color: #a51f1f;
+}
+
 input,
 select,
 textarea {
@@ -1283,4 +1296,23 @@ a.slack-attachment__title:hover {
 .confirm__question {
   font-size: 13px;
   color: var(--danger);
+}
+
+.connection--deleting {
+  border-color: #c62828;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 22px 16px;
+  text-align: center;
+}
+
+.delete-confirm__question {
+  margin: 0;
+  max-width: 560px;
+}
+
+.delete-confirm__buttons {
+  display: flex;
+  gap: 8px;
 }

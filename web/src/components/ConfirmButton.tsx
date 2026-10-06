@@ -40,7 +40,7 @@ export const ConfirmButton = ({ label, question, onConfirm }: ConfirmButtonProps
       <span className="confirm__question">{question}</span>
       <button
         type="button"
-        className="danger confirm__yes"
+        className="danger-solid"
         onClick={() => {
           setArmed(false);
           onConfirm();

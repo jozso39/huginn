@@ -52,5 +52,6 @@
         "https://github.com/jozso39/huginn/releases/latest/download/latest.json"
       ]
     }
-  }
+  },
+  "mainBinaryName": "Huginn"
 }

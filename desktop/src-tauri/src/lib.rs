@@ -388,13 +388,12 @@ fn build_tray(app: &AppHandle) -> AnyResult<()> {
             &quit,
         ],
     )?;
-    let icon = app
-        .default_window_icon()
-        .cloned()
-        .ok_or("the app has no icon")?;
+    // A template image: macOS draws it white on a dark menu bar and black on a light one.
+    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray@2x.png"))?;
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
+        .icon_as_template(true)
         .tooltip("Huginn")
         .menu(&menu)
         .show_menu_on_left_click(true)

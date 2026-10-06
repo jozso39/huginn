@@ -5,9 +5,7 @@ import { relativeTime } from '../connectorMeta';
 import type { ConnectionFormValues } from './ConnectionForm';
 import { ConnectionForm } from './ConnectionForm';
 import { SignInConnect, startSignIn } from './SignInConnect';
-import { ConfirmButton } from './ConfirmButton';
 import { ConnectorIcon } from './ConnectorIcon';
-import { NotificationsPanel } from './NotificationsPanel';
 import { PairConnect } from './PairConnect';
 
 interface ConnectionsViewProps {
@@ -32,6 +30,8 @@ const filledOnly = (values: Record<string, string>) =>
 export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsViewProps) => {
   const [chosenKind, setChosenKind] = useState<string>('');
   const [editing, setEditing] = useState<string | null>(null);
+  // The connection whose card asks "really delete?" instead of showing itself.
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const descriptorOf = (kind: string) => kinds.find((k) => k.kind === kind);
@@ -84,11 +84,36 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
 
   return (
     <section className="connections">
-      <NotificationsPanel />
       <ul className="connection-list">
         {connections.length === 0 && <li className="muted">No connections yet.</li>}
         {connections.map((connection) => {
           const descriptor = descriptorOf(connection.kind);
+
+          if (deleting === connection.id) {
+            return (
+              <li key={connection.id} className="connection connection--deleting">
+                <p className="delete-confirm__question">
+                  Do you really want to permanently delete the <strong>“{connection.name}”</strong>{' '}
+                  connection? Its items and rules are deleted with it.
+                </p>
+                <div className="delete-confirm__buttons">
+                  <button
+                    type="button"
+                    className="danger-solid"
+                    onClick={() => {
+                      setDeleting(null);
+                      void act(() => api.removeConnection(connection.id));
+                    }}
+                  >
+                    Yes, delete
+                  </button>
+                  <button type="button" onClick={() => setDeleting(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </li>
+            );
+          }
 
           return (
             <li key={connection.id} className="connection">
@@ -130,11 +155,13 @@ export const ConnectionsView = ({ connections, kinds, onChanged }: ConnectionsVi
                   >
                     {connection.enabled ? 'Pause' : 'Resume'}
                   </button>
-                  <ConfirmButton
-                    label="Remove"
-                    question={`Remove “${connection.name}” and all its items?`}
-                    onConfirm={() => void act(() => api.removeConnection(connection.id))}
-                  />
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => setDeleting(connection.id)}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
               {descriptor?.signInProvider && connection.status === 'NeedsAuth' && (
