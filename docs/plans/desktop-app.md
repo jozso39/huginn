@@ -153,7 +153,7 @@ Each milestone ends with something Jozef uses daily.
 ### M3 — First run, guides, triage keys, backup (≈ 1 week) — §5, §7
 1. First-run wizard: welcome → triage key (OpenRouter / TypeSafe / skip) → add
    connections (each with its guide) → launch at login. The key itself is done
-   (2026-10-06): Settings → Triage, write-only, checked with the provider.
+   (2026-10-06): Settings → AI Triage, write-only, checked with the provider.
 2. Setup guides for Gmail (Google Cloud project + Desktop client), Slack (signing in;
    creating the company app is an admin guide), GitLab, ClickUp, LinkedIn.
 3. Full backup export / restore.
@@ -215,7 +215,7 @@ Catch-up after sleep is natural: the next check searches since the last one.
 
 ## 7. Triage keys (OpenRouter or TypeSafe)
 
-- First run (and Settings → Triage) explains in two sentences what the key is for:
+- First run (and Settings → AI Triage) explains in two sentences what the key is for:
   *sentence rules* ("an automated notification, not a person") and learning from Spam /
   Important reasons need a model; without a key Huginn sorts with condition rules only.
 - **OpenRouter key**: Jev for sentence rules and guardrails + the rule-writing agent

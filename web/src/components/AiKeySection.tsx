@@ -17,17 +17,26 @@ interface Feature {
 
 const PROVIDERS: Record<
   AiProvider,
-  { keysUrl: string; keysPage: string; placeholder: string; enables: string }
+  {
+    keysUrl: string;
+    keysPage: string;
+    /** Where on that page, when the link cannot go straight there. */
+    keysWhere: string;
+    placeholder: string;
+    enables: string;
+  }
 > = {
   OpenRouter: {
     keysUrl: 'https://openrouter.ai/settings/keys',
-    keysPage: 'openrouter.ai → Keys',
+    keysPage: 'openrouter.ai/settings/keys',
+    keysWhere: '',
     placeholder: 'sk-or-v1-…',
     enables: 'An OpenRouter key turns on sentence rules and learning from your reasons.',
   },
   TypeSafe: {
     keysUrl: 'https://console.typesafe.ai',
-    keysPage: 'console.typesafe.ai → API Keys',
+    keysPage: 'console.typesafe.ai',
+    keysWhere: ', under API Keys',
     placeholder: 'your TypeSafe key',
     enables: 'A TypeSafe key turns on sentence rules. Learning from your reasons needs OpenRouter.',
   },
@@ -91,16 +100,31 @@ export const AiKeySection = ({ ai, onSave, onRemove }: AiKeySectionProps) => {
 
   return (
     <div className="triage">
-      <p>
-        Huginn sorts every new message into <strong>Important</strong>, <strong>Undecided</strong>{' '}
-        or <strong>Spam</strong>. Important comes first and can notify you, Spam stays out of your
-        inbox, and Undecided waits for you to sort it.
-      </p>
-      <p>
-        It sorts with rules. Each connection has its own (<strong>Rules</strong> on the connection,
-        above), tried from the top: the first rule that fits decides, and a message no rule fits
-        stays in Undecided.
-      </p>
+      <div className="triage__intro">
+        <p>Huginn sorts every new message into one of these categories:</p>
+        <ul>
+          <li>Important</li>
+          <li>Undecided</li>
+          <li>Spam</li>
+        </ul>
+        <p>
+          Important comes first and can notify you, Spam stays out of your inbox, and Undecided
+          waits for you to sort it.
+        </p>
+        <p>
+          When sorting a message, you can input a rule for sorting that will afterwards be applied
+          to other messages in the same connection.
+        </p>
+        <p>Example:</p>
+        <ol>
+          <li>you get a message in Slack: “Anyone wants to go for lunch?”</li>
+          <li>
+            you can click Spam and write “I am working remotely, lunch invitations don’t apply for
+            me in channel #lunch”
+          </li>
+          <li>Huginn will mark any other message like that as Spam</li>
+        </ol>
+      </div>
 
       {/* Statuses, not settings: pills on the right, so nothing here looks clickable. */}
       <ul className="triage-features">
@@ -211,7 +235,7 @@ export const AiKeySection = ({ ai, onSave, onRemove }: AiKeySectionProps) => {
                     <a href={PROVIDERS[provider].keysUrl} target="_blank" rel="noreferrer">
                       {PROVIDERS[provider].keysPage}
                     </a>
-                    .
+                    {PROVIDERS[provider].keysWhere}.
                   </p>
                   <label className="field">
                     <span className="field__label">{provider} API key</span>

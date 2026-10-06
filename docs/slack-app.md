@@ -13,6 +13,12 @@ workspace → paste:
 display_information:
   name: Huginn
   description: An inbox for what needs you. Each person signs in; it reads and replies as them.
+  long_description: >-
+    Huginn is a desktop inbox for everything that needs you. It brings your Slack direct
+    messages, mentions and replies in your threads together with e-mail, ClickUp, GitLab
+    and Signal, and sorts them into Important, Undecided and Spam. Each person signs in
+    with their own Slack account: Huginn runs on their Mac, reads only what they can
+    already see in Slack, and replies or reacts as them. Nothing is shared between people.
   background_color: "#14161a"
 oauth_config:
   # Huginn signs in on the Mac it runs on; it uses the first of these ports that is free.

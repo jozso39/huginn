@@ -62,7 +62,7 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
       dataDir: join(dirname(dbPath), 'signal'),
     },
     ai: {
-      // Jev's name at each provider; the key decides which is used (Settings → Triage).
+      // Jev's name at each provider; the key decides which is used (Settings → AI Triage).
       jevModels: { OpenRouter: env.HUGINN_JEV_MODEL, TypeSafe: env.HUGINN_TYPESAFE_JEV_MODEL },
       feedbackModel: env.HUGINN_FEEDBACK_MODEL,
       // Jev answers in ~0.5 s; past this, triage falls back to Undecided.

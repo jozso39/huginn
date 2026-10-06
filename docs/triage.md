@@ -48,7 +48,7 @@ Every change is in the rule history with your explanation and the checks it pass
 
 ## Configuration
 
-**Settings → Triage** takes one key, checked with its provider before it is kept
+**Settings → AI Triage** takes one key, checked with its provider before it is kept
 (sealed; it is never shown again, only replaced or removed):
 
 - **OpenRouter** — sentence rules and guardrails (Jev) and the rule-learning agent.

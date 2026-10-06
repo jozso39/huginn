@@ -1787,7 +1787,7 @@ a.slack-attachment__title:hover {
   margin: -4px 0 0;
 }
 
-/* Settings → Triage */
+/* Settings → AI Triage */
 .triage {
   display: grid;
   gap: 12px;
@@ -1796,6 +1796,17 @@ a.slack-attachment__title:hover {
 
 .triage p {
   margin: 0;
+}
+
+.triage__intro {
+  display: grid;
+  gap: 6px;
+}
+
+.triage__intro ul,
+.triage__intro ol {
+  margin: 0;
+  padding-left: 22px;
 }
 
 /* What sorts the messages and whether it runs: statuses with pills on the right, in

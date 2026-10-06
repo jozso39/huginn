@@ -197,7 +197,7 @@ export const RuleEditor = ({
         <>
           {!hasAiKey && (
             <p className="warn small">
-              Sentence rules need an AI key. Until one is added in Settings → Triage, this rule
+              Sentence rules need an AI key. Until one is added in Settings → AI Triage, this rule
               never fires and its messages wait in Undecided.
             </p>
           )}

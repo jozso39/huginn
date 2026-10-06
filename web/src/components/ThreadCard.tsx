@@ -50,7 +50,7 @@ const whyText = (decision: TriageDecision | null): string => {
     case 'ClassifierUnavailable':
       return 'No rule matched (the classifier was unreachable)';
     case 'NoAiKey':
-      return 'No rule matched; sentence rules are off without an AI key (Settings → Triage)';
+      return 'No rule matched; sentence rules are off without an AI key (Settings → AI Triage)';
     default:
       return 'No rule matched';
   }
@@ -289,9 +289,7 @@ export const ThreadCard = ({
               rows={2}
               value={reason}
               placeholder={
-                feedback === 'Spam'
-                  ? 'e.g. ClickUp e-mails are covered by the ClickUp connection'
-                  : 'e.g. anything from my boss is important'
+                feedback === 'Spam' ? meta.spamExample : 'e.g. anything from my boss is important'
               }
               onChange={(e) => setReason(e.target.value)}
               onKeyDown={(e) => {
