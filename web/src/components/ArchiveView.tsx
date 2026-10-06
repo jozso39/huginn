@@ -99,10 +99,14 @@ export const ArchiveView = ({ items, connections, onChanged }: ArchiveViewProps)
                   </ol>
                 )}
                 <div className="archive__buttons">
-                  {item.url && (
-                    <a href={item.url} target="_blank" rel="noreferrer">
-                      Open in {meta.label}
-                    </a>
+                  {item.appUrl ? (
+                    <a href={item.appUrl}>Open in {meta.label}</a>
+                  ) : (
+                    item.url && (
+                      <a href={item.url} target="_blank" rel="noreferrer">
+                        Open in {meta.label}
+                      </a>
+                    )
                   )}
                   <button type="button" onClick={() => void api.reopen(item.id).then(onChanged)}>
                     Move back to inbox

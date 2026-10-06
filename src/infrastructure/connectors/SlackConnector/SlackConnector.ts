@@ -20,6 +20,7 @@ import { SlackChannelScope, SlackReadMode } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
 import {
   SlackRelevance,
+  appLink,
   attachmentTexts,
   attachmentViews,
   blocksText,
@@ -279,6 +280,7 @@ export class SlackConnector implements IConnector {
       title: SlackConnector.titleFor(verdict, author, where),
       body: body.slice(0, this.maxBodyChars),
       url: permalink(identity.teamUrl, event),
+      appUrl: appLink(identity.teamId, event),
       // The dashboard renders this like Slack does; the names are what it needs.
       rich: {
         format: RichFormat.SlackMrkdwn,

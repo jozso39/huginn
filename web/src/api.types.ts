@@ -28,6 +28,8 @@ export interface Item {
   title: string;
   body: string;
   url: string | null;
+  /** The same place in the installed app (slack://…); preferred when present. */
+  appUrl: string | null;
   rich: RichContent | null;
   status: ItemStatus | null;
   receivedAt: string;

@@ -34,6 +34,7 @@ export const items = sqliteTable(
     title: text('title').notNull(),
     body: text('body').notNull(),
     url: text('url'),
+    appUrl: text('app_url'),
     rich: text('rich', { mode: 'json' }).$type<Record<string, unknown> | null>(),
     status: text('status', { mode: 'json' }).$type<Record<string, unknown> | null>(),
     receivedAt: integer('received_at', { mode: 'timestamp_ms' }).notNull(),

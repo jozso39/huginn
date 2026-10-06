@@ -149,6 +149,20 @@ export const permalink = (teamUrl: string, event: SlackMessageEvent): string => 
     : base;
 };
 
+/**
+ * The same message in the Slack app. `message` (and `thread_ts` for a reply) is what
+ * Slack's own clients use; without them the app still opens the conversation.
+ */
+export const appLink = (teamId: string, event: SlackMessageEvent): string => {
+  const params = new URLSearchParams({ team: teamId, id: event.channel, message: event.ts });
+
+  if (event.thread_ts && event.thread_ts !== event.ts) {
+    params.set('thread_ts', event.thread_ts);
+  }
+
+  return `slack://channel?${params.toString()}`;
+};
+
 const USER_REF = /<@([UW][A-Z0-9]+)(?:\|[^>]*)?>/g;
 const CHANNEL_REF = /<#([CG][A-Z0-9]+)(?:\|([^>]*))?>/g;
 

@@ -1,0 +1,1 @@
+ALTER TABLE `items` ADD `app_url` text;

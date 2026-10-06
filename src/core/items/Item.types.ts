@@ -101,6 +101,11 @@ export interface Item {
   readonly body: string;
   /** Deep link to the message in its own tool. */
   readonly url: string | null;
+  /**
+   * The same place in the tool's installed app (`slack://…`), opened instead of `url`
+   * when present, so the browser is skipped.
+   */
+  readonly appUrl: string | null;
   /** Stored rich form when it is small (Slack); large ones (e-mail) are fetched on demand. */
   readonly rich: RichContent | null;
   /** Refreshed with the item, so it follows the source (an MR gets merged). */
@@ -130,4 +135,8 @@ export type NewItem = Pick<
   | 'receivedAt'
   | 'features'
   | 'raw'
-> & { readonly rich?: RichContent | null; readonly status?: ItemStatus | null };
+> & {
+  readonly rich?: RichContent | null;
+  readonly status?: ItemStatus | null;
+  readonly appUrl?: string | null;
+};

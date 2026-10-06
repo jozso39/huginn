@@ -5,6 +5,7 @@ import { ItemKind } from '@/core/items/Item.types';
 import { SlackChannelScope } from './SlackConnector.types';
 import type { RelevanceContext } from './SlackConnector.utils';
 import {
+  appLink,
   channelsToCheck,
   readItemIds,
   attachmentViews,
@@ -244,5 +245,16 @@ describe('read in Slack', () => {
     expect(channelsToCheck(open, 20)).toEqual(['D1', 'C1']);
     expect(channelsToCheck([{ externalId: 'C2:1.1', threadKey: 'C2:0.5' }], 20)).toEqual([]);
     expect(channelsToCheck(open, 1)).toEqual(['D1']);
+  });
+});
+
+describe('opening in the Slack app', () => {
+  test('a message links to itself in the app; a reply also names its thread', () => {
+    const event = { type: 'message' as const, channel: 'C1', ts: '1700000500.000200' };
+
+    expect(appLink('T9', event)).toBe('slack://channel?team=T9&id=C1&message=1700000500.000200');
+    expect(appLink('T9', { ...event, thread_ts: '1700000000.000100' })).toBe(
+      'slack://channel?team=T9&id=C1&message=1700000500.000200&thread_ts=1700000000.000100'
+    );
   });
 });

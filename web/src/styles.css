@@ -1263,3 +1263,12 @@ a.slack-attachment__title:hover {
 .button-link:hover {
   background: var(--surface-2);
 }
+
+.thread__title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.thread__title-link:hover {
+  text-decoration: underline;
+}

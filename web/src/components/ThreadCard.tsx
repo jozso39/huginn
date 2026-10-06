@@ -9,6 +9,7 @@ import type {
 } from '../api.types';
 import { CONNECTOR_META, KIND_LABEL, QUICK_EMOJI, relativeTime } from '../connectorMeta';
 import { ConnectorIcon } from './ConnectorIcon';
+import { itemLink, openLinkProps } from '../openLink';
 import { MessageBody } from './MessageBody';
 import { StatusPill } from './StatusPill';
 
@@ -96,6 +97,7 @@ export const ThreadCard = ({
   }
 
   const meta = CONNECTOR_META[connection?.kind ?? 'Ingest'];
+  const link = itemLink(latest);
 
   const run = async (action: () => Promise<Item | Item[]>) => {
     setBusy(true);
@@ -155,11 +157,22 @@ export const ThreadCard = ({
       onClick={onSelect}
     >
       <header className="thread__head">
-        <ConnectorIcon kind={connection?.kind ?? 'Ingest'} href={latest.url} />
+        <ConnectorIcon kind={connection?.kind ?? 'Ingest'} href={link} />
         <div className="thread__titles">
           <h3 className="thread__title">
             <StatusPill status={latest.status} />
-            {latest.title}
+            {link ? (
+              <a
+                className="thread__title-link"
+                {...openLinkProps(link)}
+                title={`Open in ${meta.label}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {latest.title}
+              </a>
+            ) : (
+              latest.title
+            )}
           </h3>
           <p className="thread__meta">
             <span>{latest.author}</span>

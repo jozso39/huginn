@@ -1,5 +1,6 @@
 import type { ConnectorKind } from '../api.types';
 import { CONNECTOR_META } from '../connectorMeta';
+import { openLinkProps } from '../openLink';
 
 interface ConnectorIconProps {
   kind: ConnectorKind;
@@ -23,9 +24,7 @@ export const ConnectorIcon = ({ kind, small = false, href }: ConnectorIconProps)
     <a
       className={className}
       style={style}
-      href={href}
-      target="_blank"
-      rel="noreferrer"
+      {...openLinkProps(href)}
       title={`Open in ${meta.label}`}
       onClick={(e) => e.stopPropagation()}
     >

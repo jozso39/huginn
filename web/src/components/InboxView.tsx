@@ -182,6 +182,9 @@ export const InboxView = ({ items, connections, kinds, onChanged }: InboxViewPro
       } else if ((event.key === 'i' || event.key === 's') && thread) {
         event.preventDefault();
         setFeedbackFor({ key: thread.key, verdict: event.key === 'i' ? 'Important' : 'Spam' });
+      } else if (event.key === 'o' && thread?.items[0]?.appUrl) {
+        // An app link replaces nothing: the browser hands it to the app and stays here.
+        window.location.assign(thread.items[0].appUrl);
       } else if (event.key === 'o' && thread?.items[0]?.url) {
         window.open(thread.items[0].url, '_blank', 'noopener');
       }
