@@ -29,6 +29,10 @@ describe('local access (the Mac app)', () => {
     expect(launched.status).toBe(302);
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Strict');
+    // The page may read that it runs in the app (no secret); the session stays hidden.
+    expect(launched.headers.getSetCookie()).toContainEqual(
+      expect.stringMatching(/^huginn_app=1; Path=\/; SameSite=Strict$/)
+    );
 
     const session = cookie.split(';')[0] ?? '';
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import type { RichContent } from '../api.types';
+import { inMacApp, routeLinksOutside } from '../openLink';
 
 interface EmailFrameProps {
   itemId: string;
@@ -98,6 +99,11 @@ export const EmailFrame = ({ itemId, openUrl }: EmailFrameProps) => {
           const doc = frame.current?.contentDocument;
 
           setHeight(Math.min(doc?.documentElement.scrollHeight ?? 200, MAX_HEIGHT));
+
+          // The mail's links open new windows, which go nowhere in the Mac app.
+          if (doc && inMacApp()) {
+            routeLinksOutside(doc);
+          }
         }}
       />
     </div>

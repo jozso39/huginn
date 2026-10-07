@@ -149,10 +149,6 @@ export const SignInConnect = ({ descriptor, onConnected }: SignInConnectProps) =
           {provider} sign-in settings
         </button>
       </div>
-      <p className="muted small">
-        The connection is named after the account. Signing in with an account you already connected
-        renews that connection instead.
-      </p>
       {stage.step === 'failed' && <p className="error">{stage.error}</p>}
       {error && <p className="error">{error}</p>}
     </div>

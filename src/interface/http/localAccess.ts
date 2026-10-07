@@ -3,6 +3,11 @@ import type { MiddlewareHandler } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 
 const SESSION_COOKIE = 'huginn_session';
+/**
+ * Readable by the page, unlike the session, and no secret: it only tells the web app
+ * that it runs in the Mac app's window (web/src/openLink.ts routes links by it).
+ */
+const APP_COOKIE = 'huginn_app';
 
 /** Constant-time string comparison for secrets. */
 export const sameSecret = (given: string, expected: string): boolean => {
@@ -57,6 +62,7 @@ export const localAccess =
         sameSite: 'Strict',
         path: '/',
       });
+      setCookie(c, APP_COOKIE, '1', { sameSite: 'Strict', path: '/' });
 
       return c.redirect('/');
     }
