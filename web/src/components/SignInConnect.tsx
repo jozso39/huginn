@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { Connection, ConnectorDescriptor, OAuthAppView, OAuthProvider } from '../api.types';
+import { SignInGuide } from './ConnectorGuides';
 import { OAuthAppForm } from './OAuthAppForm';
 
 interface SignInConnectProps {
@@ -139,10 +140,7 @@ export const SignInConnect = ({ descriptor, onConnected }: SignInConnectProps) =
 
   return (
     <div className="sign-in-connect">
-      <p className="muted small">
-        Pick the account at {provider}; the connection is created and named after it. Signing in
-        with an account you already connected refreshes that connection.
-      </p>
+      <SignInGuide kind={descriptor.kind} />
       <div className="form-buttons">
         <button type="button" className="primary" onClick={() => void signIn()}>
           Sign in with {provider}
@@ -151,6 +149,10 @@ export const SignInConnect = ({ descriptor, onConnected }: SignInConnectProps) =
           {provider} sign-in settings
         </button>
       </div>
+      <p className="muted small">
+        The connection is named after the account. Signing in with an account you already connected
+        renews that connection instead.
+      </p>
       {stage.step === 'failed' && <p className="error">{stage.error}</p>}
       {error && <p className="error">{error}</p>}
     </div>

@@ -328,11 +328,6 @@ export const ConnectionsView = ({
               onLinked={connected}
             />
           )}
-          {(newDescriptor?.signInProvider ?? newDescriptor?.pairing) && (
-            <p className="muted small">
-              Once it is connected, its settings open here for the category and colour.
-            </p>
-          )}
           {newDescriptor && !newDescriptor.signInProvider && !newDescriptor.pairing && (
             // Keyed by kind so switching type starts a fresh form with that type's defaults.
             <ConnectionForm

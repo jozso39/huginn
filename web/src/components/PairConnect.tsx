@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { renderSVG } from 'uqr';
 import { api } from '../api';
 import type { Connection, ConnectorKind } from '../api.types';
+import { PairingGuide } from './ConnectorGuides';
 
 interface PairConnectProps {
   target: { kind: ConnectorKind } | { connectionId: string };
@@ -83,6 +84,7 @@ export const PairConnect = ({ target, onLinked }: PairConnectProps) => {
 
   return (
     <div className="pairing">
+      <PairingGuide />
       {stage.step === 'failed' && <p className="error">{stage.error}</p>}
       <button type="button" className="primary" onClick={() => void start()}>
         {stage.step === 'failed' ? 'Try again' : 'Link my phone'}

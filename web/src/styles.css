@@ -640,11 +640,49 @@ kbd {
   margin: 0;
 }
 
-.steps {
+/* How to get what a connection needs: numbered steps in a frame of their own. */
+.setup-guide {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 14px;
+}
+
+.setup-guide__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+details.setup-guide > summary {
+  cursor: pointer;
+}
+
+details.setup-guide[open] > summary {
+  margin-bottom: 8px;
+}
+
+.setup-guide__body {
+  display: grid;
+  gap: 8px;
+}
+
+.setup-guide__body p {
+  margin: 0;
+}
+
+.setup-guide ol {
   margin: 0;
   padding-left: 20px;
   display: grid;
   gap: 6px;
+}
+
+.setup-guide code {
+  font-size: 13px;
 }
 
 .copy-field {

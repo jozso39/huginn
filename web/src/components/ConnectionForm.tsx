@@ -7,6 +7,7 @@ import type {
 } from '../api.types';
 import { CategoryPicker } from './CategoryPicker';
 import { ColorPicker } from './ColorPicker';
+import { TokenGuide } from './ConnectorGuides';
 
 export interface ConnectionFormValues {
   name: string;
@@ -128,6 +129,7 @@ export const ConnectionForm = ({
         void submit();
       }}
     >
+      <TokenGuide kind={descriptor.kind} config={config} folded={Boolean(existing)} />
       <label>
         Name
         <input

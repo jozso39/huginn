@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import type { OAuthAppView, RedirectMode } from '../api.types';
+import { SetupGuide } from './SetupGuide';
 
 interface OAuthAppFormProps {
   app: OAuthAppView;
@@ -76,22 +77,25 @@ const SlackAppForm = ({ app, onSaved, onCancel }: OAuthAppFormProps) => {
         void save();
       }}
     >
-      <ol className="steps small">
-        <li>
-          Your company&apos;s Huginn Slack app is created once, by a Slack admin, from the{' '}
-          <a href={SLACK_GUIDE} target="_blank" rel="noreferrer">
-            manifest in the setup guide
-          </a>
-          . Its redirect URLs must list:
-          {app.registerUris.map((uri) => (
-            <CopyField key={uri} value={uri} />
-          ))}
-        </li>
-        <li>
-          Paste the app&apos;s <strong>Client ID</strong> (Basic Information → App Credentials)
-          below. It is not a secret: colleagues use the same one, then each signs in as themselves.
-        </li>
-      </ol>
+      <SetupGuide title="Setting up Slack sign-in (once per Mac)">
+        <ol>
+          <li>
+            A Slack admin creates your company&apos;s Huginn app once, from the{' '}
+            <a href={SLACK_GUIDE} target="_blank" rel="noreferrer">
+              manifest in the setup guide
+            </a>
+            . Its redirect URLs must list:
+            {app.registerUris.map((uri) => (
+              <CopyField key={uri} value={uri} />
+            ))}
+          </li>
+          <li>
+            Paste the app&apos;s <strong>Client ID</strong> below (at api.slack.com/apps → Huginn →{' '}
+            <strong>Basic Information → App Credentials</strong>). It is not a secret: colleagues
+            use the same one, then each signs in as themselves.
+          </li>
+        </ol>
+      </SetupGuide>
       <label>
         Client ID
         <input
@@ -176,30 +180,58 @@ const GoogleAppForm = ({ app, onSaved, onCancel }: OAuthAppFormProps) => {
         void save();
       }}
     >
-      <ol className="steps small">
-        <li>
-          Open{' '}
-          <a
-            href="https://console.cloud.google.com/apis/credentials"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Google Cloud → Credentials
-          </a>{' '}
-          in the project that has the Gmail API enabled.
-        </li>
-        <li>
-          <strong>Create credentials → OAuth client ID → Web application.</strong>
-        </li>
-        <li>
-          Under <em>Authorised redirect URIs</em> add
-          {toRegister.length > 1 ? ' all of these (Huginn takes the first free port)' : ''}:
-          {toRegister.map((uri) => (
-            <CopyField key={uri} value={uri} />
-          ))}
-        </li>
-        <li>Create, then paste the client ID and secret below.</li>
-      </ol>
+      <SetupGuide title="Setting up Google sign-in (once per Mac)">
+        <p>
+          Did a colleague or your admin already make Huginn&apos;s Google client? Ask them for its
+          client ID and secret and skip to the fields below.
+        </p>
+        <ol>
+          <li>
+            In{' '}
+            <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer">
+              Google Cloud
+            </a>
+            , pick the project (top left). For work mail, one in your company&apos;s organisation.
+          </li>
+          <li>
+            Turn on the{' '}
+            <a
+              href="https://console.cloud.google.com/apis/library/gmail.googleapis.com"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Gmail API
+            </a>
+            : <strong>Enable</strong>.
+          </li>
+          <li>
+            In{' '}
+            <a
+              href="https://console.cloud.google.com/auth/overview"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Google Auth Platform
+            </a>
+            , <strong>Get started</strong> if it asks: app name <em>Huginn</em>, your e-mail.
+            Audience <strong>Internal</strong> lets in only your company&apos;s accounts;{' '}
+            <strong>External</strong> also personal Gmail, then <strong>Publish app</strong> under
+            Audience (while testing, sign-ins expire after 7 days).
+          </li>
+          <li>
+            <strong>Clients → Create client → Web application</strong>, name <em>Huginn</em>. Under{' '}
+            <strong>Authorised redirect URIs</strong> add
+            {toRegister.length > 1 ? ' all of these (Huginn takes the first free port)' : ''}:
+            {toRegister.map((uri) => (
+              <CopyField key={uri} value={uri} />
+            ))}
+          </li>
+          <li>
+            <strong>Create</strong>, then copy the client ID and secret into the fields below. Copy
+            the secret right away: Google does not show it again.
+          </li>
+        </ol>
+      </SetupGuide>
       {available.length > 1 && (
         <label>
           How Google returns you to Huginn
