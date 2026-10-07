@@ -13,6 +13,25 @@ export const itemLink = (item: { appUrl: string | null; url: string | null }): s
 /** The Mac app's window rather than a browser tab: the server marks it at launch. */
 export const inMacApp = (): boolean => document.cookie.split('; ').includes('huginn_app=1');
 
+/** Shortcuts use ⌘ on a Mac and Ctrl elsewhere. */
+export const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+/** How the shortcut key is written in hints. */
+export const MOD = isMac ? '⌘' : 'Ctrl+';
+
+/**
+ * Opens an item's link from code (a shortcut), as a click on it would: an app link
+ * hands over to its app; a web page opens in a new tab, or — in the Mac app, where new
+ * windows go nowhere — through the shell, which opens it in the browser.
+ */
+export const openOutside = (href: string): void => {
+  if (/^https?:/i.test(href) && !inMacApp()) {
+    window.open(href, '_blank', 'noopener');
+  } else {
+    window.location.assign(href);
+  }
+};
+
 const OUTSIDE = new Set(['http:', 'https:', 'mailto:']);
 
 const parse = (href: string, base: string): URL | null => {

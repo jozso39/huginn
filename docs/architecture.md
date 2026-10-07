@@ -169,9 +169,18 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
   backgrounded tab becomes visible (phones freeze tabs).
 - `InboxView` — category tabs; one section per category (a connection without one gets
   its own), collapsed by default (open ones remembered in `localStorage` by id), header
-  counts; keyboard `j/k r e i s o`; a toast for results that outlive their card. Cards
-  are tinted with their connection's colour: `styles.css` mixes `--tint-mix` of it into
-  the surface, so any colour stays a readable shade in both themes.
+  counts; a toast for results that outlive their card. Cards are tinted with their
+  connection's colour: `styles.css` mixes `--tint-mix` of it into the surface, so any
+  colour stays a readable shade in both themes. Stays mounted (hidden) on other tabs, so
+  `⌘B` / `⌘X` work everywhere and nothing typed is lost.
+- `SidePanel` — everything waiting as Important / Undecided / Spam (folded), by
+  connection, each conversation with its first lines (`previewOf`). One selection spans
+  both panels: `↑ ↓` walk the panel that has the keyboard and the other follows (the inbox
+  switches filter and opens the section); `⌘↑ ⌘↓` jump between categories (sections in
+  the inbox), `R E D I S` act on the selected message, `⌘↵` opens it at the source, `⌘B`
+  focuses / closes / opens the panel, `⌘X` returns to the messages. Done hides a thread
+  at once and the selection keeps its place. The orders and the jumps are plain
+  functions in `inboxModel.ts`, tested on their own.
 - `SettingsView` — connections by category with an *Add connection* button, categories
   (`CategoriesManager`, folded), quick reactions (`ReactionsPicker`: typed emoji, checked
   as you type and again on the server) and the theme (`theme.ts`; `index.html` restores

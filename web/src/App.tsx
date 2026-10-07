@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ArchiveView } from './components/ArchiveView';
 import { InboxView } from './components/InboxView';
 import { RulesView } from './components/RulesView';
 import { SettingsView } from './components/SettingsView';
+import { MOD } from './openLink';
 import { applyTheme } from './theme';
 import { useHuginn } from './useHuginn';
 
@@ -21,6 +22,35 @@ interface Route {
   /** #settings/categories: when it was asked for, so asking again is a new request. */
   categoriesAt: number | null;
 }
+
+const SIDE_KEY = 'huginn.sidePanel';
+
+/** Open unless closed before; on a phone-sized screen it starts closed (it covers the inbox). */
+const loadSideOpen = (): boolean => {
+  try {
+    const stored = localStorage.getItem(SIDE_KEY);
+
+    return stored ? stored === 'open' : !window.matchMedia('(max-width: 760px)').matches;
+  } catch {
+    return true;
+  }
+};
+
+const SidePanelIcon = () => (
+  <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
+    <rect
+      x="2.75"
+      y="3.75"
+      width="14.5"
+      height="12.5"
+      rx="2.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    />
+    <path d="M7.75 3.75v12.5" stroke="currentColor" strokeWidth="1.5" />
+  </svg>
+);
 
 const routeFromHash = (): Route => {
   const hash = window.location.hash.replace('#', '');
@@ -58,6 +88,7 @@ export const App = () => {
     removeAiKey,
   } = useHuginn();
   const [route, setRoute] = useState<Route>(routeFromHash);
+  const [sideOpen, setSideOpen] = useState(loadSideOpen);
   const { tab, rulesFor } = route;
   const rulesConnection = connections.find((c) => c.id === rulesFor);
   const theme = settings?.theme;
@@ -99,14 +130,41 @@ export const App = () => {
 
   const failing = connections.filter((c) => c.status === 'Error');
 
+  const openSide = useCallback((open: boolean) => {
+    setSideOpen(open);
+
+    try {
+      localStorage.setItem(SIDE_KEY, open ? 'open' : 'closed');
+    } catch {
+      // Storage unavailable: it just is not remembered.
+    }
+  }, []);
+
+  // At once, not on the hashchange: the inbox must be showing when ⌘B / ⌘X focus it.
+  const showInbox = useCallback(() => {
+    setRoute({ tab: 'inbox', rulesFor: null, categoriesAt: null });
+    window.location.assign('#inbox');
+  }, []);
+
   return (
     <div className="app">
       <header className="topbar">
+        <button
+          type="button"
+          className="icon-button topbar__side"
+          aria-label={sideOpen ? 'Hide the side panel' : 'Show the side panel'}
+          aria-pressed={sideOpen}
+          title={`Side panel (${MOD}B)`}
+          hidden={tab !== 'inbox'}
+          onClick={() => openSide(!sideOpen)}
+        >
+          <SidePanelIcon />
+        </button>
         <div className="brand">
           <img src="/logo.png" alt="" width={30} height={30} />
           <span>Huginn</span>
         </div>
-        <nav className="tabs">
+        <nav className="topbar__tabs">
           {TABS.map((t) => (
             <a key={t.id} href={`#${t.id}`} className={tab === t.id ? 'tab tab--on' : 'tab'}>
               {t.label}
@@ -124,39 +182,47 @@ export const App = () => {
 
       {error && <p className="banner error">Cannot reach the server: {error}</p>}
 
-      <main className="content">
-        {tab === 'inbox' && (
-          <InboxView
-            items={open}
-            connections={connections}
-            kinds={kinds}
-            groups={groups}
-            reactions={reactions}
-            onChanged={applyItem}
-          />
+      <div className="workspace">
+        <InboxView
+          visible={tab === 'inbox'}
+          items={open}
+          connections={connections}
+          kinds={kinds}
+          groups={groups}
+          reactions={reactions}
+          sideOpen={sideOpen}
+          onSideOpen={openSide}
+          onShow={showInbox}
+          onChanged={applyItem}
+        />
+        {tab !== 'inbox' && (
+          <main className="pane">
+            <div className="page">
+              {tab === 'archive' && (
+                <ArchiveView items={closed} connections={connections} onChanged={applyItem} />
+              )}
+              {tab === 'settings' && rulesConnection && (
+                <RulesView connection={rulesConnection} hasAiKey={ai !== null} />
+              )}
+              {tab === 'settings' && !rulesConnection && (
+                <SettingsView
+                  connections={connections}
+                  kinds={kinds}
+                  groups={groups}
+                  settings={settings}
+                  ai={ai}
+                  categoriesRequest={route.categoriesAt}
+                  onChanged={refresh}
+                  onCreateGroup={createGroup}
+                  saveSettings={saveSettings}
+                  onSaveAiKey={saveAiKey}
+                  onRemoveAiKey={removeAiKey}
+                />
+              )}
+            </div>
+          </main>
         )}
-        {tab === 'archive' && (
-          <ArchiveView items={closed} connections={connections} onChanged={applyItem} />
-        )}
-        {tab === 'settings' && rulesConnection && (
-          <RulesView connection={rulesConnection} hasAiKey={ai !== null} />
-        )}
-        {tab === 'settings' && !rulesConnection && (
-          <SettingsView
-            connections={connections}
-            kinds={kinds}
-            groups={groups}
-            settings={settings}
-            ai={ai}
-            categoriesRequest={route.categoriesAt}
-            onChanged={refresh}
-            onCreateGroup={createGroup}
-            saveSettings={saveSettings}
-            onSaveAiKey={saveAiKey}
-            onRemoveAiKey={removeAiKey}
-          />
-        )}
-      </main>
+      </div>
     </div>
   );
 };

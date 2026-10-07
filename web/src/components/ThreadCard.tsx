@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import type {
@@ -10,7 +11,7 @@ import type {
 import { tint } from '../colors';
 import { KIND_LABEL, metaOf, relativeTime } from '../connectorMeta';
 import { ConnectorIcon } from './ConnectorIcon';
-import { itemLink, openLinkProps } from '../openLink';
+import { itemLink, MOD, openLinkProps } from '../openLink';
 import { MessageBody } from './MessageBody';
 import { StatusPill } from './StatusPill';
 
@@ -22,15 +23,17 @@ interface ThreadCardProps {
   /** The quick reactions chosen in Settings, as emoji. */
   reactions: string[];
   selected: boolean;
-  /** Owned by the inbox so the `r` shortcut and the button open the same box. */
+  /** Owned by the inbox so the R shortcut and the button open the same box. */
   replying: boolean;
   onStartReply: () => void;
   onCloseReply: () => void;
-  /** Also owned by the inbox, for the `i` / `s` shortcuts. */
+  /** Also owned by the inbox, for the I / S shortcuts. */
   feedback: Verdict | null;
   onStartFeedback: (verdict: Verdict) => void;
   onCloseFeedback: () => void;
   onSelect: () => void;
+  /** Closes the whole thread (the inbox hides it at once, like the D shortcut). */
+  onDone: () => void;
   onChanged: (item: Item) => void;
   /** Messages that must outlive the card (it may leave the view after Spam). */
   onNotice: (message: string) => void;
@@ -73,6 +76,7 @@ export const ThreadCard = ({
   onStartFeedback,
   onCloseFeedback,
   onSelect,
+  onDone,
   onChanged,
   onNotice,
 }: ThreadCardProps) => {
@@ -86,10 +90,18 @@ export const ThreadCard = ({
   const cardRef = useRef<HTMLElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
+  // Into view when selected; a card taller than the pane from its top, to be read.
   useEffect(() => {
-    if (selected) {
-      cardRef.current?.scrollIntoView({ block: 'nearest' });
+    const card = cardRef.current;
+
+    if (!selected || !card) {
+      return;
     }
+
+    const pane = card.closest('.pane');
+    const tall = pane !== null && card.offsetHeight > pane.clientHeight;
+
+    card.scrollIntoView({ block: tall ? 'start' : 'nearest' });
   }, [selected]);
 
   useEffect(() => {
@@ -156,6 +168,46 @@ export const ThreadCard = ({
       return item;
     });
 
+  const react = (emoji: string) =>
+    run(async () => {
+      const item = await api.react(latest.id, emoji);
+
+      setNotice(`Reacted with ${emoji}.`);
+
+      return item;
+    });
+
+  const backToList = () =>
+    cardRef.current?.closest<HTMLElement>('.pane')?.focus({ preventScroll: true });
+
+  // E puts the keyboard on the reactions: ← → choose, ↵ (or 1–9) reacts, Esc goes back.
+  const onEmojiKey = (event: KeyboardEvent<HTMLSpanElement>) => {
+    const buttons = [...event.currentTarget.querySelectorAll('button')];
+    const at = buttons.findIndex((button) => button === document.activeElement);
+    const digit = Number(event.key);
+    const chosen =
+      event.key === 'Enter' || event.key === ' '
+        ? reactions[at]
+        : digit >= 1 && digit <= 9
+          ? reactions[digit - 1]
+          : undefined;
+
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      buttons[
+        (at + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length
+      ]?.focus();
+    } else if (event.key === 'Escape') {
+      event.stopPropagation();
+      backToList();
+    } else if (chosen) {
+      event.preventDefault();
+      event.stopPropagation();
+      backToList();
+      void react(chosen);
+    }
+  };
+
   return (
     <article
       ref={cardRef}
@@ -172,7 +224,7 @@ export const ThreadCard = ({
               <a
                 className="thread__title-link"
                 {...openLinkProps(link)}
-                title={`Open in ${meta.label}`}
+                title={`Open in ${meta.label} (${MOD}↵)`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {latest.title}
@@ -317,24 +369,26 @@ export const ThreadCard = ({
 
       <footer className="thread__actions" onClick={(e) => e.stopPropagation()}>
         {capabilities.reply && !replying && (
-          <button type="button" onClick={() => onStartReply()} disabled={busy} title="r">
+          <button type="button" onClick={() => onStartReply()} disabled={busy} title="Reply (R)">
             Reply
           </button>
         )}
-        {capabilities.react && (
-          <span className="emoji-row">
-            {reactions.map((emoji) => (
+        {capabilities.react && reactions.length > 0 && (
+          <span className="emoji-row" onKeyDown={onEmojiKey}>
+            {reactions.map((emoji, index) => (
               <button
                 key={emoji}
                 type="button"
                 className="emoji"
                 aria-label={`React with ${emoji}`}
+                title={index < 9 ? `React with ${emoji} (E, then ${index + 1})` : undefined}
                 disabled={busy}
-                onClick={() => void run(() => api.react(latest.id, emoji))}
+                onClick={() => void react(emoji)}
               >
                 {emoji}
               </button>
             ))}
+            <span className="emoji-row__hint">← → choose · ↵ react · Esc back</span>
           </span>
         )}
         <span className="spacer" />
@@ -343,22 +397,22 @@ export const ThreadCard = ({
             type="button"
             onClick={() => onStartFeedback('Important')}
             disabled={busy}
-            title="i"
+            title="Important (I)"
           >
             Important
           </button>
         )}
         {!feedback && latest.category !== 'Spam' && (
-          <button type="button" onClick={() => onStartFeedback('Spam')} disabled={busy} title="s">
+          <button
+            type="button"
+            onClick={() => onStartFeedback('Spam')}
+            disabled={busy}
+            title="Spam (S)"
+          >
             Spam
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => void run(() => Promise.all(items.map((i) => api.done(i.id))))}
-          disabled={busy}
-          title="e"
-        >
+        <button type="button" onClick={onDone} disabled={busy} title="Done (D)">
           Done
         </button>
       </footer>

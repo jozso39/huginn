@@ -41,7 +41,11 @@ items), and updates itself: it checks every hour and installs on restart.
 - Messages look like they do at the source: Slack's formatting rendered like Slack;
   e-mail as a clean preview that opens into the real HTML in a sandbox, with no scripts
   and no remote images until you ask.
-- Keyboard: `j`/`k` move, `r` reply, `e` done, `i` important, `s` spam, `o` open in source.
+- A **side panel** (`⌘B`) with everything waiting: Important, Undecided and (folded) Spam,
+  by connection, each message with its first lines; a click opens it in the inbox.
+- Keyboard: `↑`/`↓` move, `⌘↑`/`⌘↓` next or previous category, `R` reply, `E` react,
+  `D` done, `I` important, `S` spam, `⌘↵` open in source, `⌘B` side panel, `⌘X` back to
+  the messages.
 - Tokens are encrypted on disk (AES-256-GCM) with a key that never leaves the Mac.
 
 ## Connections

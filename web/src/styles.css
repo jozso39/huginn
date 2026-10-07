@@ -11,6 +11,13 @@
   --ok: #2f7a4d;
   --warn: #a8741a;
   --select: #2f5d8a33;
+  /* The selected message's border: darker than everything in light, lighter in dark. */
+  --focus-ring: #34363c;
+  /* Fields stand out from the surface they sit on. */
+  --field-bg: #ffffff;
+  --field-border: #aeaba3;
+  --field-border-hover: #86837b;
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%2346484e' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --radius: 10px;
   /* Status pills copy GitLab's badge colours (Pajamas design system). */
   --pill-success-bg: #c3e6cd;
@@ -46,6 +53,11 @@
     --ok: #6cc28d;
     --warn: #e0b060;
     --select: #7aa7d633;
+    --focus-ring: #d4d7dd;
+    --field-bg: #121418;
+    --field-border: #535b67;
+    --field-border-hover: #707986;
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%23b4b7bd' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --pill-success-bg: #0d532a;
     --pill-success-text: #91d4a8;
     --pill-info-bg: #033464;
@@ -76,6 +88,11 @@
   --ok: #6cc28d;
   --warn: #e0b060;
   --select: #7aa7d633;
+  --focus-ring: #d4d7dd;
+  --field-bg: #121418;
+  --field-border: #535b67;
+  --field-border-hover: #707986;
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%23b4b7bd' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --pill-success-bg: #0d532a;
   --pill-success-text: #91d4a8;
   --pill-info-bg: #033464;
@@ -159,14 +176,47 @@ button.danger-solid:hover {
   border-color: #a51f1f;
 }
 
-input,
+/* Text fields and dropdowns: a firm border on their own background, so they stand out
+   from the card they are on; the accent and a soft ring while typing. */
+input:where(:not([type='checkbox'], [type='radio'], [type='range'], [type='color'])),
 select,
 textarea {
   width: 100%;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: 1.5px solid var(--field-border);
+  background-color: var(--field-bg);
   border-radius: 8px;
-  padding: 7px 10px;
+  padding: 8px 12px;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+
+input:where(:not([type='checkbox'], [type='radio'], [type='range'], [type='color'])):hover,
+select:hover,
+textarea:hover {
+  border-color: var(--field-border-hover);
+}
+
+input:where(:not([type='checkbox'], [type='radio'], [type='range'], [type='color'])):focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--select);
+}
+
+/* WebKit draws its own dropdowns at a fixed, short height; drawn here instead, they are
+   as tall as the text fields beside them, with room for the arrow. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 10em;
+  padding-right: 38px;
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 12px 8px;
+  cursor: pointer;
 }
 
 textarea {
@@ -196,21 +246,82 @@ kbd {
 }
 
 .app {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 0 16px 48px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 2;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 0;
+  gap: 14px;
+  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px
+    max(12px, env(safe-area-inset-left));
   background: var(--bg);
   border-bottom: 1px solid var(--border);
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  color: var(--muted);
+}
+
+.icon-button:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.icon-button[aria-pressed='true'] {
+  color: var(--text);
+}
+
+/* Only the inbox has a side panel; elsewhere the button keeps its place, unseen. */
+.topbar__side[hidden] {
+  display: inline-grid;
+  visibility: hidden;
+}
+
+/* Below the top bar: the inbox (side panel + messages) or a page, each scrolling on its own. */
+.workspace {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.pane {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.pane:focus {
+  outline: none;
+}
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 16px max(16px, env(safe-area-inset-right)) max(48px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+}
+
+.inbox-layout {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.inbox-layout[hidden] {
+  display: none;
 }
 
 .brand {
@@ -225,7 +336,7 @@ kbd {
   border-radius: 7px;
 }
 
-.tabs {
+.topbar__tabs {
   display: flex;
   gap: 4px;
   flex: 1;
@@ -282,11 +393,7 @@ kbd {
 }
 
 .banner {
-  margin: 12px 0 0;
-}
-
-.content {
-  padding-top: 16px;
+  margin: 10px 16px 0;
 }
 
 .sources {
@@ -319,12 +426,13 @@ kbd {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px 14px;
-  outline: 2px solid transparent;
+  scroll-margin: 12px;
 }
 
+/* The message the keys act on: a border darker than the rest in light, lighter in dark. */
 .thread--selected {
-  outline-color: var(--select);
-  border-color: var(--accent);
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 1px var(--focus-ring);
 }
 
 .thread__head {
@@ -435,6 +543,7 @@ kbd {
 
 .emoji-row {
   display: inline-flex;
+  align-items: center;
   gap: 2px;
 }
 
@@ -442,6 +551,24 @@ kbd {
   padding: 2px 6px;
   border-color: transparent;
   background: transparent;
+}
+
+.emoji:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Shown while E has the keyboard on the reactions. */
+.emoji-row__hint {
+  display: none;
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.emoji-row:focus-within .emoji-row__hint {
+  display: inline;
 }
 
 .empty {
@@ -736,19 +863,9 @@ details.setup-guide[open] > summary {
   }
 }
 
-/* Phones: respect the notch and home indicator, and make every control a comfortable
-   thumb target. `pointer: coarse` rather than width, so a small laptop window keeps
-   the compact controls. */
-.app {
-  padding-left: max(16px, env(safe-area-inset-left));
-  padding-right: max(16px, env(safe-area-inset-right));
-  padding-bottom: max(48px, env(safe-area-inset-bottom));
-}
-
-.topbar {
-  padding-top: max(12px, env(safe-area-inset-top));
-}
-
+/* Phones: the top bar and pages pad for the notch and home indicator (above), and every
+   control is a comfortable thumb target. `pointer: coarse` rather than width, so a
+   small laptop window keeps the compact controls. */
 @media (pointer: coarse) {
   button,
   .tab,
@@ -1411,7 +1528,7 @@ a.slack-attachment__title:hover {
 }
 
 .thread.thread--selected {
-  border-left-color: var(--accent);
+  border-left-color: var(--focus-ring);
 }
 
 .archive__row {
@@ -1519,10 +1636,14 @@ a.slack-attachment__title:hover {
   align-items: center;
   gap: 4px;
   padding-right: 10px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--field-border);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--field-bg);
   cursor: text;
+}
+
+.picker__field:hover {
+  border-color: var(--field-border-hover);
 }
 
 .picker__field--open,
@@ -1531,12 +1652,14 @@ a.slack-attachment__title:hover {
   box-shadow: 0 0 0 3px var(--select);
 }
 
-.picker__field input {
+.picker__field input,
+.picker__field input:focus {
   flex: 1;
   min-width: 0;
   border: 0;
   background: transparent;
   outline: none;
+  box-shadow: none;
 }
 
 .picker__clear {
@@ -1563,7 +1686,7 @@ a.slack-attachment__title:hover {
   z-index: 10;
   top: calc(100% + 6px);
   left: 0;
-  width: min(100%, 340px);
+  width: 100%;
   min-width: 240px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -1989,5 +2112,197 @@ a.slack-attachment__title:hover {
 @media (prefers-reduced-motion: reduce) {
   .tab-panel__body {
     animation: none;
+  }
+}
+
+/* The side panel: everything waiting, by category and connection. */
+.side {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.side__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 8px max(24px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+.side__list:focus {
+  outline: none;
+}
+
+.side__empty {
+  margin: 4px 10px;
+  font-size: 13px;
+}
+
+.side-cat + .side-cat {
+  margin-top: 12px;
+}
+
+.side-cat__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.side-cat__head:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.side-cat__chevron {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.15s;
+}
+
+.side-cat__head[aria-expanded='true'] .side-cat__chevron {
+  transform: rotate(90deg);
+}
+
+.side-cat__name {
+  flex: 1;
+  text-align: left;
+}
+
+.side-conn {
+  margin-top: 4px;
+}
+
+.side-conn__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px 3px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.side-conn__head .badge--small {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  padding: 2px;
+}
+
+.side-conn__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A conversation: who, where and when, then its first lines. Tinted like its cards. */
+.side-row {
+  margin: 2px 0;
+  padding: 6px 8px 7px 9px;
+  border-left: 3px solid color-mix(in oklab, var(--tint, var(--border)) 65%, transparent);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.side-row:hover {
+  background: var(--surface-2);
+}
+
+.side-row--on {
+  background: color-mix(in oklab, var(--text) 9%, transparent);
+}
+
+/* With the keyboard in the panel, the selected one is framed like the message it is. */
+.side--focused .side-row--on {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--focus-ring);
+}
+
+.side-row__top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.side-row__author {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.side-row__count {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.side-row__place {
+  flex-shrink: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.side-row__time {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 6px;
+  color: var(--muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.side-row__subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.side-row__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
+.side-row__subject + .side-row__text {
+  -webkit-line-clamp: 1;
+}
+
+/* Phones: the panel slides over the inbox instead of beside it. */
+@media (max-width: 760px) {
+  .side {
+    position: absolute;
+    z-index: 4;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(320px, 86vw);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 28%);
   }
 }
