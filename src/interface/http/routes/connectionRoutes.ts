@@ -5,6 +5,7 @@ import { parseBody } from '@/interface/http/validation.utils';
 import { RuleOrigin } from '@/core/triage/Rule.types';
 import {
   createConnectionBodySchema,
+  phoneLinkSchema,
   ruleDraftBodySchema,
   setEnabledBodySchema,
   signInBodySchema,
@@ -19,7 +20,8 @@ export const createConnectionRoutes = (container: Container) => {
 
   app.get('/', async (c) => c.json({ connections: await container.connectionService.list() }));
 
-  // Linking a phone (Signal): start returns the code to show as a QR; poll the status.
+  // Linking a phone (Signal, WhatsApp): start returns the code to show as a QR; poll the
+  // status, which carries the code to show now (WhatsApp replaces it while waiting).
   app.post('/pairings', async (c) => {
     const target = parseBody(signInBodySchema, await c.req.json());
 
@@ -29,6 +31,15 @@ export const createConnectionRoutes = (container: Container) => {
   app.get('/pairings/:id', (c) =>
     c.json(container.connectionService.pairingStatus(c.req.param('id')))
   );
+
+  // "Link with phone number instead": the code to type on that phone.
+  app.post('/pairings/:id/phone', async (c) => {
+    const { phoneNumber } = parseBody(phoneLinkSchema, await c.req.json());
+
+    return c.json({
+      code: await container.connectionService.pairingPhoneCode(c.req.param('id'), phoneNumber),
+    });
+  });
 
   app.get('/:id', async (c) => {
     const connection = await container.connectionService.get(c.req.param('id'));

@@ -19,6 +19,8 @@ export interface ConnectorDescriptor {
   readonly signInProvider: OAuthProvider | null;
   /** Set when connections of this kind are created by linking a phone (a QR code). */
   readonly pairing: boolean;
+  /** The phone can also link by typing a code (WhatsApp), for when scanning is awkward. */
+  readonly pairingByPhone: boolean;
   /** Why this kind cannot be added here (e.g. signal-cli is not installed); null when it can. */
   readonly unavailable: string | null;
 }
@@ -37,6 +39,8 @@ export interface PairingStart {
 
 export interface PairingStatus {
   readonly state: PairingState;
+  /** Waiting: the code to show now; some services replace it every few seconds. */
+  readonly code: string | null;
   readonly connection: Connection | null;
   /** Linked: whether the connection is new, or one linked again. */
   readonly created: boolean;
@@ -89,4 +93,6 @@ export interface IConnectionService {
   /** Starts linking a phone; the result finishes in the background. */
   beginPairing(target: SignInTarget): Promise<PairingStart>;
   pairingStatus(pairingId: string): PairingStatus;
+  /** "Link with phone number instead": the code to type on that phone. */
+  pairingPhoneCode(pairingId: string, phoneNumber: string): Promise<string>;
 }

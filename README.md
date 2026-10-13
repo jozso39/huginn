@@ -8,7 +8,7 @@
 > back to tell him what happened.
 
 One inbox for every channel you have to answer. Huginn is a Mac app that brings what is
-waiting for you from Slack, Gmail, GitLab, ClickUp, LinkedIn and Signal into one place,
+waiting for you from Slack, Gmail, GitLab, ClickUp, LinkedIn, Signal and WhatsApp into one place,
 sorts it into **Important**, **Undecided** and **Spam**, and lets you reply, react or
 mark it done without opening each tool. It runs on your Mac and keeps everything there.
 
@@ -58,6 +58,7 @@ items), and updates itself: it checks every hour and installs on restart.
 | **GitLab** | todos: review requests, mentions, assignments; done marks the todo done | in the app |
 | **LinkedIn** | messages, mentions and invitations, read from LinkedIn's e-mails in Gmail | [docs/linkedin.md](docs/linkedin.md) |
 | **Signal** | your own account as a linked device: DMs and mentions; reply and react as you. Needs `brew install signal-cli` | [docs/signal.md](docs/signal.md) |
+| **WhatsApp** | your own account as a linked device: DMs, mentions and answers to you; reply, react and mark read as you. Unofficial: WhatsApp may restrict numbers that use it | [docs/whatsapp.md](docs/whatsapp.md) |
 
 ## Development
 
@@ -83,7 +84,7 @@ the update and publishes both. Installed copies pick it up within the hour.
 - [CLAUDE.md](CLAUDE.md) — coding conventions (hexagonal, enforced by ESLint)
 - [docs/triage.md](docs/triage.md) — how sorting and learning work
 - [icons/README.md](icons/README.md) — the artwork and how the app's icons are made from it
-- Connecting: [Slack](docs/slack-app.md) · [Gmail](docs/gmail.md) · [ClickUp](docs/clickup.md) · [LinkedIn](docs/linkedin.md) · [Signal](docs/signal.md)
+- Connecting: [Slack](docs/slack-app.md) · [Gmail](docs/gmail.md) · [ClickUp](docs/clickup.md) · [LinkedIn](docs/linkedin.md) · [Signal](docs/signal.md) · [WhatsApp](docs/whatsapp.md)
 
 ## License
 

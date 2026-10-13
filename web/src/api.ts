@@ -127,6 +127,11 @@ export const api = {
     request<{ pairingId: string; code: string }>('POST', '/connections/pairings', target),
   pairingStatus: (pairingId: string) =>
     request<PairingStatus>('GET', `/connections/pairings/${pairingId}`),
+  /** "Link with phone number instead": the code to type on that phone. */
+  pairingPhoneCode: (pairingId: string, phoneNumber: string) =>
+    request<{ code: string }>('POST', `/connections/pairings/${pairingId}/phone`, {
+      phoneNumber,
+    }).then((r) => r.code),
   /** The provider page to send the browser to, and the id to ask how it ended. */
   signIn: (target: { kind: ConnectorKind } | { connectionId: string }) =>
     request<SignInStart>('POST', '/oauth/sign-in', target),

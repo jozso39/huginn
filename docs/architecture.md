@@ -16,7 +16,8 @@ the Mac app's window (dashboard)   ──HTTP + SSE──▶  Bun process  ─�
                                                     ├─ ConnectorHost → one connector per connection
                                                     │     Slack (search poll), Gmail (history poll),
                                                     │     GitLab (todo poll), ClickUp (task poll),
-                                                    │     Signal (signal-cli, run by Huginn)
+                                                    │     Signal (signal-cli, run by Huginn),
+                                                    │     WhatsApp (Baileys, a linked device)
                                                     └─ Jev and the chat model, with the user's AI key
 ```
 
@@ -187,7 +188,9 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
   it before the first paint).
 - `CategoryPicker` — choose, filter or create a category (n8n-style combobox), with a
   link to managing them; `ColorPicker` — palette swatches, any other colour, a preview.
-- `PairConnect` — linking a phone: QR (uqr, as a data: image) + polling the pairing.
+- `PairConnect` — linking a phone: QR (uqr, as a data: image) + polling the pairing, which
+  also brings the code to show now (WhatsApp replaces it every ~20 s); WhatsApp can link
+  by phone number instead (an 8-character code typed on the phone).
 - `ConnectorIcon` — the source's logo (`web/src/assets/logos`, CC0 svg-logos set) or a
   coloured glyph for sources without one; doubles as the deep link.
 - `StatusPill` — `item.status` (e.g. an MR's Open / Merged / Closed), coloured by

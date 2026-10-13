@@ -1383,6 +1383,24 @@ a.button {
   padding-left: 20px;
 }
 
+.pairing__phone {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 360px);
+}
+
+.pairing__phone p {
+  margin: 0;
+}
+
+/* The code to type on the phone, grouped as WhatsApp shows it. */
+.pairing__code {
+  font:
+    600 28px/1.2 ui-monospace,
+    monospace;
+  letter-spacing: 0.12em;
+}
+
 .slack-attachments {
   display: grid;
   gap: 8px;

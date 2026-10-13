@@ -240,7 +240,12 @@ export const ConnectionsView = ({
           </div>
         )}
         {descriptor?.pairing && connection.status === 'NeedsAuth' && (
-          <PairConnect target={{ connectionId: connection.id }} onLinked={() => onChanged()} />
+          <PairConnect
+            kind={descriptor.kind}
+            byPhone={descriptor.pairingByPhone}
+            target={{ connectionId: connection.id }}
+            onLinked={() => onChanged()}
+          />
         )}
         {welcome?.connectionId === connection.id && (
           <p className="notice notice--success small">{welcome.text}</p>
@@ -324,6 +329,8 @@ export const ConnectionsView = ({
           {newDescriptor?.pairing && (
             <PairConnect
               key={newDescriptor.kind}
+              kind={newDescriptor.kind}
+              byPhone={newDescriptor.pairingByPhone}
               target={{ kind: newDescriptor.kind }}
               onLinked={connected}
             />

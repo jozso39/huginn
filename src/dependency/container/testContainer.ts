@@ -19,6 +19,8 @@ import { MockGoogleOAuthClient } from '@/infrastructure/clients/GoogleOAuthClien
 import { MockJevClient } from '@/core/clients/JevClient/JevClient.mock';
 import { MockLlmClient } from '@/core/clients/LlmClient/LlmClient.mock';
 import { MockSignalClient } from '@/infrastructure/clients/SignalClient/SignalClient.mock';
+import type { IWhatsAppClient } from '@/core/clients/WhatsAppClient/WhatsAppClient.types';
+import { MockWhatsAppClient } from '@/infrastructure/clients/WhatsAppClient/WhatsAppClient.mock';
 import { MockAiKeyChecker } from '@/infrastructure/clients/AiKeyChecker/AiKeyChecker.mock';
 import { MockSlackOAuthClient } from '@/infrastructure/clients/SlackOAuthClient/SlackOAuthClient.mock';
 import { MockSlackClient } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
@@ -27,6 +29,7 @@ import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnec
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { LinkedInConnectorFactory } from '@/infrastructure/connectors/LinkedInConnector/LinkedInConnectorFactory';
 import { SignalConnectorFactory } from '@/infrastructure/connectors/SignalConnector/SignalConnectorFactory';
+import { WhatsAppConnectorFactory } from '@/infrastructure/connectors/WhatsAppConnector/WhatsAppConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
 import { createContainer } from './container';
 import type { Container } from './container.types';
@@ -43,6 +46,8 @@ export interface CreateTestContainerOptions {
   readonly clickUpClient?: IClickUpClient;
   /** Same for Signal. */
   readonly signalClient?: ISignalClient;
+  /** Same for WhatsApp. */
+  readonly whatsAppClient?: IWhatsAppClient;
   /** Hand in your own MockSlackOAuthClient to see sign-ins and token refreshes. */
   readonly slackOAuthClient?: ISlackOAuthClient;
   /** Where the browser reaches Huginn; the Mac app's own address for Slack sign-ins. */
@@ -119,6 +124,11 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
         () => options.clickUpClient ?? new MockClickUpClient()
       ),
       new SignalConnectorFactory(logger, config, options.signalClient ?? new MockSignalClient()),
+      new WhatsAppConnectorFactory(
+        logger,
+        config,
+        options.whatsAppClient ?? new MockWhatsAppClient()
+      ),
     ],
   });
 };

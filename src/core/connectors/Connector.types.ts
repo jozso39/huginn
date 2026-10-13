@@ -99,13 +99,17 @@ export interface IConnectorAuthorization {
 }
 
 /**
- * Linking as a device (Signal): the user scans a code with their phone. There is no
- * provider app; the connector's own service does the handshake.
+ * Linking as a device (Signal, WhatsApp): the user scans a code with their phone. There
+ * is no provider app; the connector's own service does the handshake.
  */
 export interface IConnectorPairing {
   isPaired(secrets: Secrets): boolean;
   /** Starts a link; `code` is what the phone scans, shown as a QR code. */
   start(): Promise<{ readonly code: string }>;
+  /** For codes that change while waiting (WhatsApp's): the one to show now. */
+  currentCode?(code: string): string | null;
+  /** Linking by typing a code on the phone instead of scanning: that code. */
+  linkWithPhone?(code: string, phoneNumber: string): Promise<string>;
   /** Resolves once the phone accepted `code`, which can take minutes. */
   finish(code: string): Promise<SignInResult>;
 }
