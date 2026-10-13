@@ -6,6 +6,7 @@ import makeWASocket, {
   isJidBroadcast,
   isJidGroup,
   isJidNewsletter,
+  isJidStatusBroadcast,
   isPnUser,
   jidDecode,
   jidNormalizedUser,
@@ -203,9 +204,11 @@ const socketFor = (
     browser: BROWSER,
     // Online, the phone would stop showing its own notifications.
     markOnlineOnConnect: false,
-    // Only what arrives from now on; past chats stay on the phone.
+    // No full history: Huginn takes only what arrives from now on. The small initial sync
+    // stays on — Baileys learns from it who is behind WhatsApp's hidden ids.
     syncFullHistory: false,
-    shouldSyncHistoryMessage: () => false,
+    // Statuses and channels never become items; not decrypting them saves the work.
+    shouldIgnoreJid: (jid: string) => isJidStatusBroadcast(jid) || Boolean(isJidNewsletter(jid)),
     getMessage: (key: WAMessageKey) => Promise.resolve(sent?.get(key.id ?? '')),
   });
 
@@ -527,7 +530,12 @@ class BaileysSession implements IWhatsAppSession {
       return;
     }
 
-    const contacts = [...(events['contacts.upsert'] ?? []), ...(events['contacts.update'] ?? [])];
+    const contacts = [
+      ...(events['contacts.upsert'] ?? []),
+      ...(events['contacts.update'] ?? []),
+      // The first sync after linking carries what people call themselves.
+      ...(events['messaging-history.set']?.contacts ?? []),
+    ];
     const groups = [...(events['groups.upsert'] ?? []), ...(events['groups.update'] ?? [])];
     const changed = [
       ...contacts.map((contact) => {
