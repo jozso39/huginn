@@ -1540,17 +1540,61 @@ a.slack-attachment__title:hover {
   background: color-mix(in oklab, var(--tint, var(--surface)) var(--tint-mix), var(--surface));
 }
 
+/* The connection's colour as a pill: a short, straight, rounded bar just inside the left
+   edge, inset from the top and bottom so stacked rows show one separate dash each. It is
+   drawn over the row's padding (absolute, not in flow), so growing it on hover moves no
+   text. Hosts set --pill-inset to roughly their vertical padding; the default suits the
+   side rows. The pill starts past the 1.5px inset focus ring so the ring never covers it.
+   Without a --tint (deleted connection) it is border-coloured, keeping columns aligned. */
+.side-row,
 .thread,
+.archive__row,
 .colors__preview {
-  border-left: 3px solid color-mix(in oklab, var(--tint, var(--border)) 60%, var(--surface));
+  position: relative;
+  --pill-inset: 6px;
 }
 
-.thread.thread--selected {
-  border-left-color: var(--focus-ring);
+.side-row::before,
+.thread::before,
+.archive__row::before,
+.colors__preview::before {
+  content: '';
+  position: absolute;
+  top: var(--pill-inset);
+  bottom: var(--pill-inset);
+  left: 3px;
+  width: 3px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--tint, var(--border)) 62%, var(--surface));
+  pointer-events: none;
+  transition:
+    width 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.thread {
+  --pill-inset: 10px;
 }
 
 .archive__row {
-  box-shadow: inset 3px 0 0 color-mix(in oklab, var(--tint, var(--surface)) 60%, var(--surface));
+  --pill-inset: 8px;
+}
+
+/* Pointing at an item (anywhere on it) brings out its connection: thicker, full colour. */
+.side-row:hover::before,
+.thread:hover::before,
+.archive__row:hover::before {
+  width: 6px;
+  background: var(--tint, var(--border));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-row::before,
+  .thread::before,
+  .archive__row::before,
+  .colors__preview::before {
+    transition: none;
+  }
 }
 
 /* Settings */
@@ -1816,9 +1860,7 @@ a.slack-attachment__title:hover {
 .colors__preview {
   max-width: 420px;
   padding: 8px 12px;
-  border-top: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 13px;
 }
@@ -2228,8 +2270,8 @@ a.slack-attachment__title:hover {
 /* A conversation: who, where and when, then its first lines. Tinted like its cards. */
 .side-row {
   margin: 2px 0;
-  padding: 6px 8px 7px 9px;
-  border-left: 3px solid color-mix(in oklab, var(--tint, var(--border)) 65%, transparent);
+  /* The left padding also makes room for the pill (see .side-row::before). */
+  padding: 6px 8px 7px 12px;
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.35;
