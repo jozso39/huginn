@@ -14,7 +14,8 @@ export type ItemKind =
 
 export type ItemState = 'Open' | 'Done' | 'Archived';
 export type Category = 'Important' | 'Undecided' | 'Spam';
-export type ConnectorKind = 'GitLab' | 'Slack' | 'Gmail' | 'ClickUp' | 'LinkedIn' | 'Signal';
+export type ConnectorKind =
+  'GitLab' | 'Slack' | 'Gmail' | 'ClickUp' | 'LinkedIn' | 'Signal' | 'WhatsApp';
 export type ConnectionStatus = 'Idle' | 'Running' | 'NeedsAuth' | 'Error' | 'Disabled';
 
 export interface Item {
@@ -127,6 +128,8 @@ export interface ConnectorDescriptor {
   signInProvider: OAuthProvider | null;
   /** Created by linking a phone (scan a QR code). */
   pairing: boolean;
+  /** The phone can also link by typing a code (WhatsApp). */
+  pairingByPhone: boolean;
   /** Why it cannot be added on this Mac (signal-cli missing); null when it can. */
   unavailable: string | null;
   configSchema: { properties?: Record<string, JsonSchemaProperty>; required?: string[] };
@@ -300,6 +303,8 @@ export type PairingState = 'Waiting' | 'Linked' | 'Failed';
 
 export interface PairingStatus {
   state: PairingState;
+  /** Waiting: the code to show now (WhatsApp replaces it every 20 seconds or so). */
+  code: string | null;
   connection: Connection | null;
   /** Linked: whether the connection is new, or one linked again. */
   created: boolean;

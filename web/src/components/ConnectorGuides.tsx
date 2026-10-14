@@ -152,16 +152,33 @@ export const SignInGuide = ({ kind }: { kind: ConnectorKind }) => {
   return null;
 };
 
-/** For Signal, linked as a device of the phone. */
-export const PairingGuide = () => (
-  <SetupGuide title="Linking Signal">
-    <ol>
-      <li>
-        Click <strong>Link my phone</strong>.
-      </li>
-      <li>
-        On your phone: <strong>Signal → Settings → Linked devices → +</strong> and scan the code.
-      </li>
-    </ol>
-  </SetupGuide>
-);
+/** For connections linked as a device of the phone: Signal, WhatsApp. */
+export const PairingGuide = ({ kind }: { kind: ConnectorKind }) =>
+  kind === 'WhatsApp' ? (
+    <SetupGuide title="Linking WhatsApp">
+      <p className="warn">
+        Unofficial: WhatsApp allows no other apps, so it could restrict your number. You can unlink
+        Huginn on the phone at any time.
+      </p>
+      <ol>
+        <li>
+          Click <strong>Link my phone</strong>.
+        </li>
+        <li>
+          On your phone: <strong>WhatsApp → Settings → Linked devices → Link a device</strong> and
+          scan the code.
+        </li>
+      </ol>
+    </SetupGuide>
+  ) : (
+    <SetupGuide title="Linking Signal">
+      <ol>
+        <li>
+          Click <strong>Link my phone</strong>.
+        </li>
+        <li>
+          On your phone: <strong>Signal → Settings → Linked devices → +</strong> and scan the code.
+        </li>
+      </ol>
+    </SetupGuide>
+  );

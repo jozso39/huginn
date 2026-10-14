@@ -59,6 +59,9 @@ const pkcePair = async (): Promise<{ verifier: string; challenge: string }> => {
 const PAIRING_TTL_MS = 10 * 60 * 1000;
 
 interface Pairing extends PairingStatus {
+  readonly kind: Connection['kind'];
+  /** The code the link started with: how the connector knows the link. */
+  readonly firstCode: string;
   readonly expiresAt: number;
 }
 
@@ -96,6 +99,7 @@ export class ConnectionService implements IConnectionService {
       capabilities: factory.capabilities,
       signInProvider: factory.authorization?.provider ?? null,
       pairing: Boolean(factory.pairing),
+      pairingByPhone: factory.pairing?.linkWithPhone !== undefined,
       unavailable: factory.unavailableReason?.() ?? null,
     }));
   }
@@ -313,7 +317,10 @@ export class ConnectionService implements IConnectionService {
       .filter(([, entry]) => entry.expiresAt < now)
       .forEach(([key]) => this.pairings.delete(key));
     this.pairings.set(pairingId, {
+      kind,
+      firstCode: code,
       state: PairingState.Waiting,
+      code,
       connection: null,
       created: false,
       error: null,
@@ -340,12 +347,41 @@ export class ConnectionService implements IConnectionService {
       throw new HuginnError(ErrorCode.NotFound, 'This link attempt expired — start it again');
     }
 
+    const waiting = entry.state === PairingState.Waiting;
+
     return {
       state: entry.state,
+      code: waiting
+        ? (this.pairingOf(entry.kind).currentCode?.(entry.firstCode) ?? entry.firstCode)
+        : null,
       connection: entry.connection,
       created: entry.created,
       error: entry.error,
     };
+  }
+
+  public async pairingPhoneCode(pairingId: string, phoneNumber: string): Promise<string> {
+    const entry = this.pairings.get(pairingId);
+
+    if (entry?.state !== PairingState.Waiting) {
+      throw new HuginnError(ErrorCode.NotFound, 'This link attempt expired — start it again');
+    }
+
+    const pairing = this.pairingOf(entry.kind);
+    const digits = phoneNumber.replace(/[\s()-]/g, '').replace(/^\+/, '');
+
+    if (!pairing.linkWithPhone) {
+      throw new HuginnError(ErrorCode.Unsupported, `${entry.kind} links by scanning only`);
+    }
+
+    if (!/^\d{7,15}$/.test(digits)) {
+      throw new HuginnError(
+        ErrorCode.Validation,
+        'Enter the phone number with its country code, e.g. +420 600 123 456'
+      );
+    }
+
+    return pairing.linkWithPhone(entry.firstCode, digits);
   }
 
   private settlePairing(

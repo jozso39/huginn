@@ -69,6 +69,9 @@ export const signInBodySchema = z.union([
   z.object({ kind: z.enum(ConnectorKind) }),
 ]);
 
+/** The number of the phone to link by code; the service checks its digits. */
+export const phoneLinkSchema = z.object({ phoneNumber: z.string().trim().min(5).max(30) });
+
 export const oauthAppBodySchema = z.object({
   clientId: z.string().trim().min(10).max(300),
   clientSecret: z.string().trim().max(300).default(''),

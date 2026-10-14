@@ -5,10 +5,12 @@ import gmailLogo from './assets/logos/gmail.svg';
 import linkedInLogo from './assets/logos/linkedin.svg';
 import signalLogo from './assets/logos/signal.svg';
 import slackLogo from './assets/logos/slack.svg';
+import whatsAppLogo from './assets/logos/whatsapp.svg';
 
 /**
- * How each source is shown. Logos are from the CC0 "svg-logos" set (gilbarbara/logos);
- * the glyph and colour are the fallback for sources without one. `spamExample` is the
+ * How each source is shown. Logos are from the CC0 "svg-logos" set (gilbarbara/logos),
+ * WhatsApp's from the CC0 Simple Icons; the glyph and colour are the fallback for sources
+ * without one. `spamExample` is the
  * hint in the "why is this spam?" box: a reason that fits that source's messages.
  */
 interface ConnectorMeta {
@@ -61,6 +63,13 @@ export const CONNECTOR_META: Record<ConnectorKind, ConnectorMeta> = {
     label: 'Signal',
     logo: signalLogo,
     spamExample: 'e.g. forwarded chain messages in the family group',
+  },
+  WhatsApp: {
+    glyph: 'WA',
+    color: '#25d366',
+    label: 'WhatsApp',
+    logo: whatsAppLogo,
+    spamExample: 'e.g. good-morning pictures in the family group',
   },
 };
 

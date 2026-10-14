@@ -7,6 +7,8 @@ export enum ConnectorKind {
   LinkedIn = 'LinkedIn',
   /** The user's own Signal account, as a linked device of their phone. */
   Signal = 'Signal',
+  /** The user's own WhatsApp account, as a linked device (unofficial: through Baileys). */
+  WhatsApp = 'WhatsApp',
 }
 
 export enum ConnectionStatus {

@@ -25,6 +25,7 @@ import { GitLabConnectorFactory } from '@/infrastructure/connectors/GitLabConnec
 import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { LinkedInConnectorFactory } from '@/infrastructure/connectors/LinkedInConnector/LinkedInConnectorFactory';
 import { SignalConnectorFactory } from '@/infrastructure/connectors/SignalConnector/SignalConnectorFactory';
+import { WhatsAppConnectorFactory } from '@/infrastructure/connectors/WhatsAppConnector/WhatsAppConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
 import { SqliteDatabase } from '@/infrastructure/db/SqliteDatabase';
 import { InMemoryEventBus } from '@/infrastructure/events/InMemoryEventBus/InMemoryEventBus';
@@ -104,6 +105,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     new LinkedInConnectorFactory(logger, config, googleOAuth),
     new ClickUpConnectorFactory(logger, config),
     new SignalConnectorFactory(logger, config),
+    new WhatsAppConnectorFactory(logger, config),
   ];
 
   const triageService = new TriageService(
