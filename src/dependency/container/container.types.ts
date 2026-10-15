@@ -12,6 +12,7 @@ import type { IConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost
 import type { IInboxService } from '@/core/services/InboxService/InboxService.types';
 import type { IFeedbackService } from '@/core/services/FeedbackService/FeedbackService.types';
 import type { IAttentionService } from '@/core/services/AttentionService/AttentionService.types';
+import type { IAppUpdateService } from '@/core/services/AppUpdateService/AppUpdateService.types';
 import type { IOAuthAppService } from '@/core/services/OAuthAppService/OAuthAppService.types';
 import type { IRuleService } from '@/core/services/RuleService/RuleService.types';
 import type { ISettingsService } from '@/core/services/SettingsService/SettingsService.types';
@@ -36,6 +37,7 @@ export interface Container {
   readonly ruleService: IRuleService;
   readonly feedbackService: IFeedbackService;
   readonly attentionService: IAttentionService;
+  readonly appUpdateService: IAppUpdateService;
   /** Releases the database handle; the host is stopped separately. */
   close(): void;
 }

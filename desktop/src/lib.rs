@@ -63,6 +63,8 @@ enum ServerEvent {
         title: String,
         body: String,
     },
+    /// The window's "Restart to update" was clicked.
+    Restart,
 }
 
 struct Shell {
@@ -73,7 +75,8 @@ struct Shell {
     server: Mutex<Option<CommandChild>>,
     restarts: AtomicU32,
     quitting: AtomicBool,
-    update_ready: AtomicBool,
+    /// The version installed and waiting for a restart.
+    waiting_update: Mutex<Option<String>>,
     restart_item: Mutex<Option<MenuItem<Wry>>>,
     login_item: Mutex<Option<CheckMenuItem<Wry>>>,
 }
@@ -96,7 +99,7 @@ pub fn run() {
                 server: Mutex::new(None),
                 restarts: AtomicU32::new(0),
                 quitting: AtomicBool::new(false),
-                update_ready: AtomicBool::new(false),
+                waiting_update: Mutex::new(None),
                 restart_item: Mutex::new(None),
                 login_item: Mutex::new(None),
             });
@@ -105,9 +108,15 @@ pub fn run() {
             open_at_login_once(&handle, &data_dir);
             start_server(&handle)?;
 
-            // A development build must never replace itself with a release.
+            // A development build must never replace itself with a release; it can only
+            // pretend one is installed, to try the window's update banner.
             if !cfg!(debug_assertions) {
                 spawn_update_checks(handle);
+            } else if let Ok(version) = std::env::var("HUGINN_PRETEND_UPDATE") {
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(FIRST_UPDATE_CHECK).await;
+                    update_installed(&handle, &version);
+                });
             }
 
             Ok(())
@@ -239,6 +248,12 @@ fn start_server(app: &AppHandle) -> AnyResult<()> {
     });
 
     child.write(format!("{secrets}\n").as_bytes())?;
+
+    // A server started again after a crash still offers the waiting update.
+    if let Some(version) = shell.waiting_update.lock().expect("update lock").as_deref() {
+        child.write(update_line(version).as_bytes())?;
+    }
+
     *shell.server.lock().expect("server lock") = Some(child);
 
     let handle = app.clone();
@@ -294,7 +309,13 @@ fn on_server_line(app: &AppHandle, line: &[u8]) {
         ServerEvent::Notify { title, body } => {
             let _ = app.notification().builder().title(title).body(body).show();
         }
+        ServerEvent::Restart => app.request_restart(),
     }
+}
+
+/// The stdin line telling the server an update waits (see DesktopChannel.ts).
+fn update_line(version: &str) -> String {
+    format!("{}\n", serde_json::json!({ "type": "update", "version": version }))
 }
 
 /// The server stopped without being asked: start it again, a few times at most.
@@ -437,7 +458,9 @@ fn build_tray(app: &AppHandle) -> AnyResult<()> {
                     report_update_check(&handle, check_for_update(&handle).await);
                 });
             }
-            "restart" => app.restart(),
+            // Not `restart()`: from the menu it would skip RunEvent::Exit, and with it
+            // stopping the server, so two would run for a moment.
+            "restart" => app.request_restart(),
             "login" => toggle_open_at_login(app),
             "quit" => app.exit(0),
             _ => {}
@@ -507,33 +530,41 @@ enum UpdateCheck {
 /// Downloads and installs a newer version in the background; it takes effect on the
 /// next start ("Restart to Update").
 async fn check_for_update(app: &AppHandle) -> AnyResult<UpdateCheck> {
-    let shell = app.state::<Shell>();
-
-    if shell.update_ready.load(Ordering::SeqCst) {
+    if app.state::<Shell>().waiting_update.lock().expect("update lock").is_some() {
         return Ok(UpdateCheck::Ready);
     }
 
     let Some(update) = app.updater()?.check().await? else {
         return Ok(UpdateCheck::UpToDate);
     };
-    let version = update.version.clone();
 
     update.download_and_install(|_, _| {}, || {}).await?;
-    shell.update_ready.store(true, Ordering::SeqCst);
+    update_installed(app, &update.version);
+
+    Ok(UpdateCheck::Ready)
+}
+
+/// Offers the restart everywhere: the window's banner, the menu bar and a notification.
+fn update_installed(app: &AppHandle, version: &str) {
+    let shell = app.state::<Shell>();
+
+    *shell.waiting_update.lock().expect("update lock") = Some(version.to_string());
 
     if let Some(item) = shell.restart_item.lock().expect("menu lock").as_ref() {
         let _ = item.set_text(format!("Restart to Update ({version})"));
         let _ = item.set_enabled(true);
     }
 
+    if let Some(child) = shell.server.lock().expect("server lock").as_mut() {
+        let _ = child.write(update_line(version).as_bytes());
+    }
+
     let _ = app
         .notification()
         .builder()
         .title(format!("Huginn {version} is ready"))
-        .body("Restart Huginn from the menu bar to finish updating.")
+        .body("Click Restart to update at the bottom of Huginn's window.")
         .show();
-
-    Ok(UpdateCheck::Ready)
 }
 
 /// Only for checks the user asked for; the hourly ones stay silent unless they find one.

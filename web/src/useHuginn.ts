@@ -3,6 +3,7 @@ import { api } from './api';
 import type {
   AiKeyInfo,
   AiProvider,
+  AppUpdate,
   Connection,
   ConnectionGroup,
   ConnectorDescriptor,
@@ -22,6 +23,8 @@ export interface HuginnData {
   settings: Settings | null;
   /** Which AI key is set, if any (never the key). */
   ai: AiKeyInfo | null;
+  /** An update the Mac app has installed, waiting for a restart. */
+  update: AppUpdate | null;
   live: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -50,6 +53,7 @@ export const useHuginn = (): HuginnData => {
   const [groups, setGroups] = useState<ConnectionGroup[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [ai, setAi] = useState<AiKeyInfo | null>(null);
+  const [update, setUpdate] = useState<AppUpdate | null>(null);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,14 +66,16 @@ export const useHuginn = (): HuginnData => {
 
   const refresh = useCallback(async () => {
     try {
-      const [openItems, doneItems, conns, kindList, groupList, preferences] = await Promise.all([
-        api.listItems('Open'),
-        api.listItems('Done'),
-        api.listConnections(),
-        api.listKinds(),
-        api.listGroups(),
-        api.getSettings(),
-      ]);
+      const [openItems, doneItems, conns, kindList, groupList, preferences, waiting] =
+        await Promise.all([
+          api.listItems('Open'),
+          api.listItems('Done'),
+          api.listConnections(),
+          api.listKinds(),
+          api.listGroups(),
+          api.getSettings(),
+          api.appUpdate(),
+        ]);
 
       setOpen(openItems);
       setClosed(doneItems);
@@ -78,6 +84,7 @@ export const useHuginn = (): HuginnData => {
       setGroups(groupList);
       setSettings(preferences.settings);
       setAi(preferences.ai);
+      setUpdate(waiting);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -120,6 +127,12 @@ export const useHuginn = (): HuginnData => {
     const onEvent = (message: MessageEvent<string>) => {
       const event = JSON.parse(message.data) as HuginnEvent;
 
+      if (event.type === 'AppUpdateReady') {
+        setUpdate(event.update);
+
+        return;
+      }
+
       if (event.type === 'ConnectionChanged') {
         setConnections((list) =>
           list.some((c) => c.id === event.connection.id)
@@ -136,6 +149,7 @@ export const useHuginn = (): HuginnData => {
     source.addEventListener('ItemUpserted', onEvent);
     source.addEventListener('ItemChanged', onEvent);
     source.addEventListener('ConnectionChanged', onEvent);
+    source.addEventListener('AppUpdateReady', onEvent);
     // EventSource reconnects by itself; `open` fires again and refetches.
     source.addEventListener('error', () => setLive(false));
     source.addEventListener('open', () => {
@@ -167,6 +181,7 @@ export const useHuginn = (): HuginnData => {
     groups,
     settings,
     ai,
+    update,
     live,
     error,
     refresh,

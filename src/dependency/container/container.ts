@@ -8,6 +8,8 @@ import type { IAttentionSink } from '@/core/attention/Attention.types';
 import type { IAiKeyChecker } from '@/core/settings/AiKey.types';
 import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { AttentionService } from '@/core/services/AttentionService/AttentionService';
+import { AppUpdateService } from '@/core/services/AppUpdateService/AppUpdateService';
+import type { IAppShell } from '@/core/updates/AppShell.types';
 import { ConnectionGroupService } from '@/core/services/ConnectionGroupService/ConnectionGroupService';
 import { ConnectionService } from '@/core/services/ConnectionService/ConnectionService';
 import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
@@ -52,6 +54,8 @@ export interface CreateContainerOptions {
   readonly aiKeyChecker?: IAiKeyChecker;
   /** The Mac app's menu bar and notifications; nowhere when running without it. */
   readonly attentionSink?: IAttentionSink;
+  /** The Mac app, which installs updates and restarts into them; none without it. */
+  readonly appShell?: IAppShell;
 }
 
 const NO_ATTENTION: IAttentionSink = { badge: () => undefined, notify: () => undefined };
@@ -168,6 +172,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     connectionStore,
     eventBus
   );
+  const appUpdateService = new AppUpdateService(logger, options.appShell ?? null, eventBus);
 
   return {
     logger,
@@ -188,6 +193,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     ruleService,
     feedbackService,
     attentionService,
+    appUpdateService,
     close: () => database.close(),
   };
 };

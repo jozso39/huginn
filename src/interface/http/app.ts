@@ -3,6 +3,7 @@ import { serveStatic } from 'hono/bun';
 import type { Container } from '@/dependency/container/container.types';
 import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import { localAccess } from './localAccess';
+import { createAppRoutes } from './routes/appRoutes';
 import { createConnectionRoutes } from './routes/connectionRoutes';
 import { createEventRoutes } from './routes/eventRoutes';
 import { createGroupRoutes } from './routes/groupRoutes';
@@ -35,6 +36,7 @@ export const createApp = (container: Container, webRoot: string, port: () => num
   app.route('/api/events', createEventRoutes(container));
   app.route('/api/oauth', createOAuthRoutes(container));
   app.route('/api/rules', createRuleRoutes(container));
+  app.route('/api/app', createAppRoutes(container));
   app.get('/api/health', (c) => c.json({ ok: true }));
 
   app.onError((error, c) => {

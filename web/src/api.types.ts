@@ -155,7 +155,13 @@ export interface OAuthAppView {
 export type HuginnEvent =
   | { type: 'ItemUpserted'; item: Item; created: boolean }
   | { type: 'ItemChanged'; item: Item }
-  | { type: 'ConnectionChanged'; connection: Connection };
+  | { type: 'ConnectionChanged'; connection: Connection }
+  | { type: 'AppUpdateReady'; update: AppUpdate };
+
+/** A newer Huginn the Mac app has installed: it runs from the next start. */
+export interface AppUpdate {
+  version: string;
+}
 
 export type Verdict = 'Important' | 'Spam';
 export type RuleKind = 'Hard' | 'Soft';

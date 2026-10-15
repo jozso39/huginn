@@ -2372,3 +2372,39 @@ a.slack-attachment__title:hover {
     box-shadow: 0 12px 32px rgb(0 0 0 / 28%);
   }
 }
+
+/* Along the bottom: a newer Huginn is installed and waits for a restart. */
+.update-bar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  border-top: 1px solid color-mix(in oklab, var(--pill-info-text) 30%, transparent);
+  background: var(--pill-info-bg);
+  color: var(--pill-info-text);
+  font-size: 14px;
+}
+
+.update-bar__text {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+}
+
+.update-bar__error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.update-bar__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* Results still show, above the strip. */
+.app:has(.update-bar) .toast {
+  bottom: calc(max(20px, env(safe-area-inset-bottom)) + 56px);
+}

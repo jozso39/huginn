@@ -234,7 +234,8 @@ A thin Tauri shell (`desktop/src/lib.rs`) around the server, which does all the 
   share data; `bun run desktop:dev-data` copies the real data over (and `--back`).
 - **Talking back**: the server prints one JSON line per event on stdout
   (`DesktopChannel`): `ready`, `badge` (the number of Important items, shown in the menu
-  bar and on the Dock icon) and `notify` (a macOS notification).
+  bar and on the Dock icon), `notify` (a macOS notification) and `restart`. After the
+  secrets, the shell may send `update` lines on stdin: a downloaded update is installed.
 - **Links**: the window keeps Huginn's own pages; every other link is handed to macOS
   (`open`), so it opens in the browser or the app it belongs to (Slack).
 - **Background**: closing the window hides it; the menu-bar item opens it, checks for
@@ -243,6 +244,12 @@ A thin Tauri shell (`desktop/src/lib.rs`) around the server, which does all the 
   5 s.
 - **Updates**: `bun run release 1.2.3` tags a version; GitHub Actions
   (`.github/workflows/release.yml`) builds and signs the update and publishes it with
-  `latest.json`. The app checks every hour and installs on restart. The app itself is
-  signed ad hoc only, so macOS asks once on the first start.
+  `latest.json`. The app checks every hour (30 s after starting, then hourly), downloads
+  and installs a new version in the background, and tells the server, which sends
+  `AppUpdateReady` to the window: a strip at the bottom offers **Restart to update**
+  (`POST /api/app/update/restart` → `restart` on stdout → the shell stops the server and
+  starts the app again). The menu bar's *Restart to Update* and a notification offer the
+  same; otherwise the new version runs from the next start. A dev build never updates;
+  `HUGINN_PRETEND_UPDATE=0.9.9 bun run desktop:dev` shows the strip to try it. The app
+  itself is signed ad hoc only, so macOS asks once on the first start.
 

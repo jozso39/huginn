@@ -7,6 +7,7 @@ import type { IGmailClient } from '@/core/clients/GmailClient/GmailClient.types'
 import type { IJevClient } from '@/core/clients/JevClient/JevClient.types';
 import type { ILlmClient } from '@/core/clients/LlmClient/LlmClient.types';
 import type { IAttentionSink } from '@/core/attention/Attention.types';
+import type { IAppShell } from '@/core/updates/AppShell.types';
 import type { ISignalClient } from '@/core/clients/SignalClient/SignalClient.types';
 import type { IAiKeyChecker } from '@/core/settings/AiKey.types';
 import type { ISlackOAuthClient } from '@/core/clients/SlackOAuthClient/SlackOAuthClient.types';
@@ -59,6 +60,8 @@ export interface CreateTestContainerOptions {
   readonly llm?: ILlmClient;
   /** Hand in a MockAttentionSink to see what the Mac app would show. */
   readonly attentionSink?: IAttentionSink;
+  /** Hand in a MockAppShell to see the restarts the Mac app was asked for. */
+  readonly appShell?: IAppShell;
   /** Hand in a MockAiKeyChecker to see which keys were checked. */
   readonly aiKeyChecker?: IAiKeyChecker;
 }
@@ -98,6 +101,7 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
     llm: options.llm ?? new MockLlmClient(),
     aiKeyChecker: options.aiKeyChecker ?? new MockAiKeyChecker(),
     ...(options.attentionSink ? { attentionSink: options.attentionSink } : {}),
+    ...(options.appShell ? { appShell: options.appShell } : {}),
     connectorFactories: options.connectorFactories ?? [
       new GitLabConnectorFactory(logger, config, () => new MockGitLabClient()),
       new SlackConnectorFactory(

@@ -2,6 +2,7 @@ import type {
   Action,
   AiKeyInfo,
   AiProvider,
+  AppUpdate,
   Connection,
   ConnectionGroup,
   ConnectorDescriptor,
@@ -109,6 +110,11 @@ export const api = {
     request<{ group: ConnectionGroup }>('PUT', `/groups/${id}`, { name }).then((r) => r.group),
   deleteGroup: (id: string) => request<{ ok: true }>('DELETE', `/groups/${id}`),
 
+  /** The update the Mac app has installed and that waits for a restart; null for none. */
+  appUpdate: () =>
+    request<{ update: AppUpdate | null }>('GET', '/app/update').then((r) => r.update),
+  /** The Mac app restarts into the update: the window closes and opens again. */
+  restartToUpdate: () => request<{ ok: true }>('POST', '/app/update/restart'),
   getSettings: () => request<{ settings: Settings; ai: AiKeyInfo | null }>('GET', '/settings'),
   /** Checked with the provider first; it is never sent back. */
   saveAiKey: (provider: AiProvider, key: string) =>

@@ -24,7 +24,8 @@ Macs, macOS 13 or newer.
    **Done**, then **System Settings → Privacy & Security → Open Anyway**.
 
 After that it starts at login, lives in the menu bar (with the number of Important
-items), and updates itself: it checks every hour and installs on restart.
+items), and updates itself: it checks every hour, downloads a new version in the
+background, and a strip at the bottom of the window offers **Restart to update**.
 
 ## What it does
 

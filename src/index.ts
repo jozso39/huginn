@@ -36,7 +36,7 @@ const main = async () => {
   const config = desktop ? { ...settings, publicUrl: `http://127.0.0.1:${port}` } : settings;
   const container = createContainer({
     config,
-    ...(desktop ? { attentionSink: desktop } : {}),
+    ...(desktop ? { attentionSink: desktop, appShell: desktop } : {}),
   });
   const { logger } = container;
 
@@ -72,7 +72,9 @@ const main = async () => {
 
   if (desktop) {
     // The app quit or crashed: never keep running with access to every account.
-    void desktop.closed().then(() => shutdown('shell gone'));
+    void desktop
+      .closed((message) => container.appUpdateService.ready(message.version))
+      .then(() => shutdown('shell gone'));
   }
 };
 

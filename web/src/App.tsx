@@ -3,6 +3,7 @@ import { ArchiveView } from './components/ArchiveView';
 import { InboxView } from './components/InboxView';
 import { RulesView } from './components/RulesView';
 import { SettingsView } from './components/SettingsView';
+import { UpdateBanner } from './components/UpdateBanner';
 import { MOD } from './openLink';
 import { applyTheme } from './theme';
 import { useHuginn } from './useHuginn';
@@ -78,6 +79,7 @@ export const App = () => {
     groups,
     settings,
     ai,
+    update,
     live,
     error,
     refresh,
@@ -223,6 +225,8 @@ export const App = () => {
           </main>
         )}
       </div>
+
+      {update && <UpdateBanner key={update.version} update={update} />}
     </div>
   );
 };
