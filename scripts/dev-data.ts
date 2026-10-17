@@ -2,12 +2,13 @@
 // Copies the installed app's data into the development build's own folder, so
 // `bun run desktop:dev` (or a plain `bun run dev` pointed at it) shows real data.
 // Live connections are paused in the copy: a second Slack socket would take half of
-// the real app's messages, a second signal-cli half of Signal's. Polling ones (Gmail,
+// the real app's messages, a second signal-cli half of Signal's, and a second WhatsApp
+// client on the same linked device's keys can break the link. Polling ones (Gmail,
 // GitLab, …) only read and stay on.
 // --live keeps everything on — only when the installed app is not running, so the
 // development build is the one Huginn.
 // --back is the way home: the development build's data goes to the installed app,
-// everything on there and Slack and Signal paused here. Quit both apps first.
+// everything on there and Slack, Signal and WhatsApp paused here. Quit both apps first.
 import { Database } from 'bun:sqlite';
 import { existsSync } from 'node:fs';
 import { chmod, copyFile, cp, mkdir, rename, rm } from 'node:fs/promises';
@@ -24,7 +25,7 @@ const [from, to] = back ? [dev, real] : [real, dev];
 const pauseLiveConnections = (folder: string) => {
   const db = new Database(join(folder, 'huginn.db'));
 
-  db.run("UPDATE connections SET enabled = 0 WHERE kind IN ('Slack', 'Signal')");
+  db.run("UPDATE connections SET enabled = 0 WHERE kind IN ('Slack', 'Signal', 'WhatsApp')");
   db.close();
 };
 
@@ -57,6 +58,6 @@ if (back) {
 
 console.log(
   back
-    ? `Moved back into ${to}; Slack and Signal are paused in ${from}.`
-    : `Copied into ${to}${live ? ' (everything on)' : ' (Slack and Signal paused there)'}.`
+    ? `Moved back into ${to}; Slack, Signal and WhatsApp are paused in ${from}.`
+    : `Copied into ${to}${live ? ' (everything on)' : ' (Slack, Signal and WhatsApp paused there)'}.`
 );
