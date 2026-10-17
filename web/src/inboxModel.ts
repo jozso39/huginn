@@ -25,22 +25,36 @@ const RANK: Record<Category, number> = { Important: 0, Undecided: 1, Spam: 2 };
 const byImportance = (a: Thread, b: Thread) =>
   RANK[a.items[0]?.category ?? 'Undecided'] - RANK[b.items[0]?.category ?? 'Undecided'];
 
-/** A section of the inbox: a category of connections, or a connection without one. */
+/** How the inbox lays out its conversations. */
+export type InboxOrder = 'Category' | 'Source' | 'Newest';
+
+/** A section of the inbox: a category of connections, a connection, or everything. */
 export interface Section {
-  /** `g:<category id>`, or `c:<connection id>` for a connection without a category. */
+  /** `g:<category id>`, `c:<connection id>`, or `all` for the newest-first list. */
   key: string;
   name: string;
   connections: Connection[];
   threads: Thread[];
   important: number;
+  /** The newest-first list is one section with no heading. */
+  headless: boolean;
 }
 
-/** Where a connection is shown: its category's section, or a section of its own. */
+/**
+ * Where a connection is shown: by category, its category's section (a connection
+ * without one gets its own); by source, its own section; newest first, the one list.
+ */
 export const sectionOf = (
   connection: Connection | undefined,
-  groupById: ReadonlyMap<string, ConnectionGroup>
+  groupById: ReadonlyMap<string, ConnectionGroup>,
+  order: InboxOrder = 'Category'
 ): { key: string; name: string } => {
-  const group = connection?.groupId ? groupById.get(connection.groupId) : undefined;
+  if (order === 'Newest') {
+    return { key: 'all', name: 'Newest first' };
+  }
+
+  const group =
+    order === 'Category' && connection?.groupId ? groupById.get(connection.groupId) : undefined;
 
   if (group) {
     return { key: `g:${group.id}`, name: group.name };
@@ -49,28 +63,37 @@ export const sectionOf = (
   return { key: `c:${connection?.id ?? 'unknown'}`, name: connection?.name ?? 'Unknown source' };
 };
 
-/** The inbox's sections for these items: those with something important first, then by name. */
+/**
+ * The inbox's sections for these items. By category or by source: sections with
+ * something important first, then by name, important conversations first in each.
+ * Newest first: one list, by the time of each conversation's newest message.
+ */
 export const inboxSections = (
   items: Item[],
   connections: Connection[],
-  groups: ConnectionGroup[]
+  groups: ConnectionGroup[],
+  order: InboxOrder = 'Category'
 ): Section[] => {
   const connectionById = new Map(connections.map((c) => [c.id, c]));
   const groupById = new Map(groups.map((g) => [g.id, g]));
-  const sectionOfItem = (item: Item) => sectionOf(connectionById.get(item.connectionId), groupById);
+  const sectionOfItem = (item: Item) =>
+    sectionOf(connectionById.get(item.connectionId), groupById, order);
   const found = [...new Map(items.map((item) => [sectionOfItem(item).key, sectionOfItem(item)]))];
 
   const built = found.map(([key, { name }]): Section => {
-    const threads = [
-      ...groupByThread(items.filter((item) => sectionOfItem(item).key === key)),
-    ].sort(byImportance);
+    const inSection = groupByThread(items.filter((item) => sectionOfItem(item).key === key));
+    const threads = order === 'Newest' ? inSection : [...inSection].sort(byImportance);
 
     return {
       key,
       name,
-      connections: connections.filter((c) => sectionOf(c, groupById).key === key),
+      connections:
+        order === 'Newest'
+          ? connections
+          : connections.filter((c) => sectionOf(c, groupById, order).key === key),
       threads,
       important: threads.filter((t) => t.items[0]?.category === 'Important').length,
+      headless: order === 'Newest',
     };
   });
 

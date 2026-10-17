@@ -430,12 +430,6 @@ kbd {
   scroll-margin: 12px;
 }
 
-/* The message the keys act on: a border darker than the rest in light, lighter in dark. */
-.thread--selected {
-  border-color: var(--focus-ring);
-  box-shadow: 0 0 0 1px var(--focus-ring);
-}
-
 .thread__head {
   display: flex;
   gap: 10px;
@@ -1581,9 +1575,11 @@ a.slack-attachment__title:hover {
   --pill-inset: 8px;
 }
 
-/* Pointing at an item (anywhere on it) brings out its connection: thicker, full colour. */
+/* Pointing at an item (anywhere on it) brings out its connection: thicker, full colour.
+   In the inbox the pointer selects, so there it marks the selected message: the one
+   the keys act on, wherever the selection came from. */
 .side-row:hover::before,
-.thread:hover::before,
+.thread--selected::before,
 .archive__row:hover::before {
   width: 6px;
   background: var(--tint, var(--border));
@@ -2407,4 +2403,83 @@ a.slack-attachment__title:hover {
 /* Results still show, above the strip. */
 .app:has(.update-bar) .toast {
   bottom: calc(max(20px, env(safe-area-inset-bottom)) + 56px);
+}
+
+/* The inbox's order: by category, by source, newest first. */
+.segmented--small button {
+  padding: 3px 12px;
+  font-size: 13px;
+}
+
+.threads--flat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Huginn's right-click menu. */
+.context-menu {
+  position: fixed;
+  z-index: 20;
+  min-width: 220px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 28%);
+  font-size: 14px;
+}
+
+.context-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+}
+
+.context-menu__item kbd {
+  color: var(--muted);
+  border: 0;
+  padding: 0;
+}
+
+.context-menu__item:hover:not(:disabled),
+.context-menu__item:focus-visible,
+.context-menu__emoji:hover:not(:disabled),
+.context-menu__emoji:focus-visible {
+  outline: none;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.context-menu__item:hover kbd,
+.context-menu__item:focus-visible kbd {
+  color: inherit;
+}
+
+.context-menu__reactions {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px 4px;
+}
+
+.context-menu__emoji {
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.context-menu__separator {
+  height: 1px;
+  margin: 5px 6px;
+  background: var(--border);
 }

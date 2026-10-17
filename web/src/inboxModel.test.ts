@@ -4,6 +4,7 @@ import type { Outline, Thread } from './inboxModel';
 import {
   counterpart,
   groupByThread,
+  inboxSections,
   jumpTarget,
   previewOf,
   resolveSelection,
@@ -195,5 +196,45 @@ describe('short times', () => {
     expect(shortTime(september.toISOString(), now)).toBe(
       september.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
     );
+  });
+});
+
+describe('the inbox in three orders', () => {
+  const work = { id: 'work', name: 'Work', createdAt: '2026-10-01T00:00:00.000Z' };
+  const connections = [
+    { ...connection('slack', 'Work Slack', 'Slack'), groupId: 'work' },
+    { ...connection('gitlab', 'Work GitLab', 'GitLab'), groupId: 'work' },
+    connection('mail', 'Personal Gmail', 'Gmail'),
+  ];
+  const fromSlack = item({ connectionId: 'slack' });
+  const fromMail = item({ connectionId: 'mail', category: 'Important' });
+  const fromGitLab = item({ connectionId: 'gitlab' });
+  const items = [fromSlack, fromMail, fromGitLab];
+  const layout = (order: 'Category' | 'Source' | 'Newest') =>
+    inboxSections(items, connections, [work], order).map((section) => ({
+      name: section.name,
+      first: section.threads.map((t) => t.items[0]?.id),
+      headless: section.headless,
+    }));
+
+  test("by category: a category's connections together, important sections first", () => {
+    expect(layout('Category')).toEqual([
+      { name: 'Personal Gmail', first: [fromMail.id], headless: false },
+      { name: 'Work', first: [fromSlack.id, fromGitLab.id], headless: false },
+    ]);
+  });
+
+  test('by source: every connection on its own', () => {
+    expect(layout('Source').map((section) => section.name)).toEqual([
+      'Personal Gmail',
+      'Work GitLab',
+      'Work Slack',
+    ]);
+  });
+
+  test('newest first: one list without a heading, by time alone', () => {
+    expect(layout('Newest')).toEqual([
+      { name: 'Newest first', first: [fromSlack.id, fromMail.id, fromGitLab.id], headless: true },
+    ]);
   });
 });

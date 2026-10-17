@@ -5,6 +5,7 @@ import { tint } from '../colors';
 import type { SideCategory, Thread } from '../inboxModel';
 import { previewOf, shortTime } from '../inboxModel';
 import { ConnectorIcon } from './ConnectorIcon';
+import { wantsNativeMenu } from './ContextMenu';
 
 interface SidePanelProps {
   categories: SideCategory[];
@@ -17,6 +18,8 @@ interface SidePanelProps {
   onToggle: (category: Category) => void;
   /** A click: show the conversation in the inbox. */
   onPick: (thread: Thread) => void;
+  /** A right click: the conversation's menu, at that point. */
+  onMenu: (thread: Thread, x: number, y: number) => void;
   onFocusChange: (focused: boolean) => void;
 }
 
@@ -27,11 +30,13 @@ const Row = ({
   kind,
   selected,
   onPick,
+  onMenu,
 }: {
   thread: Thread;
   kind: ConnectorKind | undefined;
   selected: boolean;
   onPick: (thread: Thread) => void;
+  onMenu: (thread: Thread, x: number, y: number) => void;
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
   const [latest] = thread.items;
@@ -56,6 +61,12 @@ const Row = ({
       aria-selected={selected}
       className={selected ? 'side-row side-row--on' : 'side-row'}
       onClick={() => onPick(thread)}
+      onContextMenu={(e) => {
+        if (!wantsNativeMenu(e.target)) {
+          e.preventDefault();
+          onMenu(thread, e.clientX, e.clientY);
+        }
+      }}
     >
       <div className="side-row__top">
         <span className="side-row__author">{latest.author}</span>
@@ -87,6 +98,7 @@ export const SidePanel = ({
   listRef,
   onToggle,
   onPick,
+  onMenu,
   onFocusChange,
 }: SidePanelProps) => {
   // Closed while it had the keyboard: it no longer has it.
@@ -153,6 +165,7 @@ export const SidePanel = ({
                         kind={connection?.kind}
                         selected={thread === selected}
                         onPick={onPick}
+                        onMenu={onMenu}
                       />
                     ))}
                   </div>

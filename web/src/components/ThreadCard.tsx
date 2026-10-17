@@ -13,6 +13,7 @@ import { KIND_LABEL, metaOf, relativeTime } from '../connectorMeta';
 import { ConnectorIcon } from './ConnectorIcon';
 import { itemLink, MOD, openLinkProps } from '../openLink';
 import { MessageBody } from './MessageBody';
+import { wantsNativeMenu } from './ContextMenu';
 import { StatusPill } from './StatusPill';
 
 interface ThreadCardProps {
@@ -23,6 +24,12 @@ interface ThreadCardProps {
   /** The quick reactions chosen in Settings, as emoji. */
   reactions: string[];
   selected: boolean;
+  /** Scrolls into view when selected: by the keys yes, under the pointer no. */
+  follow: boolean;
+  /** The pointer moved over it: it becomes the selected one. */
+  onHover: () => void;
+  /** A right click: Huginn's menu of this conversation's actions, at that point. */
+  onMenu: (x: number, y: number) => void;
   /** Owned by the inbox so the R shortcut and the button open the same box. */
   replying: boolean;
   onStartReply: () => void;
@@ -69,6 +76,9 @@ export const ThreadCard = ({
   capabilities,
   reactions,
   selected,
+  follow,
+  onHover,
+  onMenu,
   replying,
   onStartReply,
   onCloseReply,
@@ -94,7 +104,7 @@ export const ThreadCard = ({
   useEffect(() => {
     const card = cardRef.current;
 
-    if (!selected || !card) {
+    if (!selected || !follow || !card) {
       return;
     }
 
@@ -102,7 +112,7 @@ export const ThreadCard = ({
     const tall = pane !== null && card.offsetHeight > pane.clientHeight;
 
     card.scrollIntoView({ block: tall ? 'start' : 'nearest' });
-  }, [selected]);
+  }, [selected, follow]);
 
   useEffect(() => {
     if (replying) {
@@ -214,6 +224,18 @@ export const ThreadCard = ({
       className={`thread${selected ? ' thread--selected' : ''}`}
       style={tint(connection?.color)}
       onClick={onSelect}
+      // Only a real move: the list scrolling under a resting pointer (↑ ↓) keeps the selection.
+      onMouseMove={(e) => {
+        if (!selected && (e.movementX !== 0 || e.movementY !== 0)) {
+          onHover();
+        }
+      }}
+      onContextMenu={(e) => {
+        if (!wantsNativeMenu(e.target)) {
+          e.preventDefault();
+          onMenu(e.clientX, e.clientY);
+        }
+      }}
     >
       <header className="thread__head">
         <ConnectorIcon kind={connection?.kind} href={link} />

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import type { RichContent } from '../api.types';
 import { inMacApp, routeLinksOutside } from '../openLink';
+import { quietNativeMenu } from './ContextMenu';
 
 interface EmailFrameProps {
   itemId: string;
@@ -103,6 +104,7 @@ export const EmailFrame = ({ itemId, openUrl }: EmailFrameProps) => {
           // The mail's links open new windows, which go nowhere in the Mac app.
           if (doc && inMacApp()) {
             routeLinksOutside(doc);
+            quietNativeMenu(doc);
           }
         }}
       />

@@ -12,6 +12,7 @@ import {
   deepLink,
   linkedInMailSource,
   linkedInMailToItem,
+  messageText,
   noticeText,
   personOf,
 } from './LinkedInConnector.utils';
@@ -76,5 +77,96 @@ describe('LinkedIn notification mails', () => {
     );
     expect(source.accepts(MOCK_GMAIL_MESSAGE)).toBe(false);
     expect(source.backfillQuery(7)).toBe('in:inbox is:unread newer_than:7d from:linkedin.com');
+  });
+});
+
+// The layouts of LinkedIn's real message mails (text/plain), with made-up people and words.
+const FOOTER = [
+  '    ',
+  '----------------------------------------',
+  '',
+  'This email was intended for Jozef Čambora (Engineer)',
+  'Learn why we included this: https://www.linkedin.com/help/linkedin/answer/4788?lang=en&lipi=urn',
+  'Unsubscribe: https://www.linkedin.com/comm/mypreferences/u/emailunsub?action=update&lipi=urn',
+];
+const INMAIL_REPLY = [
+  'Message replied: AI Engineer | Prague',
+  'InMail: You have a new message',
+  '',
+  '        Jana Nováková🌼',
+  '',
+  '      Reply',
+  '      https://www.linkedin.com/comm/messaging/thread/2-XYZ?lipi=urn%3Ali%3Apage%3Aemail_hire_inmail',
+  '',
+  'Dobrý den, Jozefe,',
+  '',
+  'měl byste čas na krátký hovor?',
+  ...FOOTER,
+].join('\n');
+const MEMBER_DIGEST = [
+  'You have 2 new messages',
+  '',
+  '.....................................',
+  '',
+  'Petr Novák (We work with IT consultants around the world)',
+  '(https://cz.linkedin.com/in/petrnovak-example-profile-link)',
+  '',
+  'View messages: https://www.linkedin.com/comm/messaging/thread/2-ABC?lipi=urn%3Ali%3Apage%3Aemail_member',
+  '',
+  '.....................................',
+  '}',
+  ...FOOTER,
+].join('\n');
+
+const mailWith = (subject: string, template: string, text: string): GmailMessage => ({
+  ...MOCK_LINKEDIN_MESSAGE,
+  payload: {
+    ...MOCK_LINKEDIN_MESSAGE.payload,
+    headers: (MOCK_LINKEDIN_MESSAGE.payload.headers ?? []).map((h) =>
+      h.name === 'Subject'
+        ? { ...h, value: subject }
+        : h.name === 'X-LinkedIn-Template'
+          ? { ...h, value: template }
+          : h
+    ),
+    parts: [{ mimeType: 'text/plain', body: { data: Buffer.from(text).toString('base64url') } }],
+  },
+});
+
+describe('what people wrote, out of LinkedIn message mails', () => {
+  test('an InMail: only the text below its Reply button, and an answer titled Re:', () => {
+    const item = linkedInMailToItem(
+      'c',
+      mailWith(
+        'Message replied: AI Engineer | Prague',
+        'email_hire_inmail_reply_to_member_01',
+        INMAIL_REPLY
+      ),
+      MOCK_MAILBOX,
+      4000
+    );
+
+    expect(item.kind).toBe(ItemKind.DirectMessage);
+    expect(item.title).toBe('Re: AI Engineer | Prague');
+    expect(item.body).toBe('Dobrý den, Jozefe,\n\nměl byste čas na krátký hovor?');
+  });
+
+  test('"just messaged you": LinkedIn sends no text, so who wrote and how many wait', () => {
+    const item = linkedInMailToItem(
+      'c',
+      mailWith('Petr just messaged you', 'email_member_message_v2', MEMBER_DIGEST),
+      MOCK_MAILBOX,
+      4000
+    );
+
+    expect(item.title).toBe('Petr just messaged you');
+    expect(item.body).toBe(
+      'Petr Novák (We work with IT consultants around the world)\n' +
+        '2 new messages. LinkedIn does not put the text in its e-mails: open it on LinkedIn.'
+    );
+  });
+
+  test('a mail in another layout keeps its text', () => {
+    expect(messageText('Hi Jozef, a quick question.')).toBe('Hi Jozef, a quick question.');
   });
 });

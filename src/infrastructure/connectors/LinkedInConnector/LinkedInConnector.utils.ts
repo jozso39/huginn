@@ -138,6 +138,51 @@ export const noticeText = (text: string): string => {
   return (end === -1 ? lines : lines.slice(0, end)).join('\n').trim();
 };
 
+// An InMail's text starts below its Reply button; LinkedIn's footer ends it.
+const REPLY_BUTTON = /^(Reply|Odpovědět)$/i;
+// "You have 2 new messages": a member's messages, announced without their text.
+const DIGEST = /^You have (\d+) new messages?$/i;
+
+/**
+ * What a person wrote, out of a LinkedIn message mail (cut at the footer already). An
+ * InMail carries it below its Reply button. A "just messaged you" mail carries none —
+ * only who wrote, their headline and how many messages wait — so that is what it says.
+ */
+export const messageText = (text: string): string => {
+  const lines = text.split('\n');
+  const button = lines.findIndex((line) => REPLY_BUTTON.test(line));
+  const said =
+    button === -1
+      ? ''
+      : lines
+          .slice(button + 1)
+          .join('\n')
+          .trim();
+
+  if (said) {
+    return said;
+  }
+
+  const digest = lines.findIndex((line) => DIGEST.test(line));
+
+  if (digest === -1) {
+    return text;
+  }
+
+  const count = Number(DIGEST.exec(lines[digest] ?? '')?.[1] ?? '1');
+  // "Jana Nováková (Recruiter at Acme)"; their profile link is gone, leaving brackets.
+  const who = lines.slice(digest + 1).find((line) => /\p{L}/u.test(line));
+  const waiting = count === 1 ? '1 new message' : `${count} new messages`;
+
+  return [who, `${waiting}. LinkedIn does not put the text in its e-mails: open it on LinkedIn.`]
+    .filter((line) => line !== undefined)
+    .join('\n');
+};
+
+/** LinkedIn titles an answer in an InMail "Message replied: <its subject>". */
+export const messageTitle = (subject: string): string =>
+  subject.replace(/^Message replied:\s*/i, 'Re: ');
+
 export const linkedInMailToItem = (
   connectionId: string,
   message: GmailMessage,
@@ -150,6 +195,8 @@ export const linkedInMailToItem = (
   const notice = classifyNotice(template, raw.subject, from);
   const url = deepLink(notice, htmlBody(message.payload) ?? '');
   const thread = /\/messaging\/thread\/([^/]+)/.exec(url)?.[1];
+  const isMessage = notice === LinkedInNotice.Message;
+  const text = noticeText(bodyText(message.payload));
 
   return {
     connectionId,
@@ -158,15 +205,18 @@ export const linkedInMailToItem = (
     threadKey: thread ? `messaging:${thread}` : message.threadId,
     kind: KIND[notice],
     author: personOf(raw.from.name, raw.subject),
-    title: raw.subject || 'LinkedIn',
-    body: (noticeText(bodyText(message.payload)) || (message.snippet ?? '')).slice(0, maxBodyChars),
+    title: (isMessage ? messageTitle(raw.subject) : raw.subject) || 'LinkedIn',
+    body: ((isMessage ? messageText(text) : text) || (message.snippet ?? '')).slice(
+      0,
+      maxBodyChars
+    ),
     url,
     receivedAt: new Date(Number(message.internalDate)),
     features: {
       notice,
       template: template || null,
       fromAddress: from,
-      isMessage: notice === LinkedInNotice.Message,
+      isMessage,
       isInvitation: notice === LinkedInNotice.Invitation,
       isMention: notice === LinkedInNotice.Mention,
     },

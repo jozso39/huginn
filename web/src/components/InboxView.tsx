@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import type {
   Category,
@@ -10,7 +10,7 @@ import type {
   Verdict,
 } from '../api.types';
 import { metaOf } from '../connectorMeta';
-import type { Outline, Thread } from '../inboxModel';
+import type { InboxOrder, Outline, Thread } from '../inboxModel';
 import {
   counterpart,
   inboxSections,
@@ -21,6 +21,8 @@ import {
   walkable,
 } from '../inboxModel';
 import { isMac, itemLink, MOD, openOutside } from '../openLink';
+import type { MenuLine } from './ContextMenu';
+import { ContextMenu } from './ContextMenu';
 import { ConnectorIcon } from './ConnectorIcon';
 import { SidePanel } from './SidePanel';
 import { ThreadCard } from './ThreadCard';
@@ -56,6 +58,23 @@ const NONE: ConnectorCapabilities = { reply: false, draft: false, react: false, 
 // Keyed by category or connection id, so renaming one keeps it open.
 const EXPANDED_KEY = 'huginn.openSections';
 const FOLDED_KEY = 'huginn.sidePanel.folded';
+const ORDER_KEY = 'huginn.inboxOrder';
+
+const ORDERS: { id: InboxOrder; label: string }[] = [
+  { id: 'Category', label: 'By category' },
+  { id: 'Source', label: 'By source' },
+  { id: 'Newest', label: 'Newest first' },
+];
+
+const loadOrder = (): InboxOrder => {
+  try {
+    const stored = localStorage.getItem(ORDER_KEY);
+
+    return ORDERS.find((o) => o.id === stored)?.id ?? 'Category';
+  } catch {
+    return 'Category';
+  }
+};
 
 const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
@@ -101,20 +120,24 @@ export const InboxView = ({
   onChanged,
 }: InboxViewProps) => {
   const [filter, setFilter] = useState<Filter>('Inbox');
+  const [layout, setLayout] = useState<InboxOrder>(loadOrder);
   const [expanded, setExpanded] = useState<Set<string>>(() => load<string>(EXPANDED_KEY, []));
   const [folded, setFolded] = useState<Set<Category>>(() => load<Category>(FOLDED_KEY, ['Spam']));
   // The selected conversation, by a message in it; `index` is its place in the list it
   // was picked from, where the selection stays when the conversation leaves (Done).
-  const [selection, setSelection] = useState<{ id: string | null; index: number }>({
-    id: null,
-    index: 0,
-  });
+  // Picked by the pointer, it stays where it is on screen; by the keys, it comes into view.
+  const [selection, setSelection] = useState<{
+    id: string | null;
+    index: number;
+    by: 'keys' | 'pointer';
+  }>({ id: null, index: 0, by: 'keys' });
   const [sideFocused, setSideFocused] = useState(false);
   // Messages being closed: hidden at once, back if the server says no.
   const [closing, setClosing] = useState<ReadonlySet<string>>(new Set());
   const [replyFor, setReplyFor] = useState<string | null>(null);
   const [feedbackFor, setFeedbackFor] = useState<{ key: string; verdict: Verdict } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; lines: MenuLine[] } | null>(null);
   const [focusRequest, setFocusRequest] = useState<{ region: Region; at: number } | null>(null);
   // A pick in the side panel scrolls its card to the top of the inbox.
   const [reveal, setReveal] = useState(0);
@@ -167,16 +190,17 @@ export const InboxView = ({
     return inboxSections(
       waiting.filter((item) => categories.includes(item.category)),
       connections,
-      groups
+      groups,
+      layout
     );
-  }, [waiting, filter, connections, groups]);
+  }, [waiting, filter, connections, groups, layout]);
 
   const side = useMemo(() => sidePanel(waiting, connections), [waiting, connections]);
 
   const centerOutline: Outline[] = sections.map((s) => ({
     key: s.key,
     threads: s.threads,
-    open: expanded.has(s.key),
+    open: s.headless || expanded.has(s.key),
   }));
   const sideOutline: Outline[] = side.map((c) => ({
     key: c.category,
@@ -198,7 +222,9 @@ export const InboxView = ({
   const centerSelected = counterpart(centerOrder, current);
   const sideSelected = counterpart(sideOrder, current);
 
-  const requestFocus = (target: Region) => setFocusRequest({ region: target, at: Date.now() });
+  // A new request each time, even for the same place: `at` counts them.
+  const requestFocus = (target: Region) =>
+    setFocusRequest((last) => ({ region: target, at: (last?.at ?? 0) + 1 }));
 
   const setSection = (key: string, open: boolean) => {
     const next = flip(expanded, key, open);
@@ -214,8 +240,18 @@ export const InboxView = ({
     save(FOLDED_KEY, next);
   };
 
-  const select = (thread: Thread, index: number) =>
-    setSelection({ id: thread.items[0]?.id ?? null, index });
+  const select = (thread: Thread, index: number, by: 'keys' | 'pointer' = 'keys') =>
+    setSelection({ id: thread.items[0]?.id ?? null, index, by });
+
+  const chooseOrder = (next: InboxOrder) => {
+    setLayout(next);
+
+    try {
+      localStorage.setItem(ORDER_KEY, next);
+    } catch {
+      // Storage unavailable: the order just is not remembered.
+    }
+  };
 
   /** The inbox follows the side panel: the right filter, the section open. */
   const showInCenter = (thread: Thread) => {
@@ -229,9 +265,9 @@ export const InboxView = ({
       setFilter(latest.category === 'Spam' ? 'Spam' : 'Inbox');
     }
 
-    const section = sectionOf(connectionById.get(latest.connectionId), groupById).key;
+    const section = sectionOf(connectionById.get(latest.connectionId), groupById, layout).key;
 
-    if (!expanded.has(section)) {
+    if (layout !== 'Newest' && !expanded.has(section)) {
       setSection(section, true);
     }
   };
@@ -366,6 +402,75 @@ export const InboxView = ({
     }
   };
 
+  const closeMenu = useCallback(() => setMenu(null), []);
+
+  const copy = (text: string, what: string) =>
+    void navigator.clipboard
+      .writeText(text)
+      .then(() => setToast(`${what} copied.`))
+      .catch((e: unknown) => setToast(`Could not copy: ${errorText(e)}`));
+
+  /** The right-click menu of a conversation: its actions, with the keys that do the same. */
+  const menuLines = (thread: Thread, fromSide: boolean): MenuLine[] => {
+    const latest = thread.items[0];
+
+    if (!latest) {
+      return [];
+    }
+
+    const connection = connectionById.get(latest.connectionId);
+    const can = capabilitiesOf(connection);
+    const link = itemLink(latest);
+    // From the side panel the message comes forward first, where the reply box opens.
+    const run = (key: string) => () => {
+      if (fromSide) {
+        pick(thread);
+      }
+
+      act(key, thread);
+    };
+
+    const react = (emoji: string) =>
+      void api
+        .react(latest.id, emoji)
+        .then(onChanged)
+        .catch((e: unknown) => setToast(`Could not react: ${errorText(e)}`));
+
+    return [
+      ...(can.reply ? [{ label: 'Reply', shortcut: 'R', onSelect: run('r') }] : []),
+      ...(can.react && reactions.length > 0 ? [{ reactions, onReact: react }] : []),
+      { label: 'Done', shortcut: 'D', onSelect: () => markDone(thread) },
+      ...(latest.category === 'Important'
+        ? []
+        : [{ label: 'Important…', shortcut: 'I', onSelect: run('i') }]),
+      ...(latest.category === 'Spam'
+        ? []
+        : [{ label: 'Spam…', shortcut: 'S', onSelect: run('s') }]),
+      'separator' as const,
+      ...(link
+        ? [
+            {
+              label: `Open in ${metaOf(connection?.kind).label}`,
+              shortcut: `${MOD}↵`,
+              onSelect: () => openOutside(link),
+            },
+            { label: 'Copy link', onSelect: () => copy(link, 'Link') },
+          ]
+        : []),
+      { label: 'Copy text', onSelect: () => copy(latest.body || latest.title, 'Text') },
+    ];
+  };
+
+  const openMenu = (thread: Thread, x: number, y: number, fromSide: boolean) => {
+    if (fromSide) {
+      select(thread, sideOrder.indexOf(thread), 'pointer');
+    } else {
+      select(thread, centerOrder.indexOf(thread), 'pointer');
+    }
+
+    setMenu({ x, y, lines: menuLines(thread, fromSide) });
+  };
+
   // ⌘B: to the side panel; from it, the panel closes; closed, it opens.
   const sidePanelKey = () => {
     if (!visible) {
@@ -477,6 +582,34 @@ export const InboxView = ({
     return () => window.removeEventListener('keydown', listener);
   }, []);
 
+  const card = (thread: Thread) => {
+    const connection = connectionById.get(thread.items[0]?.connectionId ?? '');
+
+    return (
+      <ThreadCard
+        key={thread.key}
+        items={thread.items}
+        connection={connection}
+        capabilities={capabilitiesOf(connection)}
+        reactions={reactions}
+        selected={thread === centerSelected}
+        follow={selection.by === 'keys'}
+        onHover={() => select(thread, centerOrder.indexOf(thread), 'pointer')}
+        onMenu={(x, y) => openMenu(thread, x, y, false)}
+        replying={replyFor === thread.key}
+        onStartReply={() => setReplyFor(thread.key)}
+        onCloseReply={closeReply}
+        feedback={feedbackFor?.key === thread.key ? feedbackFor.verdict : null}
+        onStartFeedback={(verdict) => setFeedbackFor({ key: thread.key, verdict })}
+        onCloseFeedback={closeFeedback}
+        onSelect={() => select(thread, centerOrder.indexOf(thread))}
+        onDone={() => markDone(thread)}
+        onChanged={onChanged}
+        onNotice={setToast}
+      />
+    );
+  };
+
   return (
     <div className="inbox-layout" hidden={!visible}>
       {/* Gone with the inbox, so it cannot keep the keyboard while another tab is open. */}
@@ -489,6 +622,7 @@ export const InboxView = ({
           listRef={sideRef}
           onToggle={(category) => setCategory(category, folded.has(category))}
           onPick={pick}
+          onMenu={(thread, x, y) => openMenu(thread, x, y, true)}
           onFocusChange={setSideFocused}
         />
       )}
@@ -505,6 +639,21 @@ export const InboxView = ({
                 {f.label} <span className="count">{counts[f.id]}</span>
               </button>
             ))}
+            <span className="spacer" />
+            <div className="segmented segmented--small" role="radiogroup" aria-label="Order">
+              {ORDERS.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={layout === o.id}
+                  className={layout === o.id ? 'segmented__on' : undefined}
+                  onClick={() => chooseOrder(o.id)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
           </nav>
 
           {sections.length === 0 ? (
@@ -518,7 +667,15 @@ export const InboxView = ({
           ) : (
             <div className="groups">
               {sections.map((group) => {
-                const open = expanded.has(group.key);
+                const open = group.headless || expanded.has(group.key);
+
+                if (group.headless) {
+                  return (
+                    <div key={group.key} className="threads threads--flat">
+                      {group.threads.map(card)}
+                    </div>
+                  );
+                }
 
                 return (
                   <section key={group.key} className={open ? 'group group--open' : 'group'}>
@@ -543,40 +700,7 @@ export const InboxView = ({
                       )}
                       <span className="count">{group.threads.length} waiting</span>
                     </button>
-                    {open && (
-                      <div className="threads">
-                        {group.threads.map((thread) => {
-                          const connection = connectionById.get(
-                            thread.items[0]?.connectionId ?? ''
-                          );
-
-                          return (
-                            <ThreadCard
-                              key={thread.key}
-                              items={thread.items}
-                              connection={connection}
-                              capabilities={capabilitiesOf(connection)}
-                              reactions={reactions}
-                              selected={thread === centerSelected}
-                              replying={replyFor === thread.key}
-                              onStartReply={() => setReplyFor(thread.key)}
-                              onCloseReply={closeReply}
-                              feedback={
-                                feedbackFor?.key === thread.key ? feedbackFor.verdict : null
-                              }
-                              onStartFeedback={(verdict) =>
-                                setFeedbackFor({ key: thread.key, verdict })
-                              }
-                              onCloseFeedback={closeFeedback}
-                              onSelect={() => select(thread, centerOrder.indexOf(thread))}
-                              onDone={() => markDone(thread)}
-                              onChanged={onChanged}
-                              onNotice={setToast}
-                            />
-                          );
-                        })}
-                      </div>
-                    )}
+                    {open && <div className="threads">{group.threads.map(card)}</div>}
                   </section>
                 );
               })}
@@ -591,6 +715,7 @@ export const InboxView = ({
           </p>
         </div>
       </section>
+      {menu && <ContextMenu x={menu.x} y={menu.y} lines={menu.lines} onClose={closeMenu} />}
       {toast && (
         <div className="toast" role="status" onClick={() => setToast(null)}>
           {toast}
