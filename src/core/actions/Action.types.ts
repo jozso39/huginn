@@ -6,6 +6,8 @@ export enum ActionType {
   MarkImportant = 'MarkImportant',
   React = 'React',
   Done = 'Done',
+  /** Deleted at the source (an e-mail moved to Trash), and so done. */
+  Trash = 'Trash',
   Archive = 'Archive',
   /** Closed by the provider, not by the user (todo done in GitLab, mail archived). */
   Synced = 'Synced',

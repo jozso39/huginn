@@ -35,6 +35,7 @@ export class SignalConnector implements IConnector {
     draft: false,
     react: true,
     ack: false,
+    trash: false,
   };
   public readonly kind = ConnectorKind.Signal;
   public readonly capabilities = SignalConnector.capabilities;

@@ -23,6 +23,7 @@ export class GitLabConnector implements IConnector {
     draft: false,
     react: false,
     ack: true,
+    trash: false,
   };
   public readonly capabilities = GitLabConnector.capabilities;
   private timer: ReturnType<typeof setInterval> | null = null;

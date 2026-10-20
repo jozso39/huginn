@@ -13,7 +13,8 @@ export interface ConnectionFormValues {
   name: string;
   groupId: string | null;
   color: string;
-  config: Record<string, string>;
+  /** Text fields as typed; yes/no settings as booleans. */
+  config: Record<string, string | boolean>;
   secrets: Record<string, string>;
 }
 
@@ -32,7 +33,24 @@ interface ConnectionFormProps {
 }
 
 const asText = (value: unknown): string =>
-  typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+  typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : '';
+
+const isSwitch = (prop: JsonSchemaProperty) => prop.type === 'boolean';
+
+/** What the server takes: the form keeps every field as text, a switch as "true"/"false". */
+const typedConfig = (
+  descriptor: ConnectorDescriptor,
+  config: Record<string, string>
+): Record<string, string | boolean> =>
+  Object.fromEntries(
+    Object.entries(config).map(([key, value]) => {
+      const prop = descriptor.configSchema.properties?.[key];
+
+      return [key, prop && isSwitch(prop) ? value === 'true' : value];
+    })
+  );
 
 const initialConfig = (descriptor: ConnectorDescriptor, existing?: Connection) =>
   Object.fromEntries(
@@ -112,7 +130,7 @@ export const ConnectionForm = ({
     setError(null);
 
     try {
-      await onSubmit({ name, groupId, color, config, secrets });
+      await onSubmit({ name, groupId, color, config: typedConfig(descriptor, config), secrets });
       setSecrets({});
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -156,18 +174,32 @@ export const ConnectionForm = ({
       </div>
       {Object.entries(descriptor.configSchema.properties ?? {})
         .filter(([, prop]) => applies(prop, config))
-        .map(([key, prop]) => (
-          <label key={key}>
-            {prop.title ?? key}
-            <ConfigField
-              prop={prop}
-              value={config[key] ?? ''}
-              required={required.has(key)}
-              onChange={(value) => setConfig((c) => ({ ...c, [key]: value }))}
-            />
-            {prop.description && <small className="muted">{prop.description}</small>}
-          </label>
-        ))}
+        .map(([key, prop]) =>
+          isSwitch(prop) ? (
+            <label key={key} className="switch-field">
+              <input
+                type="checkbox"
+                checked={config[key] === 'true'}
+                onChange={(e) => setConfig((c) => ({ ...c, [key]: String(e.target.checked) }))}
+              />
+              <span className="switch-field__text">
+                {prop.title ?? key}
+                {prop.description && <small className="muted">{prop.description}</small>}
+              </span>
+            </label>
+          ) : (
+            <label key={key}>
+              {prop.title ?? key}
+              <ConfigField
+                prop={prop}
+                value={config[key] ?? ''}
+                required={required.has(key)}
+                onChange={(value) => setConfig((c) => ({ ...c, [key]: value }))}
+              />
+              {prop.description && <small className="muted">{prop.description}</small>}
+            </label>
+          )
+        )}
       {descriptor.secretFields.map((field) => (
         <label key={field.key}>
           {field.label}

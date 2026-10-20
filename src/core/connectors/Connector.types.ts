@@ -18,6 +18,8 @@ export interface ConnectorCapabilities {
   readonly react: boolean;
   /** Can close the thing at the provider (mark todo done, mark mail read). */
   readonly ack: boolean;
+  /** Can delete it at the provider: an e-mail goes to Trash. */
+  readonly trash: boolean;
 }
 
 /**
@@ -65,6 +67,7 @@ export interface IConnector {
   draft?(item: Item, text: string): Promise<ActionResult>;
   react?(item: Item, emoji: string): Promise<ActionResult>;
   ack?(item: Item): Promise<ActionResult>;
+  trash?(item: Item): Promise<ActionResult>;
   /** The full message for display, fetched when the user opens it (e-mail HTML). */
   content?(item: Item): Promise<RichContent>;
 }

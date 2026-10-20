@@ -48,6 +48,7 @@ export class ClickUpConnector implements IConnector {
     draft: false,
     react: false,
     ack: false,
+    trash: false,
   };
   public readonly kind = ConnectorKind.ClickUp;
   public readonly capabilities = ClickUpConnector.capabilities;

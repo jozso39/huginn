@@ -96,6 +96,7 @@ export class MockGmailClient implements IGmailClient {
   public readonly sent: { raw: string; threadId: string }[] = [];
   public readonly drafts: { raw: string; threadId: string }[] = [];
   public readonly markedRead: string[] = [];
+  public readonly trashed: string[] = [];
 
   public profile(): Promise<GmailProfile> {
     return Promise.resolve({ emailAddress: MOCK_MAILBOX, historyId: '100' });
@@ -129,6 +130,12 @@ export class MockGmailClient implements IGmailClient {
 
   public markRead(id: string): Promise<void> {
     this.markedRead.push(id);
+
+    return Promise.resolve();
+  }
+
+  public trash(id: string): Promise<void> {
+    this.trashed.push(id);
 
     return Promise.resolve();
   }

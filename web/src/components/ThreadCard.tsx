@@ -41,6 +41,8 @@ interface ThreadCardProps {
   onSelect: () => void;
   /** Closes the whole thread (the inbox hides it at once, like the D shortcut). */
   onDone: () => void;
+  /** Moves the e-mails to Trash and closes the thread; absent where Done does that already. */
+  onDelete?: () => void;
   onChanged: (item: Item) => void;
   /** Messages that must outlive the card (it may leave the view after Spam). */
   onNotice: (message: string) => void;
@@ -87,6 +89,7 @@ export const ThreadCard = ({
   onCloseFeedback,
   onSelect,
   onDone,
+  onDelete,
   onChanged,
   onNotice,
 }: ThreadCardProps) => {
@@ -434,7 +437,26 @@ export const ThreadCard = ({
             Spam
           </button>
         )}
-        <button type="button" onClick={onDone} disabled={busy} title="Done (D)">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={busy}
+            title={`Moves the e-mail to Trash in ${meta.label}`}
+          >
+            Delete
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onDone}
+          disabled={busy}
+          title={
+            connection?.config.trashOnDone === true
+              ? `Done (D): moves the e-mail to Trash in ${meta.label}`
+              : 'Done (D)'
+          }
+        >
           Done
         </button>
       </footer>

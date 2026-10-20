@@ -45,7 +45,16 @@ export interface Item {
 export interface Action {
   id: string;
   itemId: string;
-  type: 'Reply' | 'Draft' | 'React' | 'Done' | 'Archive' | 'Synced' | 'MarkSpam' | 'MarkImportant';
+  type:
+    | 'Reply'
+    | 'Draft'
+    | 'React'
+    | 'Done'
+    | 'Trash'
+    | 'Archive'
+    | 'Synced'
+    | 'MarkSpam'
+    | 'MarkImportant';
   payload: Record<string, unknown>;
   result: Record<string, unknown> | null;
   createdAt: string;
@@ -118,6 +127,8 @@ export interface ConnectorCapabilities {
   draft: boolean;
   react: boolean;
   ack: boolean;
+  /** Can delete it at the source: an e-mail goes to Trash. */
+  trash: boolean;
 }
 
 export interface ConnectorDescriptor {

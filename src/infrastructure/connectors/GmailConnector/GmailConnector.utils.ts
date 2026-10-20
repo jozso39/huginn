@@ -227,8 +227,12 @@ export const toItemRaw = (message: GmailMessage, mailbox: string): GmailItemRaw 
   };
 };
 
+/**
+ * The thread in Gmail, in the right account. Not /mail/u/<address>/: Gmail answers that
+ * with an error page (see drizzle/0010_gmail_links.sql for the links stored before).
+ */
 export const gmailUrl = (mailbox: string, threadId: string): string =>
-  `https://mail.google.com/mail/u/${encodeURIComponent(mailbox)}/#all/${threadId}`;
+  `https://mail.google.com/mail/?authuser=${encodeURIComponent(mailbox)}#all/${threadId}`;
 
 export const senderAddress = (message: GmailMessage): string =>
   parseAddresses(header(message.payload, 'From'))[0]?.address ?? '';
@@ -238,6 +242,7 @@ export const GMAIL_CAPABILITIES: ConnectorCapabilities = {
   draft: true,
   react: false,
   ack: true,
+  trash: true,
 };
 
 /** The Gmail connection: unread inbox mail in the chosen tabs, minus skipped senders. */

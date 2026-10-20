@@ -16,6 +16,12 @@ import { GmailInboxScope } from './GmailConnector.types';
 import { GMAIL_CAPABILITIES, inboxMailSource, parseDomainList } from './GmailConnector.utils';
 import { GoogleAuthorization } from './GoogleAuthorization';
 
+/** For every mailbox connection (Gmail, and LinkedIn through its mails). */
+export const trashOnDoneField = z.boolean().default(false).meta({
+  title: 'Done moves the e-mail to Trash',
+  description: 'Off: Done marks it read and leaves it in Gmail; a Delete button moves it to Trash.',
+});
+
 export const gmailConfigSchema = z.object({
   inboxScope: z
     .enum(GmailInboxScope)
@@ -35,6 +41,7 @@ export const gmailConfigSchema = z.object({
       'Domains, comma-separated, e.g. linkedin.com when a LinkedIn connection reads those mails.',
   }),
   checkEvery: pollIntervalField,
+  trashOnDone: trashOnDoneField,
 });
 
 export type GmailClientFactory = (app: OAuthAppCredentials, refreshToken: string) => IGmailClient;
@@ -77,7 +84,8 @@ export class GmailConnectorFactory implements IConnectorFactory {
       this.createClient(app, secrets.refreshToken ?? ''),
       inboxMailSource(config.inboxScope, parseDomainList(config.skipSenders)),
       pollMs(config.checkEvery, this.config.connectors.pollOverrideMs),
-      this.config.maxBodyChars
+      this.config.maxBodyChars,
+      config.trashOnDone
     );
   }
 }

@@ -71,6 +71,13 @@
       "when": 1791319929135,
       "tag": "0009_drop_push_devices",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792485486429,
+      "tag": "0010_gmail_links",
+      "breakpoints": true
     }
   ]
 }

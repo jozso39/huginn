@@ -30,6 +30,7 @@ export class WhatsAppConnector implements IConnector {
     react: true,
     // Done sends read receipts, as reading on the phone would.
     ack: true,
+    trash: false,
   };
   public readonly kind = ConnectorKind.WhatsApp;
   public readonly capabilities = WhatsAppConnector.capabilities;

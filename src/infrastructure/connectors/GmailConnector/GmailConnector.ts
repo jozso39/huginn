@@ -44,7 +44,9 @@ export class GmailConnector implements IConnector {
     private readonly client: IGmailClient,
     private readonly source: MailSource,
     private readonly pollMs: number,
-    private readonly maxBodyChars: number
+    private readonly maxBodyChars: number,
+    /** The connection's "Done moves the e-mail to Trash". */
+    private readonly trashOnDone = false
   ) {}
 
   public get kind() {
@@ -114,7 +116,22 @@ export class GmailConnector implements IConnector {
     });
   }
 
+  /** Done: the mail is marked read, or moved to Trash when the connection says so. */
   public ack(item: Item): Promise<ActionResult> {
+    return this.trashOnDone ? this.trash(item) : this.markRead(item);
+  }
+
+  public trash(item: Item): Promise<ActionResult> {
+    const raw = item.raw as GmailItemRaw;
+
+    return this.act(async () => {
+      await this.client.trash(raw.id);
+
+      return { ok: true, ref: raw.id };
+    });
+  }
+
+  private markRead(item: Item): Promise<ActionResult> {
     const raw = item.raw as GmailItemRaw;
 
     return this.act(async () => {

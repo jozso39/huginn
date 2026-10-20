@@ -92,6 +92,7 @@ export class SlackConnector implements IConnector {
     draft: false,
     react: true,
     ack: false,
+    trash: false,
   };
   public readonly capabilities = SlackConnector.capabilities;
   private ctx: ConnectorContext | null = null;
