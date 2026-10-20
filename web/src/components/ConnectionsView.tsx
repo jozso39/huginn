@@ -32,8 +32,10 @@ const STATUS_LABEL: Record<Connection['status'], string> = {
 };
 
 /** Blank optional fields are left out so the server's defaults apply. */
-const filledOnly = (values: Record<string, string>) =>
-  Object.fromEntries(Object.entries(values).filter(([, value]) => value.trim() !== ''));
+const filledOnly = <T extends string | boolean>(values: Record<string, T>): Record<string, T> =>
+  Object.fromEntries(
+    Object.entries(values).filter(([, value]) => typeof value === 'boolean' || value.trim() !== '')
+  );
 
 const byName = (a: Connection, b: Connection) => a.name.localeCompare(b.name);
 

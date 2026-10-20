@@ -61,4 +61,6 @@ export interface IGmailClient {
   send(raw: string, threadId: string): Promise<GmailMessageRef>;
   createDraft(raw: string, threadId: string): Promise<{ readonly id: string }>;
   markRead(id: string): Promise<void>;
+  /** Moves the message to Trash (Gmail empties it after 30 days). */
+  trash(id: string): Promise<void>;
 }

@@ -27,6 +27,7 @@ export const LINKEDIN_CAPABILITIES: ConnectorCapabilities = {
   draft: false,
   react: false,
   ack: true,
+  trash: true,
 };
 
 // LinkedIn names the template of every mail in X-LinkedIn-Template, e.g.

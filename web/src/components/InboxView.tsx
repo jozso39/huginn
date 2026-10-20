@@ -54,7 +54,13 @@ const FILTERS: { id: Filter; label: string; categories: Category[] }[] = [
   { id: 'Spam', label: 'Spam', categories: ['Spam'] },
 ];
 
-const NONE: ConnectorCapabilities = { reply: false, draft: false, react: false, ack: false };
+const NONE: ConnectorCapabilities = {
+  reply: false,
+  draft: false,
+  react: false,
+  ack: false,
+  trash: false,
+};
 // Keyed by category or connection id, so renaming one keeps it open.
 const EXPANDED_KEY = 'huginn.openSections';
 const FOLDED_KEY = 'huginn.sidePanel.folded';
@@ -318,23 +324,33 @@ export const InboxView = ({
     select(target.thread, walkable(opened).indexOf(target.thread));
   };
 
-  // Gone at once; the selection moves on to the next conversation.
-  const markDone = (thread: Thread) => {
+  // Gone at once; the selection moves on to the next conversation. Deleting also moves
+  // the e-mails to Trash; on a failure the conversation comes back.
+  const close = (thread: Thread, how: 'done' | 'trash') => {
     const ids = thread.items.map((item) => item.id);
 
     setClosing((now) => new Set([...now, ...ids]));
-    void Promise.allSettled(ids.map((id) => api.done(id))).then((results) => {
+    void Promise.allSettled(ids.map((id) => api[how](id))).then((results) => {
       results.forEach((result) => result.status === 'fulfilled' && onChanged(result.value));
 
       const failed = results.find((result) => result.status === 'rejected');
 
       if (failed) {
-        setToast(`Could not mark it done: ${errorText(failed.reason)}`);
+        setToast(
+          `Could not ${how === 'trash' ? 'delete' : 'mark'} it${how === 'trash' ? '' : ' done'}: ${errorText(failed.reason)}`
+        );
       }
 
       setClosing((now) => new Set([...now].filter((id) => !ids.includes(id))));
     });
   };
+
+  const markDone = (thread: Thread) => close(thread, 'done');
+  const markDeleted = (thread: Thread) => close(thread, 'trash');
+
+  /** An e-mail connection whose Done already moves the mail to Trash has no Delete of its own. */
+  const trashesOnDone = (connection: Connection | undefined) =>
+    connection?.config.trashOnDone === true;
 
   const closeReply = () => {
     setReplyFor(null);
@@ -439,7 +455,14 @@ export const InboxView = ({
     return [
       ...(can.reply ? [{ label: 'Reply', shortcut: 'R', onSelect: run('r') }] : []),
       ...(can.react && reactions.length > 0 ? [{ reactions, onReact: react }] : []),
-      { label: 'Done', shortcut: 'D', onSelect: () => markDone(thread) },
+      {
+        label: trashesOnDone(connection) ? 'Done (to Trash)' : 'Done',
+        shortcut: 'D',
+        onSelect: () => markDone(thread),
+      },
+      ...(can.trash && !trashesOnDone(connection)
+        ? [{ label: 'Delete', onSelect: () => markDeleted(thread) }]
+        : []),
       ...(latest.category === 'Important'
         ? []
         : [{ label: 'Important…', shortcut: 'I', onSelect: run('i') }]),
@@ -604,6 +627,11 @@ export const InboxView = ({
         onCloseFeedback={closeFeedback}
         onSelect={() => select(thread, centerOrder.indexOf(thread))}
         onDone={() => markDone(thread)}
+        onDelete={
+          capabilitiesOf(connection).trash && !trashesOnDone(connection)
+            ? () => markDeleted(thread)
+            : undefined
+        }
         onChanged={onChanged}
         onNotice={setToast}
       />

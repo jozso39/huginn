@@ -29,5 +29,7 @@ export interface IInboxService {
   react(id: string, emoji: string): Promise<Item>;
   /** Hide/done/ack: closes here and, when the connector can, at the provider. */
   done(id: string): Promise<Item>;
+  /** Deletes it at the source (an e-mail goes to Trash), then closes it here. */
+  trash(id: string): Promise<Item>;
   reopen(id: string): Promise<Item>;
 }

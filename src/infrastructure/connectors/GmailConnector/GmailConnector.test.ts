@@ -180,6 +180,45 @@ describe('Google sign-in and the Gmail connector', () => {
     expect(gmail.markedRead).toEqual(['m1']);
   });
 
+  test('Delete moves the mail to Trash in Gmail and closes it here', async () => {
+    const [item] = await container.inboxService.list({ state: ItemState.Done, connectionId });
+
+    await container.inboxService.reopen(item?.id ?? '');
+
+    const deleted = await container.inboxService.trash(item?.id ?? '');
+    const detail = await container.inboxService.get(deleted.id);
+
+    expect(deleted.state).toBe(ItemState.Done);
+    expect(gmail.trashed).toEqual(['m1']);
+    expect(detail?.actions.at(-1)?.type).toBe(ActionType.Trash);
+  });
+
+  test('"Done moves the e-mail to Trash": Done trashes it instead of marking it read', async () => {
+    const connection = await container.connectionService.get(connectionId);
+
+    if (!connection) {
+      throw new Error('the Gmail connection is gone');
+    }
+
+    const settings = (trashOnDone: boolean) =>
+      container.connectionService.update(connectionId, {
+        name: connection.name,
+        config: { ...connection.config, trashOnDone },
+      });
+
+    await settings(true);
+
+    const [item] = await container.inboxService.list({ state: ItemState.Done, connectionId });
+
+    await container.inboxService.reopen(item?.id ?? '');
+    await container.inboxService.done(item?.id ?? '');
+
+    expect(gmail.trashed).toEqual(['m1', 'm1']);
+    expect(gmail.markedRead).toEqual(['m1']);
+
+    await settings(false);
+  });
+
   test('history: new mail comes in, mail read in Gmail leaves, my reply closes its thread', async () => {
     gmail.messages.set('m2', { ...MOCK_GMAIL_MESSAGE, id: 'm2', threadId: 't2' });
     gmail.messages.set('m3', { ...MOCK_GMAIL_MESSAGE, id: 'm3', threadId: 't3' });

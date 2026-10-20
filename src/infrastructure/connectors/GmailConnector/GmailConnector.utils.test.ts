@@ -74,7 +74,7 @@ describe('messageToItem', () => {
     expect(item.title).toBe('Re: Čísla za září');
     expect(item.body).toBe('Can you send the numbers by Friday?');
     expect(item.threadKey).toBe('t1');
-    expect(item.url).toBe('https://mail.google.com/mail/u/jozef%40example.com/#all/t1');
+    expect(item.url).toBe('https://mail.google.com/mail/?authuser=jozef%40example.com#all/t1');
     expect(item.features).toMatchObject({
       fromDomain: 'example.com',
       toMe: true,

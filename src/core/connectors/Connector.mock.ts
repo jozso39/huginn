@@ -9,7 +9,13 @@ import type {
   SecretField,
 } from './Connector.types';
 
-const NOTHING: ConnectorCapabilities = { reply: false, draft: false, react: false, ack: false };
+const NOTHING: ConnectorCapabilities = {
+  reply: false,
+  draft: false,
+  react: false,
+  ack: false,
+  trash: false,
+};
 
 /**
  * A source a test feeds by hand, standing in for any kind: no poller and no default

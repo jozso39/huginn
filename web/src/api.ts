@@ -75,6 +75,8 @@ export const api = {
     request<{ item: Item }>('POST', `/items/${id}/draft`, { text }).then((r) => r.item),
   react: (id: string, emoji: string) =>
     request<{ item: Item }>('POST', `/items/${id}/react`, { emoji }).then((r) => r.item),
+  /** Moves it to Trash at the source (e-mail) and closes it here. */
+  trash: (id: string) => request<{ item: Item }>('POST', `/items/${id}/trash`).then((r) => r.item),
   done: (id: string) => request<{ item: Item }>('POST', `/items/${id}/done`).then((r) => r.item),
   feedback: (id: string, verdict: Verdict, explanation: string) =>
     request<FeedbackResult>('POST', `/items/${id}/feedback`, { verdict, explanation }),

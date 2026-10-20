@@ -102,6 +102,10 @@ export class GmailClient implements IGmailClient {
     await this.request('POST', `/messages/${id}/modify`, { removeLabelIds: ['UNREAD'] });
   }
 
+  public async trash(id: string): Promise<void> {
+    await this.request('POST', `/messages/${id}/trash`);
+  }
+
   private async token(): Promise<string> {
     // A minute of slack so a token never expires between the check and the call.
     if (!this.accessToken || this.accessToken.expiresAt - 60_000 < Date.now()) {

@@ -2483,3 +2483,24 @@ a.slack-attachment__title:hover {
   margin: 5px 6px;
   background: var(--border);
 }
+
+/* A yes/no setting: the box before its title, the explanation under it. */
+.switch-field {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.switch-field input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.switch-field__text {
+  display: grid;
+  gap: 2px;
+}

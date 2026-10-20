@@ -59,6 +59,10 @@ export const createItemRoutes = (container: Container) => {
     );
   });
 
+  app.post('/:id/trash', async (c) =>
+    c.json({ item: await container.inboxService.trash(c.req.param('id')) })
+  );
+
   app.post('/:id/done', async (c) =>
     c.json({ item: await container.inboxService.done(c.req.param('id')) })
   );

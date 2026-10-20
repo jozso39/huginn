@@ -12,10 +12,14 @@ import { LINKEDIN_DEFAULT_RULES } from '@/infrastructure/connectors/defaultRules
 import { pollIntervalField, pollMs } from '@/infrastructure/connectors/pollInterval';
 import { GmailConnector } from '@/infrastructure/connectors/GmailConnector/GmailConnector';
 import type { GmailClientFactory } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
+import { trashOnDoneField } from '@/infrastructure/connectors/GmailConnector/GmailConnectorFactory';
 import { GoogleAuthorization } from '@/infrastructure/connectors/GmailConnector/GoogleAuthorization';
 import { LINKEDIN_CAPABILITIES, linkedInMailSource } from './LinkedInConnector.utils';
 
-export const linkedInConfigSchema = z.object({ checkEvery: pollIntervalField });
+export const linkedInConfigSchema = z.object({
+  checkEvery: pollIntervalField,
+  trashOnDone: trashOnDoneField,
+});
 
 /**
  * LinkedIn through the mails it sends: sign in with the Google account LinkedIn
@@ -50,16 +54,16 @@ export class LinkedInConnectorFactory implements IConnectorFactory {
       throw new HuginnError(ErrorCode.Validation, 'LinkedIn needs the Google sign-in app');
     }
 
+    const config = linkedInConfigSchema.parse(connection.config);
+
     return new GmailConnector(
       this.logger,
       connection,
       this.createClient(app, secrets.refreshToken ?? ''),
       linkedInMailSource(),
-      pollMs(
-        linkedInConfigSchema.parse(connection.config).checkEvery,
-        this.config.connectors.pollOverrideMs
-      ),
-      this.config.maxBodyChars
+      pollMs(config.checkEvery, this.config.connectors.pollOverrideMs),
+      this.config.maxBodyChars,
+      config.trashOnDone
     );
   }
 }

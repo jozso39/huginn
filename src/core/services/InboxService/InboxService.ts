@@ -130,6 +130,23 @@ export class InboxService implements IInboxService {
     return this.transition(item, ItemState.Done);
   }
 
+  public async trash(id: string): Promise<Item> {
+    const item = await this.require(id);
+    const connector = this.connectorFor(item, 'trash');
+
+    if (!connector.trash) {
+      throw new HuginnError(ErrorCode.Unsupported, 'this connection cannot delete');
+    }
+
+    // Unlike Done, this was asked of the source: a failure is the answer, not a warning.
+    const result = await connector.trash(item);
+
+    await this.record(item, ActionType.Trash, {}, result);
+    this.assertOk(result, 'trash');
+
+    return this.transition(item, ItemState.Done);
+  }
+
   public async reopen(id: string): Promise<Item> {
     const item = await this.require(id);
 
@@ -146,7 +163,7 @@ export class InboxService implements IInboxService {
     return item;
   }
 
-  private connectorFor(item: Item, capability: 'reply' | 'draft' | 'react'): IConnector {
+  private connectorFor(item: Item, capability: 'reply' | 'draft' | 'react' | 'trash'): IConnector {
     const connector = this.connectorHost.getConnector(item.connectionId);
 
     if (!connector) {
