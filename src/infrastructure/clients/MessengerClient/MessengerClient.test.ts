@@ -79,7 +79,7 @@ describe('HelperMessengerClient runs huginn-messenger itself', () => {
 
     expect(await client.login(COOKIES)).toEqual({
       userId: '100000001',
-      name: 'Jozef',
+      name: 'Jana',
       cookies: { ...COOKIES, fr: 'fr-1' },
     });
 
@@ -96,7 +96,7 @@ describe('HelperMessengerClient runs huginn-messenger itself', () => {
 
     expect(await session.start((event) => events.push(event))).toEqual({
       userId: '100000001',
-      name: 'Jozef',
+      name: 'Jana',
     });
     await waitFor(() => events.length === 3);
     // Events it does not know are skipped, not fatal.

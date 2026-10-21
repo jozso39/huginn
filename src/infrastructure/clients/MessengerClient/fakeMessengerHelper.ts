@@ -8,7 +8,7 @@ const logFile = process.env.FAKE_MESSENGER_LOG ?? '/dev/null';
 const crashedBefore = `${logFile}.crashed`;
 const note = (line: string) => appendFileSync(logFile, `${line}\n`);
 const write = (message: object) => process.stdout.write(`${JSON.stringify(message)}\n`);
-const ACCOUNT = { userId: '100000001', name: 'Jozef' };
+const ACCOUNT = { userId: '100000001', name: 'Jana' };
 
 note(`start ${process.argv.slice(2).join(' ')}`);
 process.stderr.write(`${JSON.stringify({ level: 'info', message: 'helper up' })}\n`);

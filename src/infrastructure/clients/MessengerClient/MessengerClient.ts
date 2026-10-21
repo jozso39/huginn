@@ -16,9 +16,10 @@ import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
 import type { SessionCookies } from '@/core/login/LoginWindow.types';
 
 const CALL_TIMEOUT_MS = 20_000;
-// Signing in registers a new device of the account, and connecting syncs the inbox.
-const LOGIN_TIMEOUT_MS = 90_000;
-const CONNECT_TIMEOUT_MS = 90_000;
+// Signing in registers a new device of the account, and connecting syncs the inbox; the
+// helper gives up on either after 2 minutes and says why, so Huginn waits a bit longer.
+const LOGIN_TIMEOUT_MS = 150_000;
+const CONNECT_TIMEOUT_MS = 150_000;
 // The helper exits as soon as its stdin closes; one that hangs is killed after this.
 const STOP_GRACE_MS = 3_000;
 // A run this long was healthy: the next crash restarts it with the shortest wait again.

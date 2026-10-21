@@ -8,7 +8,7 @@ import type {
 import { ErrorCode, HuginnError } from '@/core/errors/errors';
 import type { SessionCookies } from '@/core/login/LoginWindow.types';
 
-export const MOCK_MESSENGER_ACCOUNT: MessengerAccount = { userId: '100000001', name: 'Jozef' };
+export const MOCK_MESSENGER_ACCOUNT: MessengerAccount = { userId: '100000001', name: 'Jana' };
 
 export class MockMessengerSession implements IMessengerSession {
   public handler: MessengerEventHandler | null = null;

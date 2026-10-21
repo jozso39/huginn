@@ -22,6 +22,12 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # huginn-messenger, the Messenger helper bundled next to the server.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: messenger/go.mod
+          cache-dependency-path: messenger/go.sum
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: desktop -> target
@@ -29,12 +35,12 @@ jobs:
       - run: bun install --frozen-lockfile
 
       - name: Checks and tests
-        run: bun run code:check && bun run test
+        run: bun run code:check && bun run test && (cd messenger && go test ./...)
 
       - name: The tag matches package.json
         run: test "v$(jq -r .version package.json)" = "$GITHUB_REF_NAME"
 
-      # Builds the web app and the server sidecar (beforeBuildCommand), the .app, the
+      # Builds the web app and the sidecars (beforeBuildCommand), the .app, the
       # .dmg and the signed update; publishes them with latest.json for the updater.
       - uses: tauri-apps/tauri-action@action-v1.0.0
         env:
