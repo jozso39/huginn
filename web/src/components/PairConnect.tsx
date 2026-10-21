@@ -8,6 +8,8 @@ interface PairConnectProps {
   kind: ConnectorKind;
   /** The phone can link by typing a code instead of scanning (WhatsApp). */
   byPhone: boolean;
+  /** Linked by logging in on the service's page in the Mac app's window (Messenger). */
+  inWindow: boolean;
   target: { kind: ConnectorKind } | { connectionId: string };
   /** The phone confirmed: a new connection, or one linked again. */
   onLinked: (connection: Connection, created: boolean) => Promise<void>;
@@ -93,17 +95,20 @@ const PhoneLink = ({ pairingId }: { pairingId: string }) => {
 /**
  * Linking a phone: show the code as a QR, the phone scans it (Settings → Linked
  * devices), and the connection appears once the phone confirms. WhatsApp replaces its
- * code every 20 seconds or so; the status poll brings the new one.
+ * code every 20 seconds or so; the status poll brings the new one. Messenger instead
+ * opens Facebook's login page in a window, and the connection appears once logged in.
  */
-export const PairConnect = ({ kind, byPhone, target, onLinked }: PairConnectProps) => {
+export const PairConnect = ({ kind, byPhone, inWindow, target, onLinked }: PairConnectProps) => {
   const [stage, setStage] = useState<Stage>({ step: 'idle' });
   const pairingId = stage.step === 'waiting' ? stage.pairingId : null;
   const code = stage.step === 'waiting' ? stage.code : null;
   // A data: URL keeps the SVG an image — never markup in the page.
   const qr = useMemo(
     () =>
-      code ? `data:image/svg+xml;utf8,${encodeURIComponent(renderSVG(code, { border: 2 }))}` : null,
-    [code]
+      code && !inWindow
+        ? `data:image/svg+xml;utf8,${encodeURIComponent(renderSVG(code, { border: 2 }))}`
+        : null,
+    [code, inWindow]
   );
   const steps = LINK_STEPS[kind] ?? SIGNAL_STEPS;
 
@@ -147,6 +152,18 @@ export const PairConnect = ({ kind, byPhone, target, onLinked }: PairConnectProp
     }
   };
 
+  if (stage.step === 'waiting' && inWindow) {
+    return (
+      <div className="pairing">
+        <p>Log in to Facebook in the window that opened.</p>
+        <p className="muted small">
+          Huginn takes over once you are in and the window closes by itself. Closed it too early?
+          Wait a moment and try again.
+        </p>
+      </div>
+    );
+  }
+
   if (stage.step === 'waiting' && qr) {
     return (
       <div className="pairing">
@@ -173,7 +190,7 @@ export const PairConnect = ({ kind, byPhone, target, onLinked }: PairConnectProp
       <PairingGuide kind={kind} />
       {stage.step === 'failed' && <p className="error">{stage.error}</p>}
       <button type="button" className="primary" onClick={() => void start()}>
-        {stage.step === 'failed' ? 'Try again' : 'Link my phone'}
+        {stage.step === 'failed' ? 'Try again' : inWindow ? 'Log in to Facebook' : 'Link my phone'}
       </button>
     </div>
   );

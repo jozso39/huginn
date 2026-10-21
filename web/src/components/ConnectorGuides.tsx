@@ -152,9 +152,27 @@ export const SignInGuide = ({ kind }: { kind: ConnectorKind }) => {
   return null;
 };
 
-/** For connections linked as a device of the phone: Signal, WhatsApp. */
+/** For connections linked as a device of the account: Signal, WhatsApp, Messenger. */
 export const PairingGuide = ({ kind }: { kind: ConnectorKind }) =>
-  kind === 'WhatsApp' ? (
+  kind === 'Messenger' ? (
+    <SetupGuide title="Connecting Messenger">
+      <p className="warn">
+        Unofficial: Meta allows no other apps, so Facebook may ask you to confirm it is you, or lock
+        the account until you do. Turn on two-factor authentication first.
+      </p>
+      <ol>
+        <li>
+          Click <strong>Log in to Facebook</strong>: Facebook’s own login page opens in a window of
+          Huginn.
+        </li>
+        <li>
+          Log in there. Huginn keeps the session, never your password, and becomes a device of your
+          account so encrypted chats reach it too.
+        </li>
+        <li>For now Huginn only reads Messenger: answer in Messenger itself.</li>
+      </ol>
+    </SetupGuide>
+  ) : kind === 'WhatsApp' ? (
     <SetupGuide title="Linking WhatsApp">
       <p className="warn">
         Unofficial: WhatsApp allows no other apps, so it could restrict your number. You can unlink

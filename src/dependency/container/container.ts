@@ -10,6 +10,7 @@ import type { IConnectorFactory } from '@/core/connectors/Connector.types';
 import { AttentionService } from '@/core/services/AttentionService/AttentionService';
 import { AppUpdateService } from '@/core/services/AppUpdateService/AppUpdateService';
 import type { IAppShell } from '@/core/updates/AppShell.types';
+import type { ILoginWindow } from '@/core/login/LoginWindow.types';
 import { ConnectionGroupService } from '@/core/services/ConnectionGroupService/ConnectionGroupService';
 import { ConnectionService } from '@/core/services/ConnectionService/ConnectionService';
 import { ConnectorHost } from '@/core/services/ConnectorHost/ConnectorHost';
@@ -28,6 +29,7 @@ import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnecto
 import { LinkedInConnectorFactory } from '@/infrastructure/connectors/LinkedInConnector/LinkedInConnectorFactory';
 import { SignalConnectorFactory } from '@/infrastructure/connectors/SignalConnector/SignalConnectorFactory';
 import { WhatsAppConnectorFactory } from '@/infrastructure/connectors/WhatsAppConnector/WhatsAppConnectorFactory';
+import { MessengerConnectorFactory } from '@/infrastructure/connectors/MessengerConnector/MessengerConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
 import { SqliteDatabase } from '@/infrastructure/db/SqliteDatabase';
 import { InMemoryEventBus } from '@/infrastructure/events/InMemoryEventBus/InMemoryEventBus';
@@ -56,6 +58,8 @@ export interface CreateContainerOptions {
   readonly attentionSink?: IAttentionSink;
   /** The Mac app, which installs updates and restarts into them; none without it. */
   readonly appShell?: IAppShell;
+  /** The Mac app's window for signing in on a service's own page (Messenger); none without it. */
+  readonly loginWindow?: ILoginWindow;
 }
 
 const NO_ATTENTION: IAttentionSink = { badge: () => undefined, notify: () => undefined };
@@ -110,6 +114,7 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     new ClickUpConnectorFactory(logger, config),
     new SignalConnectorFactory(logger, config),
     new WhatsAppConnectorFactory(logger, config),
+    new MessengerConnectorFactory(logger, config, options.loginWindow ?? null),
   ];
 
   const triageService = new TriageService(

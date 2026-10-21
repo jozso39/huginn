@@ -3,6 +3,7 @@ import clickupLogo from './assets/logos/clickup.svg';
 import gitlabLogo from './assets/logos/gitlab.svg';
 import gmailLogo from './assets/logos/gmail.svg';
 import linkedInLogo from './assets/logos/linkedin.svg';
+import messengerLogo from './assets/logos/messenger.svg';
 import signalLogo from './assets/logos/signal.svg';
 import slackLogo from './assets/logos/slack.svg';
 import whatsAppLogo from './assets/logos/whatsapp.svg';
@@ -70,6 +71,13 @@ export const CONNECTOR_META: Record<ConnectorKind, ConnectorMeta> = {
     label: 'WhatsApp',
     logo: whatsAppLogo,
     spamExample: 'e.g. good-morning pictures in the family group',
+  },
+  Messenger: {
+    glyph: 'MS',
+    color: '#0099ff',
+    label: 'Messenger',
+    logo: messengerLogo,
+    spamExample: 'e.g. group invitations to events I never go to',
   },
 };
 

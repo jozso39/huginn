@@ -100,6 +100,7 @@ export class ConnectionService implements IConnectionService {
       signInProvider: factory.authorization?.provider ?? null,
       pairing: Boolean(factory.pairing),
       pairingByPhone: factory.pairing?.linkWithPhone !== undefined,
+      pairingInWindow: factory.pairing?.inWindow === true,
       unavailable: factory.unavailableReason?.() ?? null,
     }));
   }

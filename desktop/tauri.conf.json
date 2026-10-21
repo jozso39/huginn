@@ -23,7 +23,7 @@
       "dmg"
     ],
     "category": "Productivity",
-    "shortDescription": "One inbox for Slack, Gmail, GitLab, ClickUp, LinkedIn and Signal",
+    "shortDescription": "One inbox for Slack, Gmail, GitLab, ClickUp, LinkedIn, Signal, WhatsApp and Messenger",
     "icon": [
       "../icons/app/32x32.png",
       "../icons/app/128x128.png",
@@ -32,7 +32,8 @@
       "../icons/app/icon.png"
     ],
     "externalBin": [
-      "binaries/huginn-server"
+      "binaries/huginn-server",
+      "binaries/huginn-messenger"
     ],
     "resources": {
       "../web/dist/": "web/",
