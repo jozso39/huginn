@@ -1593,6 +1593,7 @@ dependencies = [
  "base64 0.22.1",
  "libc",
  "rand",
+ "regex",
  "serde",
  "serde_json",
  "tauri",

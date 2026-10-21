@@ -34,6 +34,9 @@ const envSchema = z.object({
   // Signal: Huginn runs signal-cli itself (docs/signal.md), found on PATH or in
   // Homebrew's folders. Set this only for a signal-cli somewhere else.
   HUGINN_SIGNAL_CLI: z.string().min(1).optional(),
+  // Messenger: the huginn-messenger helper (messenger/README.md). Set this only for one
+  // somewhere other than next to the server or in the repo's messenger/bin.
+  HUGINN_MESSENGER_HELPER: z.string().min(1).optional(),
   PORT: z.coerce.number().int().min(0).default(3000),
   LOG_LEVEL: z.enum(['silent', 'debug', 'info', 'warn', 'error']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

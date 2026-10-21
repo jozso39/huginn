@@ -9,6 +9,8 @@ export enum ConnectorKind {
   Signal = 'Signal',
   /** The user's own WhatsApp account, as a linked device (unofficial: through Baileys). */
   WhatsApp = 'WhatsApp',
+  /** The user's own Facebook Messenger, signed in on Facebook's page (unofficial: through messagix). */
+  Messenger = 'Messenger',
 }
 
 export enum ConnectionStatus {

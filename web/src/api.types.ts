@@ -15,7 +15,7 @@ export type ItemKind =
 export type ItemState = 'Open' | 'Done' | 'Archived';
 export type Category = 'Important' | 'Undecided' | 'Spam';
 export type ConnectorKind =
-  'GitLab' | 'Slack' | 'Gmail' | 'ClickUp' | 'LinkedIn' | 'Signal' | 'WhatsApp';
+  'GitLab' | 'Slack' | 'Gmail' | 'ClickUp' | 'LinkedIn' | 'Signal' | 'WhatsApp' | 'Messenger';
 export type ConnectionStatus = 'Idle' | 'Running' | 'NeedsAuth' | 'Error' | 'Disabled';
 
 export interface Item {
@@ -141,6 +141,8 @@ export interface ConnectorDescriptor {
   pairing: boolean;
   /** The phone can also link by typing a code (WhatsApp). */
   pairingByPhone: boolean;
+  /** Linked by logging in on the service's page in the Mac app's window (Messenger). */
+  pairingInWindow: boolean;
   /** Why it cannot be added on this Mac (signal-cli missing); null when it can. */
   unavailable: string | null;
   configSchema: { properties?: Record<string, JsonSchemaProperty>; required?: string[] };

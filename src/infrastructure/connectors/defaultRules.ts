@@ -95,6 +95,10 @@ export const SIGNAL_DEFAULT_RULES: readonly RuleDraft[] = [
 ];
 
 // Condition rules only, as for Signal.
+export const MESSENGER_DEFAULT_RULES: readonly RuleDraft[] = [
+  important('Direct message', isTrue('isDm')),
+];
+
 export const WHATSAPP_DEFAULT_RULES: readonly RuleDraft[] = [
   important('Direct message', isTrue('isDm')),
   important('Mentions me in a group', isTrue('isMention')),

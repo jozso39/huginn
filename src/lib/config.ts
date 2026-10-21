@@ -52,6 +52,17 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
       // signal-cli's own data: the linked device's keys, kept with the database.
       dataDir: join(dirname(dbPath), 'signal'),
     },
+    messenger: {
+      // The Mac app ships it next to the server; a development run uses the one built
+      // in the repo (bun run messenger:build).
+      helper:
+        env.HUGINN_MESSENGER_HELPER ??
+        (desktop
+          ? join(dirname(process.execPath), 'huginn-messenger')
+          : join(REPO_ROOT, 'messenger/bin/huginn-messenger')),
+      // The helper's own data: the device keys for encrypted chats, kept with the database.
+      dataDir: join(dirname(dbPath), 'messenger'),
+    },
     ai: {
       // Jev's name at each provider; the key decides which is used (Settings → AI Triage).
       jevModels: { OpenRouter: env.HUGINN_JEV_MODEL, TypeSafe: env.HUGINN_TYPESAFE_JEV_MODEL },

@@ -8,6 +8,7 @@ import type {
   SignalTarget,
 } from '@/core/clients/SignalClient/SignalClient.types';
 import { ErrorCode, HuginnError, toError } from '@/core/errors/errors';
+import { readLines } from '@/lib/readLines';
 
 const CALL_TIMEOUT_MS = 20_000;
 // The phone owner has to find the QR screen and scan; give them time.
@@ -313,10 +314,10 @@ export class SignalRpcClient implements ISignalClient {
     process.on('exit', stopWithHuginn);
     this.child = child;
     this.startedAt = Date.now();
-    SignalRpcClient.readLines(child.stdout, (line) => this.dispatch(line)).catch((error: unknown) =>
+    readLines(child.stdout, (line) => this.dispatch(line)).catch((error: unknown) =>
       this.logger.warn({ err: toError(error) }, 'signal-cli output lost')
     );
-    SignalRpcClient.readLines(child.stderr, (line) => this.log(line)).catch(() => undefined);
+    readLines(child.stderr, (line) => this.log(line)).catch(() => undefined);
     void child.exited.then((code) => {
       process.off('exit', stopWithHuginn);
       this.exited(child, code);
@@ -430,20 +431,5 @@ export class SignalRpcClient implements ISignalClient {
         }
       });
     }, delay);
-  }
-
-  private static async readLines(
-    stream: ReadableStream<Uint8Array>,
-    onLine: (line: string) => void
-  ): Promise<void> {
-    const decoder = new TextDecoder();
-    let rest = '';
-
-    for await (const chunk of stream) {
-      const lines = (rest + decoder.decode(chunk, { stream: true })).split('\n');
-
-      rest = lines.pop() ?? '';
-      lines.filter((line) => line.trim() !== '').forEach(onLine);
-    }
   }
 }

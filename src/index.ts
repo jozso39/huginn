@@ -36,7 +36,7 @@ const main = async () => {
   const config = desktop ? { ...settings, publicUrl: `http://127.0.0.1:${port}` } : settings;
   const container = createContainer({
     config,
-    ...(desktop ? { attentionSink: desktop, appShell: desktop } : {}),
+    ...(desktop ? { attentionSink: desktop, appShell: desktop, loginWindow: desktop } : {}),
   });
   const { logger } = container;
 

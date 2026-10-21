@@ -35,6 +35,8 @@ use tauri_plugin_shell::{
 };
 use tauri_plugin_updater::UpdaterExt;
 
+mod login;
+
 /// Fixed so sign-in redirects can be registered with providers (Slack needs an exact
 /// port); the server falls back to the next two if it is taken.
 const PORT: u16 = 47823;
@@ -65,6 +67,8 @@ enum ServerEvent {
     },
     /// The window's "Restart to update" was clicked.
     Restart,
+    /// A connection signs in on the service's own page (Messenger).
+    Login(login::LoginRequest),
 }
 
 struct Shell {
@@ -87,6 +91,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .manage(login::Logins::default())
         .setup(|app| {
             let handle = app.handle().clone();
             let data_dir = data_dir(app.handle())?;
@@ -122,10 +127,13 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Closing the window keeps Huginn running in the menu bar.
+            // Closing the window keeps Huginn running in the menu bar (a sign-in
+            // window just closes).
             if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
             }
         })
         .build(tauri::generate_context!())
@@ -190,7 +198,7 @@ fn stays_inside(url: &url::Url) -> bool {
 
 /// Only kinds of links a message may reasonably carry; anything else (file:, other
 /// apps' schemes) is ignored rather than handed to macOS.
-fn open_outside(url: &url::Url) {
+pub(crate) fn open_outside(url: &url::Url) {
     if matches!(url.scheme(), "http" | "https" | "mailto" | "slack") {
         let _ = std::process::Command::new("/usr/bin/open").arg(url.as_str()).spawn();
     }
@@ -310,6 +318,14 @@ fn on_server_line(app: &AppHandle, line: &[u8]) {
             let _ = app.notification().builder().title(title).body(body).show();
         }
         ServerEvent::Restart => app.request_restart(),
+        ServerEvent::Login(request) => login::open(app, request),
+    }
+}
+
+/// One JSON line on the server's stdin (see DesktopChannel.ts).
+pub(crate) fn tell_server(app: &AppHandle, message: &serde_json::Value) {
+    if let Some(child) = app.state::<Shell>().server.lock().expect("server lock").as_mut() {
+        let _ = child.write(format!("{message}\n").as_bytes());
     }
 }
 
@@ -555,9 +571,7 @@ fn update_installed(app: &AppHandle, version: &str) {
         let _ = item.set_enabled(true);
     }
 
-    if let Some(child) = shell.server.lock().expect("server lock").as_mut() {
-        let _ = child.write(update_line(version).as_bytes());
-    }
+    tell_server(app, &serde_json::json!({ "type": "update", "version": version }));
 
     let _ = app
         .notification()

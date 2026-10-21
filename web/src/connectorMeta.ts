@@ -71,6 +71,12 @@ export const CONNECTOR_META: Record<ConnectorKind, ConnectorMeta> = {
     logo: whatsAppLogo,
     spamExample: 'e.g. good-morning pictures in the family group',
   },
+  Messenger: {
+    glyph: 'FB',
+    color: '#0866ff',
+    label: 'Messenger',
+    spamExample: 'e.g. group invitations to events I never go to',
+  },
 };
 
 /** For an item whose connection is not loaded (yet): a neutral tile. */
