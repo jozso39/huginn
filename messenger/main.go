@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	globalLog "github.com/rs/zerolog/log"
 )
 
 // Facebook's first page load alone can take half a minute.
@@ -43,6 +44,11 @@ func main() {
 		os.Exit(2)
 	}
 	log, libLog := newLoggers()
+	// Parts of messagix log through zerolog's global logger (and a context's default one),
+	// warning about every sync field they cannot place, with the sync data attached: they
+	// get the libraries' quiet logger too.
+	globalLog.Logger = libLog
+	zerolog.DefaultContextLogger = &libLog
 	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
 		log.Fatal().Err(err).Msg("cannot create the data directory")
 	}
