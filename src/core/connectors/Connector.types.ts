@@ -106,6 +106,11 @@ export interface IConnectorAuthorization {
  * is no provider app; the connector's own service does the handshake.
  */
 export interface IConnectorPairing {
+  /**
+   * Signs in on the service's own page in a window of the Mac app (Messenger) instead:
+   * `code` then only names that sign-in and is not shown.
+   */
+  readonly inWindow?: boolean;
   isPaired(secrets: Secrets): boolean;
   /** Starts a link; `code` is what the phone scans, shown as a QR code. */
   start(): Promise<{ readonly code: string }>;

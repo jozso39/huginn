@@ -21,6 +21,8 @@ export interface ConnectorDescriptor {
   readonly pairing: boolean;
   /** The phone can also link by typing a code (WhatsApp), for when scanning is awkward. */
   readonly pairingByPhone: boolean;
+  /** Linked by signing in on the service's page in the Mac app's window instead (Messenger). */
+  readonly pairingInWindow: boolean;
   /** Why this kind cannot be added here (e.g. signal-cli is not installed); null when it can. */
   readonly unavailable: string | null;
 }

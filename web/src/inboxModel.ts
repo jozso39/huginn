@@ -202,7 +202,12 @@ export interface Preview {
 }
 
 // Chats title their messages "Jana in #dev", which the author and place already say.
-const CHATS: ReadonlySet<ConnectorKind> = new Set<ConnectorKind>(['Slack', 'Signal', 'WhatsApp']);
+const CHATS: ReadonlySet<ConnectorKind> = new Set<ConnectorKind>([
+  'Slack',
+  'Signal',
+  'WhatsApp',
+  'Messenger',
+]);
 
 const SHORTCODE = /:([a-z0-9_+'-]+(?:::skin-tone-[2-6])?):/g;
 

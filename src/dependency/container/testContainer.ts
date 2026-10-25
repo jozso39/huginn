@@ -21,7 +21,11 @@ import { MockJevClient } from '@/core/clients/JevClient/JevClient.mock';
 import { MockLlmClient } from '@/core/clients/LlmClient/LlmClient.mock';
 import { MockSignalClient } from '@/infrastructure/clients/SignalClient/SignalClient.mock';
 import type { IWhatsAppClient } from '@/core/clients/WhatsAppClient/WhatsAppClient.types';
+import type { IMessengerClient } from '@/core/clients/MessengerClient/MessengerClient.types';
+import type { ILoginWindow } from '@/core/login/LoginWindow.types';
 import { MockWhatsAppClient } from '@/infrastructure/clients/WhatsAppClient/WhatsAppClient.mock';
+import { MockMessengerClient } from '@/infrastructure/clients/MessengerClient/MessengerClient.mock';
+import { MockLoginWindow } from '@/core/login/LoginWindow.mock';
 import { MockAiKeyChecker } from '@/infrastructure/clients/AiKeyChecker/AiKeyChecker.mock';
 import { MockSlackOAuthClient } from '@/infrastructure/clients/SlackOAuthClient/SlackOAuthClient.mock';
 import { MockSlackClient } from '@/infrastructure/clients/SlackClient/SlackClient.mock';
@@ -31,6 +35,7 @@ import { GmailConnectorFactory } from '@/infrastructure/connectors/GmailConnecto
 import { LinkedInConnectorFactory } from '@/infrastructure/connectors/LinkedInConnector/LinkedInConnectorFactory';
 import { SignalConnectorFactory } from '@/infrastructure/connectors/SignalConnector/SignalConnectorFactory';
 import { WhatsAppConnectorFactory } from '@/infrastructure/connectors/WhatsAppConnector/WhatsAppConnectorFactory';
+import { MessengerConnectorFactory } from '@/infrastructure/connectors/MessengerConnector/MessengerConnectorFactory';
 import { SlackConnectorFactory } from '@/infrastructure/connectors/SlackConnector/SlackConnectorFactory';
 import { createContainer } from './container';
 import type { Container } from './container.types';
@@ -49,6 +54,9 @@ export interface CreateTestContainerOptions {
   readonly signalClient?: ISignalClient;
   /** Same for WhatsApp. */
   readonly whatsAppClient?: IWhatsAppClient;
+  readonly messengerClient?: IMessengerClient;
+  /** The Mac app's login window (a MockLoginWindow by default); null: running without the app. */
+  readonly loginWindow?: ILoginWindow | null;
   /** Hand in your own MockSlackOAuthClient to see sign-ins and token refreshes. */
   readonly slackOAuthClient?: ISlackOAuthClient;
   /** Where the browser reaches Huginn; the Mac app's own address for Slack sign-ins. */
@@ -132,6 +140,12 @@ export const createTestContainer = (options: CreateTestContainerOptions = {}): C
         logger,
         config,
         options.whatsAppClient ?? new MockWhatsAppClient()
+      ),
+      new MessengerConnectorFactory(
+        logger,
+        config,
+        options.loginWindow === undefined ? new MockLoginWindow() : options.loginWindow,
+        options.messengerClient ?? new MockMessengerClient()
       ),
     ],
   });

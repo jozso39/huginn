@@ -17,7 +17,8 @@ the Mac app's window (dashboard)   ──HTTP + SSE──▶  Bun process  ─�
                                                     │     Slack (search poll), Gmail (history poll),
                                                     │     GitLab (todo poll), ClickUp (task poll),
                                                     │     Signal (signal-cli, run by Huginn),
-                                                    │     WhatsApp (Baileys, a linked device)
+                                                    │     WhatsApp (Baileys, a linked device),
+                                                    │     Messenger (huginn-messenger, a Go helper)
                                                     └─ Jev and the chat model, with the user's AI key
 ```
 
@@ -190,7 +191,9 @@ Errors are `{error: ErrorCode, message, details}` with 400/401/404/422/502.
   link to managing them; `ColorPicker` — palette swatches, any other colour, a preview.
 - `PairConnect` — linking a phone: QR (uqr, as a data: image) + polling the pairing, which
   also brings the code to show now (WhatsApp replaces it every ~20 s); WhatsApp can link
-  by phone number instead (an 8-character code typed on the phone).
+  by phone number instead (an 8-character code typed on the phone). Messenger links in a
+  window instead (`pairingInWindow`): the server asks the shell to open Facebook's login
+  page (§9), and the same polling brings the connection once the user is in.
 - `ConnectorIcon` — the source's logo (`web/src/assets/logos`, CC0 svg-logos set) or a
   coloured glyph for sources without one; doubles as the deep link.
 - `StatusPill` — `item.status` (e.g. an MR's Open / Merged / Closed), coloured by
@@ -229,13 +232,24 @@ A thin Tauri shell (`desktop/src/lib.rs`) around the server, which does all the 
   While it starts, the window shows `desktop/loading/`; once the server says it is
   ready, the window opens `http://127.0.0.1:<port>/__launch?token=…`.
 - **Data**: `~/Library/Application Support/cz.cambora.huginn/` — `huginn.db`,
-  `master.key` (created once, mode 600), `server.log`, `signal/`. A development build
+  `master.key` (created once, mode 600), `server.log`, `signal/`, `messenger/`. A development build
   (`bun run desktop:dev`) uses `cz.cambora.huginn.dev` next to it, so the two never
   share data; `bun run desktop:dev-data` copies the real data over (and `--back`).
 - **Talking back**: the server prints one JSON line per event on stdout
   (`DesktopChannel`): `ready`, `badge` (the number of Important items, shown in the menu
-  bar and on the Dock icon), `notify` (a macOS notification) and `restart`. After the
-  secrets, the shell may send `update` lines on stdin: a downloaded update is installed.
+  bar and on the Dock icon), `notify` (a macOS notification), `restart` and `login`.
+  After the secrets, the shell may send `update` lines on stdin (a downloaded update is
+  installed) and `login` answers.
+- **Login window** (`desktop/src/login.rs`): for services with no API sign-in
+  (Messenger), a `login` line opens the service's own page in a window with no address
+  bar (its title shows the host), its own private cookie store (gone with the window),
+  the browser identity the server asks for, and no Tauri access. Navigation off the
+  listed sites goes to the browser. When a page matching `done` loads, the shell reads
+  the named cookies (HTTP-only ones too) from the window's store, answers
+  `{"type":"login","id","cookies"}` on stdin and closes it; closing it first answers
+  `cookies: null`. The password never reaches Huginn.
+- **Helpers**: `huginn-messenger` (Go, `messenger/`) ships as a second sidecar next to
+  the server, which starts one per Messenger connection.
 - **Links**: the window keeps Huginn's own pages; every other link is handed to macOS
   (`open`), so it opens in the browser or the app it belongs to (Slack).
 - **Background**: closing the window hides it; the menu-bar item opens it, checks for

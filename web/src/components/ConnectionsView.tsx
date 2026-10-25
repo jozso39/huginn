@@ -245,6 +245,7 @@ export const ConnectionsView = ({
           <PairConnect
             kind={descriptor.kind}
             byPhone={descriptor.pairingByPhone}
+            inWindow={descriptor.pairingInWindow}
             target={{ connectionId: connection.id }}
             onLinked={() => onChanged()}
           />
@@ -333,6 +334,7 @@ export const ConnectionsView = ({
               key={newDescriptor.kind}
               kind={newDescriptor.kind}
               byPhone={newDescriptor.pairingByPhone}
+              inWindow={newDescriptor.pairingInWindow}
               target={{ kind: newDescriptor.kind }}
               onLinked={connected}
             />

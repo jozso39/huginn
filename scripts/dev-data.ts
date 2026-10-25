@@ -3,12 +3,12 @@
 // `bun run desktop:dev` (or a plain `bun run dev` pointed at it) shows real data.
 // Live connections are paused in the copy: a second Slack socket would take half of
 // the real app's messages, a second signal-cli half of Signal's, and a second WhatsApp
-// client on the same linked device's keys can break the link. Polling ones (Gmail,
+// or Messenger client on the same linked device's keys can break the link. Polling ones (Gmail,
 // GitLab, …) only read and stay on.
 // --live keeps everything on — only when the installed app is not running, so the
 // development build is the one Huginn.
 // --back is the way home: the development build's data goes to the installed app,
-// everything on there and Slack, Signal and WhatsApp paused here. Quit both apps first.
+// everything on there and Slack, Signal, WhatsApp and Messenger paused here. Quit both apps first.
 import { Database } from 'bun:sqlite';
 import { existsSync } from 'node:fs';
 import { chmod, copyFile, cp, mkdir, rename, rm } from 'node:fs/promises';
@@ -25,12 +25,16 @@ const [from, to] = back ? [dev, real] : [real, dev];
 const pauseLiveConnections = (folder: string) => {
   const db = new Database(join(folder, 'huginn.db'));
 
-  db.run("UPDATE connections SET enabled = 0 WHERE kind IN ('Slack', 'Signal', 'WhatsApp')");
+  db.run(
+    "UPDATE connections SET enabled = 0 WHERE kind IN ('Slack', 'Signal', 'WhatsApp', 'Messenger')"
+  );
   db.close();
 };
 
 await mkdir(to, { recursive: true, mode: 0o700 });
-await Promise.all(['huginn.db', 'huginn.db-wal', 'huginn.db-shm'].map((f) => rm(join(to, f), { force: true })));
+await Promise.all(
+  ['huginn.db', 'huginn.db-wal', 'huginn.db-shm'].map((f) => rm(join(to, f), { force: true }))
+);
 await copyFile(join(from, 'master.key'), join(to, 'master.key'));
 await chmod(join(to, 'master.key'), 0o600);
 
@@ -40,14 +44,16 @@ const source = new Database(join(from, 'huginn.db'));
 source.run(`VACUUM INTO '${join(to, 'huginn.db').replaceAll("'", "''")}'`);
 source.close();
 
-// signal-cli's folder holds the linked phone's keys. Going back it is moved, not copied:
-// two copies of one linked device must never both run.
-if (existsSync(join(from, 'signal'))) {
-  await rm(join(to, 'signal'), { recursive: true, force: true });
-  await (back ? rename : (a: string, b: string) => cp(a, b, { recursive: true }))(
-    join(from, 'signal'),
-    join(to, 'signal')
-  );
+// signal-cli's and the Messenger helper's folders hold linked devices' keys. Going back
+// they are moved, not copied: two copies of one linked device must never both run.
+for (const folder of ['signal', 'messenger']) {
+  if (existsSync(join(from, folder))) {
+    await rm(join(to, folder), { recursive: true, force: true });
+    await (back ? rename : (a: string, b: string) => cp(a, b, { recursive: true }))(
+      join(from, folder),
+      join(to, folder)
+    );
+  }
 }
 
 if (back) {
@@ -58,6 +64,6 @@ if (back) {
 
 console.log(
   back
-    ? `Moved back into ${to}; Slack, Signal and WhatsApp are paused in ${from}.`
-    : `Copied into ${to}${live ? ' (everything on)' : ' (Slack, Signal and WhatsApp paused there)'}.`
+    ? `Moved back into ${to}; Slack, Signal, WhatsApp and Messenger are paused in ${from}.`
+    : `Copied into ${to}${live ? ' (everything on)' : ' (Slack, Signal, WhatsApp and Messenger paused there)'}.`
 );
