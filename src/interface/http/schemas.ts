@@ -64,6 +64,8 @@ export const updateSecretsBodySchema = z.object({
 
 export const setEnabledBodySchema = z.object({ enabled: z.boolean() });
 
+export const automaticUpdatesBodySchema = z.object({ automatic: z.boolean() });
+
 export const signInBodySchema = z.union([
   z.object({ connectionId: z.uuid() }),
   z.object({ kind: z.enum(ConnectorKind) }),

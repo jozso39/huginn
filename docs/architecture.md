@@ -159,7 +159,8 @@ an end-to-end test through `createTestContainer`, a `docs/<x>.md`.
 | `GET /api/connections/:id/rules` · `POST /:id/rules` · `POST /:id/rules/dry-run` · `POST /:id/triage` · `GET /:id/fields` | rules of a connection |
 | `PUT /api/rules/:id` · `PUT /:id/status` · `POST /:id/move` `{direction}` · `DELETE /:id` | one rule |
 | `GET /api/oauth/apps/:provider` · `PUT /api/oauth/apps/:provider` · `POST /api/oauth/sign-in` · `GET /api/oauth/callback` | sign-in |
-| `GET /api/events` | SSE: `ItemUpserted`, `ItemChanged`, `ConnectionChanged`, keep-alive `ping` |
+| `GET /api/app` · `PUT /api/app/updates` `{automatic}` · `POST /api/app/updates/check` · `/install` · `/restart` · `POST /api/app/whats-new/dismiss` | the version running, where updating stands, the automatic-updates switch, and the "what's new" strip; check, install and restart answer 202 and go to the Mac app (422 without it), their outcome arrives as `AppChanged` |
+| `GET /api/events` | SSE: `ItemUpserted`, `ItemChanged`, `ConnectionChanged`, `AppChanged`, keep-alive `ping` |
 | `GET /api/health` | liveness |
 | `POST /api/connections/pairings`, `GET …/pairings/:id` | link a phone (Signal): QR code, then poll until Linked/Failed |
 
@@ -237,9 +238,11 @@ A thin Tauri shell (`desktop/src/lib.rs`) around the server, which does all the 
   share data; `bun run desktop:dev-data` copies the real data over (and `--back`).
 - **Talking back**: the server prints one JSON line per event on stdout
   (`DesktopChannel`): `ready`, `badge` (the number of Important items, shown in the menu
-  bar and on the Dock icon), `notify` (a macOS notification), `restart` and `login`.
-  After the secrets, the shell may send `update` lines on stdin (a downloaded update is
-  installed) and `login` answers.
+  bar and on the Dock icon), `notify` (a macOS notification), `restart`, `login`, and for
+  updates `updates {automatic}` (at start and when switched), `checkUpdate` and
+  `installUpdate`. After the secrets, the shell sends `updateStatus` lines on stdin
+  (`Checking`, `UpToDate`, `Available`, `Installing`, `Ready`, `Failed`, with the newer
+  version or the error) and `login` answers.
 - **Login window** (`desktop/src/login.rs`): for services with no API sign-in
   (Messenger), a `login` line opens the service's own page in a window with no address
   bar (its title shows the host), its own private cookie store (gone with the window),
@@ -256,14 +259,20 @@ A thin Tauri shell (`desktop/src/lib.rs`) around the server, which does all the 
   updates, toggles *Open at Login* (on after the first start) and quits. Quitting stops
   the server with SIGTERM (connectors and signal-cli stop cleanly) and kills it after
   5 s.
-- **Updates**: `bun run release 1.2.3` tags a version; GitHub Actions
-  (`.github/workflows/release.yml`) builds and signs the update and publishes it with
-  `latest.json`. The app checks every hour (30 s after starting, then hourly), downloads
-  and installs a new version in the background, and tells the server, which sends
-  `AppUpdateReady` to the window: a strip at the bottom offers **Restart to update**
-  (`POST /api/app/update/restart` → `restart` on stdout → the shell stops the server and
-  starts the app again). The menu bar's *Restart to Update* and a notification offer the
-  same; otherwise the new version runs from the next start. A dev build never updates;
-  `HUGINN_PRETEND_UPDATE=0.9.9 bun run desktop:dev` shows the strip to try it. The app
-  itself is signed ad hoc only, so macOS asks once on the first start.
+- **Updates**: `bun run release 1.2.3` turns CHANGELOG.md's *Unreleased* into 1.2.3's
+  section and tags the version; GitHub Actions (`.github/workflows/release.yml`) builds
+  and signs the update and publishes it with `latest.json`, the section being the
+  release's notes (`scripts/changelog.ts`). The app checks 30 s after starting, then
+  hourly, and on demand (Settings → Updates, the menu bar). With automatic updates on
+  (the default, stored by the server and told to the shell at start) it downloads and
+  installs a newer version in the background; off, it reports `Available` and installs
+  on **Install**. Every step reaches the window as `AppChanged`; once `Ready`, a strip at
+  the bottom offers **Restart to update** (`POST /api/app/updates/restart` → `restart`
+  on stdout → the shell stops the server and starts the app again). The menu bar's
+  *Restart to Update* and a notification offer the same; otherwise the new version runs
+  from the next start. On the first start of a version the server shows a strip linking
+  to its release notes until it is dismissed (the version seen is stored). A dev build
+  never updates: its checks find nothing, or play one through with
+  `HUGINN_PRETEND_UPDATE=0.9.9 bun run desktop:dev` (`fail` plays a failed check). The
+  app itself is signed ad hoc only, so macOS asks once on the first start.
 

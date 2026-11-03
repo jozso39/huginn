@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { api } from '../api';
-import type { AppUpdate } from '../api.types';
+import type { AppInfo } from '../api.types';
+import { openLinkProps, releaseNotesUrl } from '../openLink';
 
 interface UpdateBannerProps {
-  update: AppUpdate;
+  app: AppInfo;
+  /** The installed version waiting for the restart. */
+  version: string;
 }
 
 /**
@@ -11,7 +14,7 @@ interface UpdateBannerProps {
  * Huginn: one click restarts into it. "Later" hides it for now; the new version also
  * starts by itself the next time Huginn does.
  */
-export const UpdateBanner = ({ update }: UpdateBannerProps) => {
+export const UpdateBanner = ({ app, version }: UpdateBannerProps) => {
   const [hidden, setHidden] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,8 +39,9 @@ export const UpdateBanner = ({ update }: UpdateBannerProps) => {
   return (
     <div className="update-bar" role="status">
       <p className="update-bar__text">
-        <strong>Huginn {update.version} is ready.</strong>{' '}
-        {restarting ? 'Restarting…' : 'Restart to use it: it takes a few seconds.'}
+        <strong>Huginn {version} is ready.</strong>{' '}
+        {restarting ? 'Restarting…' : 'Restart to use it: it takes a few seconds.'}{' '}
+        <a {...openLinkProps(releaseNotesUrl(app.releasesUrl, version))}>What’s new</a>
       </p>
       {error && <p className="update-bar__error">{error}</p>}
       <div className="update-bar__buttons">

@@ -1,7 +1,9 @@
 // Usage: bun run release 1.2.3
-// Bumps the version, commits, tags v1.2.3 and pushes; the Release workflow then builds
-// and publishes the Mac app, and installed copies update within the hour.
+// Bumps the version, turns CHANGELOG.md's Unreleased into 1.2.3's section, commits, tags
+// v1.2.3 and pushes; the Release workflow then builds and publishes the Mac app with that
+// section as its notes, and installed copies update within the hour.
 import { $ } from 'bun';
+import { releaseSection } from './changelog.utils';
 
 const version = process.argv[2] ?? '';
 
@@ -21,6 +23,19 @@ if (pkg.version === version) {
   console.error(`package.json is already at ${version}.`);
   process.exit(1);
 }
+
+let changelog: string;
+
+try {
+  const today = new Date().toISOString().slice(0, 10);
+
+  changelog = releaseSection(await Bun.file('CHANGELOG.md').text(), version, today);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
+
+await Bun.write('CHANGELOG.md', changelog);
 
 await Bun.write(
   'package.json',

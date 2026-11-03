@@ -85,10 +85,11 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     secretBox,
     { publicUrl: config.publicUrl, relayUrl: config.oauthRelayUrl, ports: config.ports }
   );
+  const settingsStore = new SqliteSettingsStore(database.db);
   // Holds the AI key the model clients read on every call (Settings → AI Triage).
   const settingsService = new SettingsService(
     logger,
-    new SqliteSettingsStore(database.db),
+    settingsStore,
     secretBox,
     options.aiKeyChecker ?? new AiKeyChecker(15_000)
   );
@@ -177,7 +178,13 @@ export const createContainer = (options: CreateContainerOptions = {}): Container
     connectionStore,
     eventBus
   );
-  const appUpdateService = new AppUpdateService(logger, options.appShell ?? null, eventBus);
+  const appUpdateService = new AppUpdateService(
+    logger,
+    options.appShell ?? null,
+    settingsStore,
+    eventBus,
+    config.app
+  );
 
   return {
     logger,

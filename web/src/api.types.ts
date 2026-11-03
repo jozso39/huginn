@@ -169,11 +169,33 @@ export type HuginnEvent =
   | { type: 'ItemUpserted'; item: Item; created: boolean }
   | { type: 'ItemChanged'; item: Item }
   | { type: 'ConnectionChanged'; connection: Connection }
-  | { type: 'AppUpdateReady'; update: AppUpdate };
+  | { type: 'AppChanged'; app: AppInfo };
 
-/** A newer Huginn the Mac app has installed: it runs from the next start. */
-export interface AppUpdate {
+/** Where updating stands, as the Mac app reports it. */
+export type UpdateState =
+  'Idle' | 'Checking' | 'UpToDate' | 'Available' | 'Installing' | 'Ready' | 'Failed';
+
+export interface UpdateStatus {
+  state: UpdateState;
+  /** The newer version, for Available, Installing and Ready. */
+  version: string | null;
+  error: string | null;
+  /** When the Mac app reported it; null while Idle. */
+  at: string | null;
+}
+
+/** Huginn's own version and its updates. */
+export interface AppInfo {
   version: string;
+  /** `<releasesUrl>/tag/v<version>` lists what changed in a version. */
+  releasesUrl: string;
+  /** False without the Mac app: nothing checks or installs updates. */
+  updatable: boolean;
+  /** Newer versions are downloaded and installed without asking. */
+  automatic: boolean;
+  status: UpdateStatus;
+  /** The version just started for the first time, until its news is dismissed. */
+  whatsNew: string | null;
 }
 
 export type Verdict = 'Important' | 'Spam';

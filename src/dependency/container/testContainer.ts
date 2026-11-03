@@ -68,10 +68,14 @@ export interface CreateTestContainerOptions {
   readonly llm?: ILlmClient;
   /** Hand in a MockAttentionSink to see what the Mac app would show. */
   readonly attentionSink?: IAttentionSink;
-  /** Hand in a MockAppShell to see the restarts the Mac app was asked for. */
+  /** Hand in a MockAppShell to see what the Mac app was asked to do: checks, installs, restarts. */
   readonly appShell?: IAppShell;
   /** Hand in a MockAiKeyChecker to see which keys were checked. */
   readonly aiKeyChecker?: IAiKeyChecker;
+  /** A database file instead of memory, to start Huginn again on the same data. */
+  readonly dbPath?: string;
+  /** The version Huginn runs as (package.json's by default). */
+  readonly appVersion?: string;
 }
 
 const createTestConfig = (
@@ -99,7 +103,12 @@ const createTestConfig = (
  * Stores, services and the host are the real ones: that is what the tests are for.
  */
 export const createTestContainer = (options: CreateTestContainerOptions = {}): Container => {
-  const config = createTestConfig(options.publicUrl, options.relayUrl);
+  const base = createTestConfig(options.publicUrl, options.relayUrl);
+  const config: IConfig = {
+    ...base,
+    dbPath: options.dbPath ?? base.dbPath,
+    app: { ...base.app, version: options.appVersion ?? base.app.version },
+  };
   const logger = createTestLogger();
 
   return createContainer({

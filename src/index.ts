@@ -42,6 +42,8 @@ const main = async () => {
 
   // The AI key first: connectors may triage their first items right away.
   await container.settingsService.start();
+  // Tells the Mac app whether to install updates by itself, before its first check.
+  await container.appUpdateService.start();
   // Connections from before triage existed get their connector's default rules.
   await container.ruleService.installMissingDefaults();
   await container.inboxService.indexForSearch();
@@ -73,7 +75,9 @@ const main = async () => {
   if (desktop) {
     // The app quit or crashed: never keep running with access to every account.
     void desktop
-      .closed((message) => container.appUpdateService.ready(message.version))
+      .closed(({ state, version, error }) =>
+        container.appUpdateService.statusChanged({ state, version, error })
+      )
       .then(() => shutdown('shell gone'));
   }
 };

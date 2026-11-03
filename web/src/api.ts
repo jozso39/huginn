@@ -2,7 +2,7 @@ import type {
   Action,
   AiKeyInfo,
   AiProvider,
-  AppUpdate,
+  AppInfo,
   Connection,
   ConnectionGroup,
   ConnectorDescriptor,
@@ -112,11 +112,17 @@ export const api = {
     request<{ group: ConnectionGroup }>('PUT', `/groups/${id}`, { name }).then((r) => r.group),
   deleteGroup: (id: string) => request<{ ok: true }>('DELETE', `/groups/${id}`),
 
-  /** The update the Mac app has installed and that waits for a restart; null for none. */
-  appUpdate: () =>
-    request<{ update: AppUpdate | null }>('GET', '/app/update').then((r) => r.update),
+  /** Huginn's version and where its updates stand. */
+  getApp: () => request<{ app: AppInfo }>('GET', '/app').then((r) => r.app),
+  setAutomaticUpdates: (automatic: boolean) =>
+    request<{ app: AppInfo }>('PUT', '/app/updates', { automatic }).then((r) => r.app),
+  /** Answers at once; the outcome arrives as an AppChanged event. */
+  checkForUpdate: () => request<{ ok: true }>('POST', '/app/updates/check'),
+  installUpdate: () => request<{ ok: true }>('POST', '/app/updates/install'),
   /** The Mac app restarts into the update: the window closes and opens again. */
-  restartToUpdate: () => request<{ ok: true }>('POST', '/app/update/restart'),
+  restartToUpdate: () => request<{ ok: true }>('POST', '/app/updates/restart'),
+  dismissWhatsNew: () =>
+    request<{ app: AppInfo }>('POST', '/app/whats-new/dismiss').then((r) => r.app),
   getSettings: () => request<{ settings: Settings; ai: AiKeyInfo | null }>('GET', '/settings'),
   /** Checked with the provider first; it is never sent back. */
   saveAiKey: (provider: AiProvider, key: string) =>

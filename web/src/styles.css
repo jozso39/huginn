@@ -1159,6 +1159,12 @@ a.button {
   text-decoration: none;
 }
 
+a.button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
 .toast {
   position: fixed;
   left: 50%;
@@ -2503,4 +2509,27 @@ a.slack-attachment__title:hover {
 .switch-field__text {
   display: grid;
   gap: 2px;
+}
+
+/* Settings → Updates: the version, where updating stands, and its one button. */
+.updates {
+  display: grid;
+  gap: 12px;
+}
+
+.updates__version {
+  margin: 0;
+}
+
+.updates__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.updates__status p {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
 }

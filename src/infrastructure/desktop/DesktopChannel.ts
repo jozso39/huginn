@@ -6,6 +6,7 @@ import type {
   SessionCookies,
 } from '@/core/login/LoginWindow.types';
 import type { IAppShell } from '@/core/updates/AppShell.types';
+import { UpdateState } from '@/core/updates/AppUpdate.types';
 
 /** What the Mac app's shell sends first on stdin: the secrets, never in env or argv. */
 export interface DesktopSecrets {
@@ -19,16 +20,25 @@ type ShellEvent =
   | { readonly type: 'badge'; readonly important: number }
   | ({ readonly type: 'notify' } & AttentionNotice)
   | { readonly type: 'restart' }
+  | { readonly type: 'updates'; readonly automatic: boolean }
+  | { readonly type: 'checkUpdate' }
+  | { readonly type: 'installUpdate' }
   | ({ readonly type: 'login'; readonly id: string } & LoginWindowRequest);
 
-const updateMessage = z.object({ type: z.literal('update'), version: z.string().min(1).max(64) });
+const updateStatusMessage = z.object({
+  type: z.literal('updateStatus'),
+  state: z.enum(UpdateState),
+  version: z.string().min(1).max(64).nullable(),
+  error: z.string().max(2_000).nullable(),
+});
 
 /**
- * Lines the shell sends after the secrets: an update is installed and waits for a
- * restart, or a login window closed (with the session's cookies when signed in).
+ * Lines the shell sends after the secrets: how updating goes (checking, a newer version
+ * found, installed and waiting for a restart, …), or a login window closed (with the
+ * session's cookies when signed in).
  */
 const shellMessage = z.discriminatedUnion('type', [
-  updateMessage,
+  updateStatusMessage,
   z.object({
     type: z.literal('login'),
     id: z.string(),
@@ -36,7 +46,7 @@ const shellMessage = z.discriminatedUnion('type', [
   }),
 ]);
 
-export type ShellMessage = z.infer<typeof updateMessage>;
+export type ShellMessage = z.infer<typeof updateStatusMessage>;
 
 /** Long enough for the window's request to get its answer before the shell restarts. */
 const RESTART_DELAY_MS = 250;
@@ -119,6 +129,18 @@ export class DesktopChannel implements IAttentionSink, IAppShell, ILoginWindow {
   /** The shell stops this server cleanly, then starts the app again. */
   public restart(): void {
     setTimeout(() => this.send({ type: 'restart' }), RESTART_DELAY_MS);
+  }
+
+  public setAutomaticUpdates(automatic: boolean): void {
+    this.send({ type: 'updates', automatic });
+  }
+
+  public checkForUpdate(): void {
+    this.send({ type: 'checkUpdate' });
+  }
+
+  public installUpdate(): void {
+    this.send({ type: 'installUpdate' });
   }
 
   private send(event: ShellEvent): void {

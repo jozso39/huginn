@@ -4,6 +4,7 @@ import { InboxView } from './components/InboxView';
 import { RulesView } from './components/RulesView';
 import { SettingsView } from './components/SettingsView';
 import { UpdateBanner } from './components/UpdateBanner';
+import { WhatsNewBanner } from './components/WhatsNewBanner';
 import { MOD } from './openLink';
 import { applyTheme } from './theme';
 import { useHuginn } from './useHuginn';
@@ -79,7 +80,7 @@ export const App = () => {
     groups,
     settings,
     ai,
-    update,
+    app,
     live,
     error,
     refresh,
@@ -88,6 +89,7 @@ export const App = () => {
     createGroup,
     saveAiKey,
     removeAiKey,
+    applyApp,
   } = useHuginn();
   const [route, setRoute] = useState<Route>(routeFromHash);
   const [sideOpen, setSideOpen] = useState(loadSideOpen);
@@ -213,12 +215,14 @@ export const App = () => {
                   groups={groups}
                   settings={settings}
                   ai={ai}
+                  app={app}
                   categoriesRequest={route.categoriesAt}
                   onChanged={refresh}
                   onCreateGroup={createGroup}
                   saveSettings={saveSettings}
                   onSaveAiKey={saveAiKey}
                   onRemoveAiKey={removeAiKey}
+                  onApp={applyApp}
                 />
               )}
             </div>
@@ -226,7 +230,12 @@ export const App = () => {
         )}
       </div>
 
-      {update && <UpdateBanner key={update.version} update={update} />}
+      {app?.status.state === 'Ready' && app.status.version && (
+        <UpdateBanner key={app.status.version} app={app} version={app.status.version} />
+      )}
+      {app?.whatsNew && (
+        <WhatsNewBanner key={app.whatsNew} app={app} version={app.whatsNew} onApp={applyApp} />
+      )}
     </div>
   );
 };

@@ -53,7 +53,7 @@ type AnyResult<T> = Result<T, Box<dyn Error>>;
 
 /// One JSON line on the server's stdout (see src/infrastructure/desktop/DesktopChannel.ts).
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "camelCase")]
 enum ServerEvent {
     Ready {
         port: u16,
@@ -69,6 +69,14 @@ enum ServerEvent {
     Restart,
     /// A connection signs in on the service's own page (Messenger).
     Login(login::LoginRequest),
+    /// Whether newer versions install without asking (Settings → Updates); said at start.
+    Updates {
+        automatic: bool,
+    },
+    /// Settings → Updates: "Check for updates".
+    CheckUpdate,
+    /// Settings → Updates: "Install", for what a check found.
+    InstallUpdate,
 }
 
 struct Shell {
@@ -81,6 +89,12 @@ struct Shell {
     quitting: AtomicBool,
     /// The version installed and waiting for a restart.
     waiting_update: Mutex<Option<String>>,
+    /// Whether a found update installs by itself; None until the server has said.
+    automatic_updates: Mutex<Option<bool>>,
+    /// A check (or its install) is running.
+    updating: AtomicBool,
+    /// The last update status told to the server, told again to one started anew.
+    update_status: Mutex<Option<serde_json::Value>>,
     restart_item: Mutex<Option<MenuItem<Wry>>>,
     login_item: Mutex<Option<CheckMenuItem<Wry>>>,
 }
@@ -105,6 +119,9 @@ pub fn run() {
                 restarts: AtomicU32::new(0),
                 quitting: AtomicBool::new(false),
                 waiting_update: Mutex::new(None),
+                automatic_updates: Mutex::new(None),
+                updating: AtomicBool::new(false),
+                update_status: Mutex::new(None),
                 restart_item: Mutex::new(None),
                 login_item: Mutex::new(None),
             });
@@ -113,16 +130,8 @@ pub fn run() {
             open_at_login_once(&handle, &data_dir);
             start_server(&handle)?;
 
-            // A development build must never replace itself with a release; it can only
-            // pretend one is installed, to try the window's update banner.
-            if !cfg!(debug_assertions) {
-                spawn_update_checks(handle);
-            } else if let Ok(version) = std::env::var("HUGINN_PRETEND_UPDATE") {
-                tauri::async_runtime::spawn(async move {
-                    tokio::time::sleep(FIRST_UPDATE_CHECK).await;
-                    update_installed(&handle, &version);
-                });
-            }
+            // A development build only pretends (see pretend_update).
+            spawn_update_checks(handle);
 
             Ok(())
         })
@@ -257,9 +266,9 @@ fn start_server(app: &AppHandle) -> AnyResult<()> {
 
     child.write(format!("{secrets}\n").as_bytes())?;
 
-    // A server started again after a crash still offers the waiting update.
-    if let Some(version) = shell.waiting_update.lock().expect("update lock").as_deref() {
-        child.write(update_line(version).as_bytes())?;
+    // A server started again after a crash still shows where updating stands.
+    if let Some(status) = shell.update_status.lock().expect("update lock").as_ref() {
+        child.write(format!("{status}\n").as_bytes())?;
     }
 
     *shell.server.lock().expect("server lock") = Some(child);
@@ -319,6 +328,9 @@ fn on_server_line(app: &AppHandle, line: &[u8]) {
         }
         ServerEvent::Restart => app.request_restart(),
         ServerEvent::Login(request) => login::open(app, request),
+        ServerEvent::Updates { automatic } => set_automatic_updates(app, automatic),
+        ServerEvent::CheckUpdate => spawn_update_check(app, installs_by_itself(app), false),
+        ServerEvent::InstallUpdate => spawn_update_check(app, true, false),
     }
 }
 
@@ -327,11 +339,6 @@ pub(crate) fn tell_server(app: &AppHandle, message: &serde_json::Value) {
     if let Some(child) = app.state::<Shell>().server.lock().expect("server lock").as_mut() {
         let _ = child.write(format!("{message}\n").as_bytes());
     }
-}
-
-/// The stdin line telling the server an update waits (see DesktopChannel.ts).
-fn update_line(version: &str) -> String {
-    format!("{}\n", serde_json::json!({ "type": "update", "version": version }))
 }
 
 /// The server stopped without being asked: start it again, a few times at most.
@@ -467,13 +474,7 @@ fn build_tray(app: &AppHandle) -> AnyResult<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open" => show_window(app),
-            "check-update" => {
-                let handle = app.clone();
-
-                tauri::async_runtime::spawn(async move {
-                    report_update_check(&handle, check_for_update(&handle).await);
-                });
-            }
+            "check-update" => spawn_update_check(app, installs_by_itself(app), true),
             // Not `restart()`: from the menu it would skip RunEvent::Exit, and with it
             // stopping the server, so two would run for a moment.
             "restart" => app.request_restart(),
@@ -529,33 +530,124 @@ fn spawn_update_checks(app: AppHandle) {
         tokio::time::sleep(FIRST_UPDATE_CHECK).await;
 
         loop {
-            if let Err(error) = check_for_update(&app).await {
-                eprintln!("update check failed: {error}");
-            }
+            // A failure shows in Settings → Updates; the next hour tries again.
+            let _ = run_update_check(&app, installs_by_itself(&app)).await;
 
             tokio::time::sleep(UPDATE_EVERY).await;
         }
     });
 }
 
-enum UpdateCheck {
-    UpToDate,
-    Ready,
+/// A check asked for in Settings or the menu bar; the menu's answers come as notifications.
+fn spawn_update_check(app: &AppHandle, install: bool, notify: bool) {
+    let handle = app.clone();
+
+    tauri::async_runtime::spawn(async move {
+        let result = run_update_check(&handle, install).await;
+
+        if notify {
+            report_update_check(&handle, result);
+        }
+    });
 }
 
-/// Downloads and installs a newer version in the background; it takes effect on the
-/// next start ("Restart to Update").
-async fn check_for_update(app: &AppHandle) -> AnyResult<UpdateCheck> {
-    if app.state::<Shell>().waiting_update.lock().expect("update lock").is_some() {
+/// Only once the server has said so: until then a check finds, but installs nothing.
+fn installs_by_itself(app: &AppHandle) -> bool {
+    *app.state::<Shell>().automatic_updates.lock().expect("update lock") == Some(true)
+}
+
+fn set_automatic_updates(app: &AppHandle, automatic: bool) {
+    let shell = app.state::<Shell>();
+    let before = shell.automatic_updates.lock().expect("update lock").replace(automatic);
+
+    // Switched on in Settings: a newer version installs now rather than in an hour.
+    if automatic && before == Some(false) {
+        spawn_update_check(app, true, false);
+    }
+}
+
+enum UpdateCheck {
+    UpToDate,
+    /// Found but not installed: updates are not automatic.
+    Available(String),
+    /// Installed, waiting for a restart.
+    Ready,
+    /// Another check is running and reports for both.
+    Busy,
+}
+
+/// Checks for a newer version and, with `install`, downloads and installs it in the
+/// background; it takes effect on the next start ("Restart to Update"). Every step is
+/// reported to the window (Settings → Updates).
+async fn run_update_check(app: &AppHandle, install: bool) -> AnyResult<UpdateCheck> {
+    let shell = app.state::<Shell>();
+
+    if shell.waiting_update.lock().expect("update lock").is_some() {
         return Ok(UpdateCheck::Ready);
+    }
+
+    if shell.updating.swap(true, Ordering::SeqCst) {
+        return Ok(UpdateCheck::Busy);
+    }
+
+    report_update(app, "Checking", None, None);
+
+    let result = find_update(app, install).await;
+
+    shell.updating.store(false, Ordering::SeqCst);
+
+    match &result {
+        Ok(UpdateCheck::UpToDate) => report_update(app, "UpToDate", None, None),
+        Ok(UpdateCheck::Available(version)) => report_update(app, "Available", Some(version), None),
+        Ok(UpdateCheck::Ready | UpdateCheck::Busy) => {}
+        Err(error) => report_update(app, "Failed", None, Some(&error.to_string())),
+    }
+
+    result
+}
+
+async fn find_update(app: &AppHandle, install: bool) -> AnyResult<UpdateCheck> {
+    // A development build must never replace itself with a release.
+    if cfg!(debug_assertions) {
+        return pretend_update(app, install).await;
     }
 
     let Some(update) = app.updater()?.check().await? else {
         return Ok(UpdateCheck::UpToDate);
     };
 
+    if !install {
+        return Ok(UpdateCheck::Available(update.version));
+    }
+
+    report_update(app, "Installing", Some(&update.version), None);
     update.download_and_install(|_, _| {}, || {}).await?;
     update_installed(app, &update.version);
+
+    Ok(UpdateCheck::Ready)
+}
+
+/// A development build plays an update through with HUGINN_PRETEND_UPDATE=0.9.0, to try
+/// Settings → Updates and the strips ("fail" plays a check that fails); otherwise it is
+/// always up to date.
+async fn pretend_update(app: &AppHandle, install: bool) -> AnyResult<UpdateCheck> {
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let Ok(version) = std::env::var("HUGINN_PRETEND_UPDATE") else {
+        return Ok(UpdateCheck::UpToDate);
+    };
+
+    if version == "fail" {
+        return Err("pretended: the update server could not be reached".into());
+    }
+
+    if !install {
+        return Ok(UpdateCheck::Available(version));
+    }
+
+    report_update(app, "Installing", Some(&version), None);
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    update_installed(app, &version);
 
     Ok(UpdateCheck::Ready)
 }
@@ -571,7 +663,7 @@ fn update_installed(app: &AppHandle, version: &str) {
         let _ = item.set_enabled(true);
     }
 
-    tell_server(app, &serde_json::json!({ "type": "update", "version": version }));
+    report_update(app, "Ready", Some(version), None);
 
     let _ = app
         .notification()
@@ -581,11 +673,28 @@ fn update_installed(app: &AppHandle, version: &str) {
         .show();
 }
 
-/// Only for checks the user asked for; the hourly ones stay silent unless they find one.
+/// One `updateStatus` line on the server's stdin (see DesktopChannel.ts), kept for a
+/// server started again.
+fn report_update(app: &AppHandle, state: &str, version: Option<&str>, error: Option<&str>) {
+    let message = serde_json::json!({
+        "type": "updateStatus",
+        "state": state,
+        "version": version,
+        "error": error,
+    });
+
+    *app.state::<Shell>().update_status.lock().expect("update lock") = Some(message.clone());
+    tell_server(app, &message);
+}
+
+/// Only for checks asked for in the menu bar; the hourly ones show in Settings.
 fn report_update_check(app: &AppHandle, result: AnyResult<UpdateCheck>) {
     let body = match result {
         Ok(UpdateCheck::UpToDate) => "You have the latest version.".to_string(),
-        Ok(UpdateCheck::Ready) => return,
+        Ok(UpdateCheck::Available(version)) => {
+            format!("Huginn {version} is available: install it in Settings → Updates.")
+        }
+        Ok(UpdateCheck::Ready | UpdateCheck::Busy) => return,
         Err(error) => format!("Could not check for updates: {error}"),
     };
 

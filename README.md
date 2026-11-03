@@ -26,6 +26,8 @@ Macs, macOS 13 or newer.
 After that it starts at login, lives in the menu bar (with the number of Important
 items), and updates itself: it checks every hour, downloads a new version in the
 background, and a strip at the bottom of the window offers **Restart to update**.
+Settings → Updates shows the version, checks on demand, and can switch automatic
+updates off. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 ## What it does
 
@@ -77,8 +79,10 @@ The server on its own, in a browser: copy `.env.example` to `.env`, fill in the 
 `bun run dev` (restarts on change) and `bun run dev:web` (Vite on :5173). Run
 `bun run code:check && bun run test` before pushing (the pre-push hook does too).
 
-A release: `bun run release 1.2.3` tags the version; GitHub Actions builds the app, signs
-the update and publishes both. Installed copies pick it up within the hour.
+A release: note each change under *Unreleased* in [CHANGELOG.md](CHANGELOG.md); then
+`bun run release 1.2.3` names that section after the version and tags it, and GitHub
+Actions builds the app, signs the update and publishes both, with the section as the
+release notes. Installed copies pick it up within the hour.
 
 ## Documentation
 

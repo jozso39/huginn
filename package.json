@@ -27,7 +27,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"web/src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"web/src/**/*.{ts,tsx,css}\"",
     "code:check": "bun run lint && bun run format:check && bun run type-check",
-    "test": "bun test src web/src",
+    "test": "bun test src web/src scripts",
     "db:generate": "drizzle-kit generate",
     "prepare": "husky"
   },

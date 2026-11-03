@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type {
   AiKeyInfo,
   AiProvider,
+  AppInfo,
   Connection,
   ConnectionGroup,
   ConnectorDescriptor,
@@ -13,6 +14,7 @@ import { AiKeySection } from './AiKeySection';
 import { CategoriesManager } from './CategoriesManager';
 import { ConnectionsView } from './ConnectionsView';
 import { ReactionsPicker } from './ReactionsPicker';
+import { UpdatesSection } from './UpdatesSection';
 
 interface SettingsViewProps {
   connections: Connection[];
@@ -20,6 +22,8 @@ interface SettingsViewProps {
   groups: ConnectionGroup[];
   settings: Settings | null;
   ai: AiKeyInfo | null;
+  /** Null until the first load. */
+  app: AppInfo | null;
   /** Set (to when it was asked) by #settings/categories: open the list and show it. */
   categoriesRequest: number | null;
   onChanged: () => Promise<void>;
@@ -27,6 +31,7 @@ interface SettingsViewProps {
   saveSettings: (patch: Partial<Settings>) => Promise<void>;
   onSaveAiKey: (provider: AiProvider, key: string) => Promise<void>;
   onRemoveAiKey: () => Promise<void>;
+  onApp: (app: AppInfo) => void;
 }
 
 const THEMES: { id: Theme; label: string; hint: string }[] = [
@@ -35,19 +40,21 @@ const THEMES: { id: Theme; label: string; hint: string }[] = [
   { id: 'Dark', label: 'Dark', hint: 'Always dark' },
 ];
 
-/** Connections, their categories, quick reactions and the theme. */
+/** Connections, their categories, quick reactions, the theme, and Huginn's updates. */
 export const SettingsView = ({
   connections,
   kinds,
   groups,
   settings,
   ai,
+  app,
   categoriesRequest,
   onChanged,
   onCreateGroup,
   saveSettings,
   onSaveAiKey,
   onRemoveAiKey,
+  onApp,
 }: SettingsViewProps) => {
   const [themeError, setThemeError] = useState<string | null>(null);
   const categoriesRef = useRef<HTMLDetailsElement>(null);
@@ -127,6 +134,11 @@ export const SettingsView = ({
           ))}
         </div>
         {themeError && <p className="error">{themeError}</p>}
+      </section>
+
+      <section className="settings__section">
+        <h2>Updates</h2>
+        {app && <UpdatesSection app={app} onApp={onApp} />}
       </section>
     </div>
   );

@@ -1,4 +1,7 @@
 import { dirname, join, resolve } from 'node:path';
+// Not source code, so no @/ alias reaches it; Bun compiles it into the server binary.
+// eslint-disable-next-line no-restricted-imports
+import packageJson from '../../package.json';
 import { getCleanEnv } from './env';
 
 // From src/lib to the repository, for development runs; the Mac app passes its own paths.
@@ -43,6 +46,11 @@ export const createConfig = (secrets: ConfigSecrets = {}) => {
     desktop: {
       enabled: desktop,
       launchToken: secrets.launchToken ?? env.HUGINN_LAUNCH_TOKEN ?? null,
+    },
+    app: {
+      // Compiled into the server binary, so it is the version of the build that runs.
+      version: packageJson.version,
+      releasesUrl: 'https://github.com/jozso39/huginn/releases',
     },
     publicUrl: env.HUGINN_PUBLIC_URL?.replace(/\/$/, '') ?? null,
     oauthRelayUrl: env.HUGINN_OAUTH_RELAY_URL ?? null,
